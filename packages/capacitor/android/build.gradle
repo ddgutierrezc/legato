@@ -1,0 +1,30 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'io.legato.capacitor'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 24
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation project(':native:android:core')
+    // Capacitor sync includes :capacitor-android as a local Gradle project in the host app.
+    implementation project(':capacitor-android')
+    // Explicitly pinned for now to keep coroutine behavior stable in this monorepo.
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1'
+}

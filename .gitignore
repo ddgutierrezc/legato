@@ -20,3 +20,16 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+
+# Node / web build
+node_modules/
+dist/
+
+# Android / Gradle build outputs
+.gradle/
+build/
+**/build/
+
+# Android Studio
+*.iml
+.idea/

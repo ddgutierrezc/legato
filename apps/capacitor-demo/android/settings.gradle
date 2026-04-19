@@ -1,0 +1,10 @@
+include ':app'
+include ':capacitor-cordova-android-plugins'
+project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
+
+// Required by @legato/capacitor Android plugin:
+// packages/capacitor/android/build.gradle -> implementation project(':native:android:core')
+include ':native:android:core'
+project(':native:android:core').projectDir = new File('../../../native/android/core')
+
+apply from: 'capacitor.settings.gradle'
