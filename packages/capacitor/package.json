@@ -18,6 +18,7 @@
     "dist",
     "android",
     "ios",
+    "Package.swift",
     "README.md",
     "CapacitorLegato.podspec"
   ],

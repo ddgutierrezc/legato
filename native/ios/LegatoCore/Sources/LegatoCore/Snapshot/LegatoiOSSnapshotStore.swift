@@ -2,7 +2,7 @@ import Foundation
 
 public final class LegatoiOSSnapshotStore {
     private let lock = NSLock()
-    private var playbackSnapshot: LegatoiOSPlaybackSnapshot = Self.emptySnapshot
+    private var playbackSnapshot: LegatoiOSPlaybackSnapshot = LegatoiOSSnapshotStore.emptySnapshot
 
     public init() {}
 
