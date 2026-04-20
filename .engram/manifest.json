@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "chunks": [
+    {
+      "id": "2b8dae4d",
+      "created_by": "screi",
+      "created_at": "2026-04-20T00:17:46Z",
+      "sessions": 8,
+      "memories": 72,
+      "prompts": 33
+    }
+  ]
+}
