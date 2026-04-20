@@ -101,7 +101,7 @@ What this gives us now:
 
 What this does **not** give us yet:
 
-- Automatic `LegatoCore` wiring/linking into the iOS host
+- Automatic `CapacitorLegato` package wiring/linking into the iOS host
 - A completed iOS smoke run
 
 ## Native linking caveats (current seam status)
@@ -123,13 +123,8 @@ After creating the Android host, run `npm run cap:sync` (once `dist/` is buildab
 
 `packages/capacitor/ios/Sources/LegatoPlugin/*.swift` imports `LegatoCore`.
 
-The host iOS app must link/provide that module (for example via local Swift Package wiring to `native/ios/LegatoCore`). This is not auto-wired by default Capacitor sync.
-
-Also note the CLI warning during `cap add ios`:
-
-- `@legato/capacitor does not have a Package.swift`
-
-So Capacitor can detect the plugin class for registration, but **native dependency wiring for `LegatoCore` is still manual**.
+The host iOS app must manually add local package `packages/capacitor` and link product `CapacitorLegato`.
+`LegatoCore` then resolves transitively from the plugin package, so the host target should not keep a direct `LegatoCore` linkage.
 
 See `ios/README.md` for the minimal manual linking checklist before first iOS smoke.
 
@@ -139,10 +134,11 @@ See `ios/README.md` for the minimal manual linking checklist before first iOS sm
 2. Run `npm run cap:sync` after web asset changes.
 3. Open Xcode project (`npm run cap:open:ios`).
 4. Manually add local Swift package:
-   - `native/ios/LegatoCore` (from `ios/App` this is `../../../../native/ios/LegatoCore`).
-5. Link `LegatoCore` product to the `App` target.
-6. Build/run on simulator/device and trigger **Run minimal flow**.
-7. Capture either:
+   - `packages/capacitor` (from `ios/App` this is `../../../../packages/capacitor`).
+5. Link `CapacitorLegato` product to the `App` target.
+6. Ensure there is no direct `LegatoCore` product linked to target `App`.
+7. Build/run on simulator/device and trigger **Run minimal flow**.
+8. Capture either:
    - successful `setup/add/play/pause/getSnapshot` smoke logs, or
    - concrete compile/runtime error for next iteration.
 

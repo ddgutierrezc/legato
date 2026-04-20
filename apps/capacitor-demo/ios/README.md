@@ -14,16 +14,17 @@ npx cap add ios
 
 ## Manual wiring still required (critical)
 
-`@legato/capacitor` iOS plugin imports `LegatoCore`, but this host is **not auto-linked** to `native/ios/LegatoCore` by default Capacitor sync.
+`@legato/capacitor` now provides a Swift package manifest, but this host still needs an explicit Xcode package link for the plugin package.
 
 Before the first real iOS smoke attempt, do this in Xcode:
 
 1. Open `ios/App/App.xcodeproj`.
 2. Add local package dependency pointing to:
-   - `../../../../native/ios/LegatoCore` (relative to `ios/App`), or equivalent absolute path.
-3. Ensure product `LegatoCore` is linked to target `App` (Frameworks/Libraries).
+   - `../../../../packages/capacitor` (relative to `ios/App`), or equivalent absolute path.
+3. Ensure product `CapacitorLegato` is linked to target `App` (Frameworks/Libraries).
+4. If present, remove direct `LegatoCore` target linkage; `LegatoCore` is transitive through `CapacitorLegato`.
 
 ## Notes
 
-- During scaffold generation, Capacitor warned: `@legato/capacitor does not have a Package.swift`.
-- Treat current state as **host prep complete, smoke pending manual LegatoCore linking**.
+- Capacitor CLI-managed SPM package (`CapApp-SPM`) remains as generated; the plugin package link is an additional local dependency in the Xcode project.
+- Treat current state as **host prep complete with plugin-package wiring via `CapacitorLegato`**.

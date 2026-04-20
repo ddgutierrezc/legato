@@ -9,4 +9,4 @@ La metáfora es perfecta: en música, legato significa tocar notas de forma suav
 
 - 2026-04-19: first successful **Android Capacitor smoke** in a real host app for `@legato/capacitor` minimal flow.
   - See: `specs/milestones/2026-04-19-android-capacitor-smoke.md`
-- 2026-04-19: generated **iOS Capacitor host scaffold** for `apps/capacitor-demo` (prep-only, manual `LegatoCore` linking still required before first smoke).
+- 2026-04-19: generated **iOS Capacitor host scaffold** for `apps/capacitor-demo` with local SPM plugin wiring via `CapacitorLegato` (no direct host `LegatoCore` link required).

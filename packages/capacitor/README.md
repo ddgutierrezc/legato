@@ -24,3 +24,13 @@ It also exports typed event helpers aligned with `@legato/contract`, and `create
 - Package exports currently point to `src/` for local monorepo/demo consumption (no `dist/` build required for wiring).
 - `@legato/contract` is a peer dependency and should be installed by host apps.
 - This package is currently optimized for in-repo integration, not publish-ready distribution workflows.
+
+## iOS Swift Package Manager integration
+
+This package now includes a root `Package.swift` for Capacitor iOS SPM hosts.
+
+- Package product: `CapacitorLegato`
+- Plugin target: `LegatoPlugin`
+- Transitive native dependency: `LegatoCore` (resolved from `../../native/ios/LegatoCore` for local monorepo usage)
+
+When adding this package to an iOS host app in Xcode, link product `CapacitorLegato` to the app target.
