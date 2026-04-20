@@ -12,7 +12,16 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
     private let remoteCommandManager: LegatoiOSRemoteCommandManager
     private let playbackRuntime: LegatoiOSPlaybackRuntime
 
+    private struct ProgressEmissionToken: Equatable {
+        let trackId: String?
+        let currentIndex: Int?
+        let positionMs: Int64
+        let durationMs: Int64?
+        let bufferedPositionMs: Int64?
+    }
+
     private var isSetup = false
+    private var lastProgressEmission: ProgressEmissionToken?
 
     public init(
         queueManager: LegatoiOSQueueManager,
@@ -74,7 +83,9 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
 
             snapshotStore.replacePlaybackSnapshot(snapshot)
             publishQueueAndTrack(snapshot)
-            publishState(snapshot.state)
+            if loadingState != currentState {
+                publishState(snapshot.state)
+            }
             publishMetadata(snapshot.currentTrack)
             publishProgress(snapshot)
             refreshSnapshotFromRuntime(publishProgressEvent: true)
@@ -181,6 +192,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
         nowPlayingManager.clear()
         sessionManager.releaseSession()
         isSetup = false
+        lastProgressEmission = nil
     }
 
     public func playbackRuntimeDidUpdateProgress(_ snapshot: LegatoiOSRuntimeSnapshot) {
@@ -256,6 +268,20 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
     }
 
     private func publishProgress(_ snapshot: LegatoiOSPlaybackSnapshot) {
+        let emissionToken = ProgressEmissionToken(
+            trackId: snapshot.currentTrack?.id,
+            currentIndex: snapshot.currentIndex,
+            positionMs: snapshot.positionMs,
+            durationMs: snapshot.durationMs,
+            bufferedPositionMs: snapshot.bufferedPositionMs
+        )
+
+        guard emissionToken != lastProgressEmission else {
+            return
+        }
+
+        lastProgressEmission = emissionToken
+
         let progress = LegatoiOSProgressUpdate(
             positionMs: snapshot.positionMs,
             durationMs: snapshot.durationMs,
