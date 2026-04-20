@@ -24,6 +24,7 @@ TestResults.xml
 # Node / web build
 node_modules/
 dist/
+.atl/
 
 # Android / Gradle build outputs
 .gradle/
