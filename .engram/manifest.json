@@ -8,6 +8,14 @@
       "sessions": 8,
       "memories": 72,
       "prompts": 33
+    },
+    {
+      "id": "cd18c133",
+      "created_by": "davidgutierrez",
+      "created_at": "2026-04-20T03:11:44Z",
+      "sessions": 2,
+      "memories": 10,
+      "prompts": 17
     }
   ]
 }
