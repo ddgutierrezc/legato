@@ -101,8 +101,8 @@ What this gives us now:
 
 What this does **not** give us yet:
 
-- Automatic `CapacitorLegato` package wiring/linking into the iOS host
-- A completed iOS smoke run
+- Verified iOS smoke execution end-to-end
+- Captured iOS smoke logs/evidence for setup/add/play/pause/getSnapshot
 
 ## Native linking caveats (current seam status)
 
@@ -123,22 +123,21 @@ After creating the Android host, run `npm run cap:sync` (once `dist/` is buildab
 
 `packages/capacitor/ios/Sources/LegatoPlugin/*.swift` imports `LegatoCore`.
 
-The host iOS app must manually add local package `packages/capacitor` and link product `CapacitorLegato`.
-`LegatoCore` then resolves transitively from the plugin package, so the host target should not keep a direct `LegatoCore` linkage.
+The host iOS app should rely on Capacitor-generated `CapApp-SPM` integration (which includes local `@legato/capacitor`).
+The plugin package product name expected by generated SPM integration is `CapacitorLegato`, and `LegatoCore` resolves transitively from that plugin package.
+The host target should not keep a duplicate manual local package reference or direct `LegatoCore` linkage.
 
-See `ios/README.md` for the minimal manual linking checklist before first iOS smoke.
+See `ios/README.md` for the minimal iOS package-integration checklist before first iOS smoke.
 
 ## Future iOS smoke path (first attempt)
 
 1. Ensure iOS host exists (`npm run cap:add:ios`, already done once in repo).
 2. Run `npm run cap:sync` after web asset changes.
 3. Open Xcode project (`npm run cap:open:ios`).
-4. Manually add local Swift package:
-   - `packages/capacitor` (from `ios/App` this is `../../../../packages/capacitor`).
-5. Link `CapacitorLegato` product to the `App` target.
-6. Ensure there is no direct `LegatoCore` product linked to target `App`.
-7. Build/run on simulator/device and trigger **Run minimal flow**.
-8. Capture either:
+4. Ensure `CapApp-SPM` remains the only package wiring for plugin integration in the host target.
+5. Ensure there is no duplicate manual package reference to `packages/capacitor` and no direct `LegatoCore` product linked to target `App`.
+6. Build/run on simulator/device and trigger **Run minimal flow**.
+7. Capture either:
    - successful `setup/add/play/pause/getSnapshot` smoke logs, or
    - concrete compile/runtime error for next iteration.
 

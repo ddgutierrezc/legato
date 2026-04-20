@@ -22,7 +22,7 @@ public struct LegatoiOSCoreDependencies {
         sessionManager: LegatoiOSSessionManager = LegatoiOSSessionManager(),
         nowPlayingManager: LegatoiOSNowPlayingManager = LegatoiOSNowPlayingManager(),
         remoteCommandManager: LegatoiOSRemoteCommandManager = LegatoiOSRemoteCommandManager(),
-        playbackRuntime: LegatoiOSPlaybackRuntime = LegatoiOSNoopPlaybackRuntime()
+        playbackRuntime: LegatoiOSPlaybackRuntime = LegatoiOSAVPlayerPlaybackRuntime()
     ) {
         self.queueManager = queueManager
         self.eventEmitter = eventEmitter

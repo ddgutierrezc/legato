@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 
 /// Runtime seam for AVPlayer-backed integration.
@@ -58,7 +59,7 @@ public struct LegatoiOSRuntimeSnapshot {
     }
 }
 
-/// Minimal in-memory runtime until AVPlayer wiring is introduced.
+/// Minimal in-memory fallback runtime.
 ///
 /// This intentionally does not play audio. It only keeps deterministic runtime-facing state.
 public final class LegatoiOSNoopPlaybackRuntime: LegatoiOSPlaybackRuntime {
@@ -118,5 +119,177 @@ public final class LegatoiOSNoopPlaybackRuntime: LegatoiOSPlaybackRuntime {
         currentIndex = nil
         trackCount = 0
         progress = LegatoiOSRuntimeProgress(positionMs: 0, durationMs: nil, bufferedPositionMs: 0)
+    }
+}
+
+/// AVPlayer-backed runtime for foreground audible playback.
+///
+/// This adapter intentionally keeps scope minimal for MVP:
+/// - single active AVPlayerItem selected by index
+/// - no background playback behavior
+/// - no interruptions/remote command orchestration
+public final class LegatoiOSAVPlayerPlaybackRuntime: LegatoiOSPlaybackRuntime {
+    private let player: AVPlayer
+    private var trackSources: [LegatoiOSRuntimeTrackSource] = []
+    private var currentIndex: Int?
+
+    public init(player: AVPlayer = AVPlayer()) {
+        self.player = player
+    }
+
+    public func configure() {
+        // Runtime initialization is completed at init time.
+    }
+
+    public func replaceQueue(items: [LegatoiOSRuntimeTrackSource], startIndex: Int?) throws {
+        trackSources = items
+
+        guard !items.isEmpty else {
+            currentIndex = nil
+            player.replaceCurrentItem(with: nil)
+            return
+        }
+
+        let nextIndex: Int
+        if let startIndex, items.indices.contains(startIndex) {
+            nextIndex = startIndex
+        } else {
+            nextIndex = 0
+        }
+
+        try loadItem(at: nextIndex)
+    }
+
+    public func selectIndex(_ index: Int) throws {
+        guard trackSources.indices.contains(index) else {
+            return
+        }
+
+        try loadItem(at: index)
+    }
+
+    public func play() throws {
+        guard player.currentItem != nil else {
+            throw LegatoiOSError(code: .playbackFailed, message: "No active AVPlayer item to play")
+        }
+        player.play()
+    }
+
+    public func pause() throws {
+        player.pause()
+    }
+
+    public func stop(resetPosition: Bool) throws {
+        player.pause()
+        guard resetPosition else {
+            return
+        }
+
+        player.seek(to: .zero)
+    }
+
+    public func seek(to positionMs: Int64) throws {
+        let clamped = max(0, positionMs)
+        let seconds = Double(clamped) / 1000
+        let target = CMTime(seconds: seconds, preferredTimescale: 1000)
+        player.seek(to: target)
+    }
+
+    public func snapshot() -> LegatoiOSRuntimeSnapshot {
+        let item = player.currentItem
+        let duration = durationMs(for: item)
+        let bufferedPosition = bufferedPositionMs(for: item)
+        let position = positionMs(for: item)
+
+        return LegatoiOSRuntimeSnapshot(
+            stateHint: stateHint(),
+            currentIndex: currentIndex,
+            progress: LegatoiOSRuntimeProgress(
+                positionMs: position,
+                durationMs: duration,
+                bufferedPositionMs: bufferedPosition
+            )
+        )
+    }
+
+    public func release() {
+        player.pause()
+        player.replaceCurrentItem(with: nil)
+        trackSources = []
+        currentIndex = nil
+    }
+
+    private func loadItem(at index: Int) throws {
+        guard trackSources.indices.contains(index) else {
+            throw LegatoiOSError(code: .invalidIndex, message: "Requested runtime index is out of bounds")
+        }
+
+        let source = trackSources[index]
+        guard let url = URL(string: source.url), url.scheme != nil else {
+            throw LegatoiOSError(code: .invalidURL, message: "Track URL is invalid: \(source.url)")
+        }
+
+        // Keep the audible-playback MVP on public AVFoundation APIs only.
+        // Demo smoke URLs currently do not require custom headers.
+        let asset = AVURLAsset(url: url)
+        let item = AVPlayerItem(asset: asset)
+
+        player.replaceCurrentItem(with: item)
+        currentIndex = index
+    }
+
+    private func stateHint() -> LegatoiOSPlaybackState? {
+        guard player.currentItem != nil else {
+            return .idle
+        }
+
+        if player.timeControlStatus == .playing {
+            return .playing
+        }
+
+        if player.timeControlStatus == .waitingToPlayAtSpecifiedRate {
+            return .buffering
+        }
+
+        return .paused
+    }
+
+    private func positionMs(for item: AVPlayerItem?) -> Int64 {
+        guard item != nil else {
+            return 0
+        }
+
+        return milliseconds(from: player.currentTime()) ?? 0
+    }
+
+    private func durationMs(for item: AVPlayerItem?) -> Int64? {
+        guard let item else {
+            return nil
+        }
+
+        return milliseconds(from: item.duration)
+    }
+
+    private func bufferedPositionMs(for item: AVPlayerItem?) -> Int64? {
+        guard let item,
+              let loaded = item.loadedTimeRanges.first?.timeRangeValue
+        else {
+            return nil
+        }
+
+        return milliseconds(from: CMTimeAdd(loaded.start, loaded.duration))
+    }
+
+    private func milliseconds(from time: CMTime) -> Int64? {
+        guard time.isValid else {
+            return nil
+        }
+
+        let seconds = CMTimeGetSeconds(time)
+        guard seconds.isFinite, !seconds.isNaN else {
+            return nil
+        }
+
+        return Int64(max(0, seconds * 1000))
     }
 }
