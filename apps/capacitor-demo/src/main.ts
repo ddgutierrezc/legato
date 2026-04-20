@@ -2,41 +2,62 @@ import { Capacitor } from '@capacitor/core';
 import { Legato, createLegatoSync, type Track } from '@legato/capacitor';
 
 const button = document.querySelector<HTMLButtonElement>('#run-demo');
-const logNode = document.querySelector<HTMLPreElement>('#log');
+const copyButton = document.querySelector<HTMLButtonElement>('#copy-log');
+const logNode = document.querySelector<HTMLTextAreaElement>('#log');
 
-if (!button || !logNode) {
+if (!button || !copyButton || !logNode) {
   throw new Error('Demo UI nodes are missing');
 }
 
 const log = (message: string, payload?: unknown) => {
   const line = payload === undefined ? message : `${message} ${JSON.stringify(payload, null, 2)}`;
-  logNode.textContent = `${logNode.textContent}${line}\n`;
+  logNode.value = `${logNode.value}${line}\n`;
+  logNode.scrollTop = logNode.scrollHeight;
+};
+
+const copyLog = async () => {
+  const text = logNode.value.trim();
+
+  if (!text) {
+    log('No log output to copy yet.');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(logNode.value);
+    log('Copied log to clipboard.');
+  } catch {
+    logNode.focus();
+    logNode.select();
+    log('Clipboard API unavailable. Log text selected — press Cmd/Ctrl+C.');
+  }
 };
 
 const platform = Capacitor.getPlatform();
 const isNative = Capacitor.isNativePlatform();
+const playbackSmokeDelayMs = 1500;
 
 const demoTracks: Track[] = [
   {
     id: 'track-demo-1',
-    url: 'https://example.com/audio/track-1.mp3',
-    title: 'Demo Track 1',
-    artist: 'Legato',
-    duration: 120000,
+    url: 'https://samplelib.com/lib/preview/mp3/sample-3s.mp3',
+    title: 'Demo Track 1 (3s sample)',
+    artist: 'Samplelib',
+    duration: 3000,
     type: 'progressive',
   },
   {
     id: 'track-demo-2',
-    url: 'https://example.com/audio/track-2.mp3',
-    title: 'Demo Track 2',
-    artist: 'Legato',
-    duration: 180000,
+    url: 'https://samplelib.com/lib/preview/mp3/sample-6s.mp3',
+    title: 'Demo Track 2 (6s sample)',
+    artist: 'Samplelib',
+    duration: 6000,
     type: 'progressive',
   },
 ];
 
 const runMinimalFlow = async () => {
-  logNode.textContent = '';
+  logNode.value = '';
   log('Starting Legato minimal flow...');
   log('platform:', platform);
   log('isNativePlatform:', isNative);
@@ -64,6 +85,9 @@ const runMinimalFlow = async () => {
     await Legato.play();
     log('play() ok');
 
+    log(`waiting ${playbackSmokeDelayMs}ms before pause() to validate audible playback...`);
+    await new Promise((resolve) => setTimeout(resolve, playbackSmokeDelayMs));
+
     await Legato.pause();
     log('pause() ok');
 
@@ -79,6 +103,10 @@ const runMinimalFlow = async () => {
 
 button.addEventListener('click', () => {
   void runMinimalFlow();
+});
+
+copyButton.addEventListener('click', () => {
+  void copyLog();
 });
 
 if (!isNative) {

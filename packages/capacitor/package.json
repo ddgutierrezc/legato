@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "description": "Capacitor binding MVP for Legato.",
+  "author": "Legato",
+  "homepage": "https://github.com/legato/legato",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/legato/legato.git",
+    "directory": "packages/capacitor"
+  },
   "license": "MIT",
   "type": "module",
   "main": "./src/index.ts",

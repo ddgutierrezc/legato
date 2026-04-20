@@ -29,8 +29,13 @@ It also exports typed event helpers aligned with `@legato/contract`, and `create
 
 This package now includes a root `Package.swift` for Capacitor iOS SPM hosts.
 
-- Package product: `CapacitorLegato`
+- Package name/product: `CapacitorLegato`
 - Plugin target: `LegatoPlugin`
-- Transitive native dependency: `LegatoCore` (resolved from `../../native/ios/LegatoCore` for local monorepo usage)
+- Transitive native dependency: `LegatoCore` (resolved via relative local-monorepo path in `Package.swift`)
 
-When adding this package to an iOS host app in Xcode, link product `CapacitorLegato` to the app target.
+When this package is consumed by Capacitor-generated iOS SPM integration, the expected product name is `CapacitorLegato`.
+
+To keep iOS SPM integration clean and compatible with `npx cap sync ios` generated files:
+
+- Do not modify `ios/App/CapApp-SPM` generated sources/packages.
+- The plugin package itself provides the standard Capacitor SPM linkage shape (`Capacitor` + `Cordova`) through the `CapacitorLegato` product so `npx cap sync ios` generated wiring can remain the source of truth.

@@ -59,13 +59,15 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
             let tracks = rawTracks.compactMap { $0 as? [String: Any] }.map(LegatoCapacitorMapper.track)
             let mappedTracks = try core.trackMapper.mapContractTracks(tracks)
 
-            let queueSnapshot: LegatoiOSQueueSnapshot
             if let startIndex = call.getInt("startIndex") {
                 let mergedItems = core.queueManager.getQueueSnapshot().items + mappedTracks
-                queueSnapshot = try core.queueManager.replaceQueue(mergedItems, startIndex: startIndex)
-            } else {
-                queueSnapshot = core.queueManager.addToQueue(mappedTracks)
+                try core.playerEngine.load(tracks: mergedItems, startIndex: startIndex)
+                let snapshot = core.playerEngine.snapshot()
+                call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(snapshot)])
+                return
             }
+
+            let queueSnapshot = core.queueManager.addToQueue(mappedTracks)
 
             let previous = core.snapshotStore.getPlaybackSnapshot()
             let next = snapshotWithQueue(previous: previous, queue: queueSnapshot)
