@@ -36,6 +36,30 @@ Validate native bridge + snapshot/event plumbing for the minimal flow in `src/ma
 
 This is a **native smoke** (Android/iOS host), not a browser-only check.
 
+## Android parity v1 validation
+
+Harness now supports both one-click smoke and manual controls for:
+
+- `setup`, `sync.start`, `sync.stop`
+- `add`, `play`, `pause`, `stop`, `seekTo`, `getSnapshot`
+- copy-friendly recent events + raw log + snapshot summary/json
+
+Use direct samplelib MP3 URLs from the default fixtures (no redirect links) to keep playback behavior deterministic during native checks.
+
+Before opening Android Studio/Xcode after harness changes, ALWAYS refresh native hosts:
+
+```bash
+npm run build
+npm run cap:sync
+```
+
+Manual parity checklist to close milestone validation:
+
+1. Background continuity: playback keeps running with app backgrounded and foreground notification remains active.
+2. Focus loss pauses playback.
+3. Focus regain does not auto-resume (explicit play required).
+4. `stop()` + idle tears down foreground service/notification.
+
 ## Quick smoke checklist (manual, lightweight)
 
 > Commands below are from `apps/capacitor-demo`.

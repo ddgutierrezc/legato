@@ -20,6 +20,10 @@ class LegatoAndroidSessionManager(
         runtime.onInterruption(signal)
     }
 
+    fun setInterruptionListener(listener: ((LegatoAndroidInterruptionSignal) -> Unit)?) {
+        runtime.setInterruptionListener(listener)
+    }
+
     fun updatePlaybackState(state: LegatoAndroidPlaybackState) {
         runtime.updatePlaybackState(state)
     }

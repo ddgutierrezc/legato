@@ -11,6 +11,17 @@ enum class LegatoAndroidPlaybackState(val wireValue: String) {
     ERROR("error"),
 }
 
+enum class LegatoAndroidPauseOrigin {
+    USER,
+    INTERRUPTION,
+}
+
+enum class LegatoAndroidServiceMode {
+    OFF,
+    PLAYBACK_ACTIVE,
+    RESUME_PENDING_INTERRUPTION,
+}
+
 enum class LegatoAndroidTrackType(val wireValue: String) {
     FILE("file"),
     PROGRESSIVE("progressive"),

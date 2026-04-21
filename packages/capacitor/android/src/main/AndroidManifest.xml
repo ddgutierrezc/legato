@@ -6,7 +6,9 @@
     <application>
         <service
             android:name="io.legato.capacitor.LegatoPlaybackService"
+            android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="mediaPlayback"
+            android:stopWithTask="false" />
     </application>
 </manifest>
