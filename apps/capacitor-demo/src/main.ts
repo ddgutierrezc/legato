@@ -94,7 +94,7 @@ const demoTracks: Track[] = [
     artist: 'Samplelib',
     album: 'Legato Remote Parity Fixtures',
     artwork: 'https://samplelib.com/lib/preview/png/sample-bumblebee-400x300.png',
-    duration: 3000,
+    duration: 3239,
     type: 'progressive',
   },
   {
@@ -104,7 +104,7 @@ const demoTracks: Track[] = [
     artist: 'Samplelib',
     album: 'Legato Remote Parity Fixtures',
     artwork: 'https://samplelib.com/lib/preview/png/sample-bumblebee-400x300.png',
-    duration: 6000,
+    duration: 6426,
     type: 'progressive',
   },
 ];
