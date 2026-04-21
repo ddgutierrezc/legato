@@ -365,6 +365,10 @@ class LegatoAndroidPlayerEngine(
         }
 
         override fun onBuffering(isBuffering: Boolean) {
+            if (snapshotStore.getPlaybackSnapshot().state == LegatoAndroidPlaybackState.ENDED) {
+                return
+            }
+
             val input = if (isBuffering) {
                 LegatoAndroidStateMachine.LegatoAndroidStateInput.BUFFERING_STARTED
             } else {

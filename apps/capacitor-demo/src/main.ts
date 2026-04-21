@@ -1,5 +1,11 @@
 import { Capacitor } from '@capacitor/core';
 import { Legato, createLegatoSync, type PlaybackSnapshot, type Track } from '@legato/capacitor';
+import {
+  createInitialSmokeVerdict,
+  reduceSmokeVerdict,
+  summarizeSmokeVerdict,
+  type SmokeFlow,
+} from './smoke-verdict.js';
 
 type LegatoSyncController = ReturnType<typeof createLegatoSync>;
 
@@ -21,6 +27,9 @@ const seekButton = document.querySelector<HTMLButtonElement>('#action-seek');
 const snapshotButton = document.querySelector<HTMLButtonElement>('#action-snapshot');
 const seekInput = document.querySelector<HTMLInputElement>('#seek-ms');
 const envStatusNode = document.querySelector<HTMLDivElement>('#env-status');
+const verdictStatusNode = document.querySelector<HTMLDivElement>('#verdict-status');
+const verdictSummaryNode = document.querySelector<HTMLPreElement>('#verdict-summary');
+const verdictChecksNode = document.querySelector<HTMLUListElement>('#verdict-checks');
 const logNode = document.querySelector<HTMLTextAreaElement>('#log');
 const eventsNode = document.querySelector<HTMLTextAreaElement>('#events');
 const snapshotSummaryNode = document.querySelector<HTMLPreElement>('#snapshot-summary');
@@ -47,6 +56,9 @@ if (
   || !snapshotButton
   || !seekInput
   || !envStatusNode
+  || !verdictStatusNode
+  || !verdictSummaryNode
+  || !verdictChecksNode
   || !logNode
   || !eventsNode
   || !snapshotSummaryNode
@@ -70,6 +82,8 @@ let syncController: LegatoSyncController | null = null;
 let latestSnapshot: PlaybackSnapshot | null = null;
 let recentEvents: string[] = [];
 let recentProgressSamples: Array<{ state: string; positionMs: number }> = [];
+let smokeVerdict = createInitialSmokeVerdict();
+let activeSmokeFlow: SmokeFlow | null = null;
 const observedSyncEvents = new Set<string>();
 
 const demoTracks: Track[] = [
@@ -80,7 +94,7 @@ const demoTracks: Track[] = [
     artist: 'Samplelib',
     album: 'Legato Remote Parity Fixtures',
     artwork: 'https://samplelib.com/lib/preview/png/sample-bumblebee-400x300.png',
-    duration: 3239,
+    duration: 3000,
     type: 'progressive',
   },
   {
@@ -90,7 +104,7 @@ const demoTracks: Track[] = [
     artist: 'Samplelib',
     album: 'Legato Remote Parity Fixtures',
     artwork: 'https://samplelib.com/lib/preview/png/sample-bumblebee-400x300.png',
-    duration: 6426,
+    duration: 6000,
     type: 'progressive',
   },
 ];
@@ -341,6 +355,38 @@ const renderRecentEvents = (): void => {
   eventsNode.scrollTop = eventsNode.scrollHeight;
 };
 
+const renderSmokeVerdict = (): void => {
+  verdictStatusNode.textContent = `Smoke verdict: ${smokeVerdict.status}`;
+  verdictStatusNode.dataset.status = smokeVerdict.status;
+  verdictSummaryNode.textContent = summarizeSmokeVerdict(smokeVerdict);
+  verdictChecksNode.innerHTML = '';
+
+  smokeVerdict.checks.forEach((check) => {
+    const item = document.createElement('li');
+    const icon = check.ok ? '✅' : '❌';
+    item.textContent = `${icon} ${check.label} — ${check.detail}`;
+    verdictChecksNode.appendChild(item);
+  });
+};
+
+const startSmokeVerdict = (flow: SmokeFlow): void => {
+  activeSmokeFlow = flow;
+  smokeVerdict = reduceSmokeVerdict(smokeVerdict, { type: 'start', flow });
+  renderSmokeVerdict();
+};
+
+const completeSmokeVerdict = (): void => {
+  smokeVerdict = reduceSmokeVerdict(smokeVerdict, { type: 'complete' });
+  activeSmokeFlow = null;
+  renderSmokeVerdict();
+};
+
+const failSmokeVerdict = (errorSummary: string): void => {
+  smokeVerdict = reduceSmokeVerdict(smokeVerdict, { type: 'error', message: errorSummary });
+  activeSmokeFlow = null;
+  renderSmokeVerdict();
+};
+
 const addRecentEvent = (message: string): void => {
   const prefix = `[${new Date().toLocaleTimeString()}]`;
   recentEvents = [...recentEvents.slice(-recentEventsLimit + 1), `${prefix} ${message}`];
@@ -355,6 +401,11 @@ const updateSnapshotViews = (snapshot: PlaybackSnapshot): void => {
   snapshotJsonNode.value = JSON.stringify(snapshot, null, 2);
   updateParityInspector(snapshot);
   addRecentEvent(`snapshot summary ${summarizeSnapshot(snapshot)}`);
+
+  if (activeSmokeFlow) {
+    smokeVerdict = reduceSmokeVerdict(smokeVerdict, { type: 'snapshot', snapshot });
+    renderSmokeVerdict();
+  }
 };
 
 const setRunning = (running: boolean): void => {
@@ -373,6 +424,9 @@ const runNativeAction = async (name: string, action: () => Promise<void>): Promi
   } catch (error) {
     log(`${name} failed:`, error);
     addRecentEvent(`${name} failed ${summarizePayload(error)}`);
+    if (activeSmokeFlow) {
+      failSmokeVerdict(summarizePayload(error));
+    }
   } finally {
     setRunning(false);
   }
@@ -491,6 +545,7 @@ const clearFlows = (): void => {
 };
 
 const runSmokeFlow = async (): Promise<void> => {
+  startSmokeVerdict('smoke');
   clearFlows();
   log('Starting Legato smoke flow...');
   log('platform:', platform);
@@ -507,9 +562,11 @@ const runSmokeFlow = async (): Promise<void> => {
 
   await pauseAction();
   await snapshotAction();
+  completeSmokeVerdict();
 };
 
 const runLetItEndSmokeFlow = async (): Promise<void> => {
+  startSmokeVerdict('let-end');
   clearFlows();
   log('Starting Legato let-it-end flow...');
   log('platform:', platform);
@@ -524,9 +581,11 @@ const runLetItEndSmokeFlow = async (): Promise<void> => {
 
   await new Promise((resolve) => setTimeout(resolve, endSmokeDelayMs));
   await snapshotAction();
+  completeSmokeVerdict();
 };
 
 const runBoundarySmokeFlow = async (): Promise<void> => {
+  startSmokeVerdict('boundary');
   clearFlows();
   log('Starting Legato boundary smoke flow...');
   log('platform:', platform);
@@ -546,6 +605,7 @@ const runBoundarySmokeFlow = async (): Promise<void> => {
 
   await nextAction();
   await snapshotAction();
+  completeSmokeVerdict();
 };
 
 envStatusNode.textContent = `platform=${platform} | native=${isNative}`;
@@ -630,3 +690,5 @@ if (latestSnapshot == null) {
   capabilitySummaryNode.textContent = 'No capability projection yet.';
   paritySummaryNode.textContent = 'No parity signals yet.';
 }
+
+renderSmokeVerdict();
