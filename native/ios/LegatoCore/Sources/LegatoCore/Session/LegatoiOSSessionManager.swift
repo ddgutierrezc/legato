@@ -1,10 +1,17 @@
 import Foundation
 
 public final class LegatoiOSSessionManager {
-    private let runtime: LegatoiOSSessionRuntime
+    public typealias SignalListener = (LegatoiOSSessionSignal) -> Void
 
-    public init(runtime: LegatoiOSSessionRuntime = LegatoiOSNoopSessionRuntime()) {
+    private let lock = NSLock()
+    private let runtime: LegatoiOSSessionRuntime
+    private var listeners: [UUID: SignalListener] = [:]
+
+    public init(runtime: LegatoiOSSessionRuntime = LegatoiOSAVAudioSessionRuntime()) {
         self.runtime = runtime
+        self.runtime.onSignal = { [weak self] signal in
+            self?.publish(signal)
+        }
     }
 
     public func configureSession() {
@@ -17,5 +24,31 @@ public final class LegatoiOSSessionManager {
 
     public func releaseSession() {
         runtime.releaseSession()
+    }
+
+    @discardableResult
+    public func addSignalListener(_ listener: @escaping SignalListener) -> UUID {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let id = UUID()
+        listeners[id] = listener
+        return id
+    }
+
+    public func removeSignalListener(_ id: UUID) {
+        lock.lock()
+        defer { lock.unlock() }
+        listeners[id] = nil
+    }
+
+    private func publish(_ signal: LegatoiOSSessionSignal) {
+        lock.lock()
+        let snapshot = listeners.values
+        lock.unlock()
+
+        for listener in snapshot {
+            listener(signal)
+        }
     }
 }
