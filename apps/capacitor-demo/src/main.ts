@@ -21,6 +21,7 @@ const envStatusNode = document.querySelector<HTMLDivElement>('#env-status');
 const logNode = document.querySelector<HTMLTextAreaElement>('#log');
 const eventsNode = document.querySelector<HTMLTextAreaElement>('#events');
 const snapshotSummaryNode = document.querySelector<HTMLPreElement>('#snapshot-summary');
+const paritySummaryNode = document.querySelector<HTMLPreElement>('#parity-summary');
 const snapshotJsonNode = document.querySelector<HTMLTextAreaElement>('#snapshot-json');
 
 if (
@@ -42,6 +43,7 @@ if (
   || !logNode
   || !eventsNode
   || !snapshotSummaryNode
+  || !paritySummaryNode
   || !snapshotJsonNode
 ) {
   throw new Error('Demo UI nodes are missing');
@@ -51,6 +53,7 @@ const nativeActionButtons = Array.from(document.querySelectorAll<HTMLButtonEleme
 const playbackSmokeDelayMs = 1500;
 const endSmokeDelayMs = 6500;
 const recentEventsLimit = 24;
+const progressSamplesLimit = 8;
 
 const platform = Capacitor.getPlatform();
 const isNative = Capacitor.isNativePlatform();
@@ -58,6 +61,8 @@ const isNative = Capacitor.isNativePlatform();
 let syncController: LegatoSyncController | null = null;
 let latestSnapshot: PlaybackSnapshot | null = null;
 let recentEvents: string[] = [];
+let recentProgressSamples: Array<{ state: string; positionMs: number }> = [];
+const observedSyncEvents = new Set<string>();
 
 const demoTracks: Track[] = [
   {
@@ -65,6 +70,8 @@ const demoTracks: Track[] = [
     url: 'https://samplelib.com/mp3/sample-3s.mp3',
     title: 'Demo Track 1 (3s sample)',
     artist: 'Samplelib',
+    album: 'Legato Remote Parity Fixtures',
+    artwork: 'https://samplelib.com/lib/preview/png/sample-bumblebee-400x300.png',
     duration: 3000,
     type: 'progressive',
   },
@@ -73,6 +80,8 @@ const demoTracks: Track[] = [
     url: 'https://samplelib.com/mp3/sample-6s.mp3',
     title: 'Demo Track 2 (6s sample)',
     artist: 'Samplelib',
+    album: 'Legato Remote Parity Fixtures',
+    artwork: 'https://samplelib.com/lib/preview/png/sample-bumblebee-400x300.png',
     duration: 6000,
     type: 'progressive',
   },
@@ -173,6 +182,95 @@ const summarizePayload = (payload: unknown): string => {
   return compact.length > 220 ? `${compact.slice(0, 220)}…` : compact;
 };
 
+const formatRequiredMetadataSignal = (snapshot: PlaybackSnapshot): string => {
+  const track = snapshot.currentTrack as Record<string, unknown> | null | undefined;
+
+  if (!track) {
+    return 'missing title/artist/album/artwork/duration (no current track)';
+  }
+
+  const missing: string[] = [];
+  const checkTextField = (field: 'title' | 'artist' | 'album' | 'artwork'): void => {
+    const value = track[field];
+    if (typeof value !== 'string' || value.trim() === '') {
+      missing.push(field);
+    }
+  };
+
+  checkTextField('title');
+  checkTextField('artist');
+  checkTextField('album');
+  checkTextField('artwork');
+
+  const durationValue = track.duration;
+  if (typeof durationValue !== 'number' || !Number.isFinite(durationValue) || durationValue <= 0) {
+    missing.push('duration');
+  }
+
+  if (missing.length === 0) {
+    return 'all required fields present (title/artist/album/artwork/duration)';
+  }
+
+  return `missing ${missing.join('/')}`;
+};
+
+const addProgressSample = (snapshot: PlaybackSnapshot): void => {
+  if (typeof snapshot.position !== 'number' || Number.isNaN(snapshot.position)) {
+    return;
+  }
+
+  recentProgressSamples = [
+    ...recentProgressSamples.slice(-progressSamplesLimit + 1),
+    { state: snapshot.state, positionMs: snapshot.position },
+  ];
+};
+
+const summarizeProgressSignal = (): string => {
+  if (recentProgressSamples.length < 2) {
+    return 'insufficient samples (capture at least two snapshots/events)';
+  }
+
+  const [previous, current] = recentProgressSamples.slice(-2);
+  const deltaMs = current.positionMs - previous.positionMs;
+
+  if (current.state === 'playing') {
+    if (deltaMs > 250) {
+      return `advancing while playing (+${deltaMs}ms latest delta)`;
+    }
+    return `not clearly advancing while playing (+${deltaMs}ms latest delta)`;
+  }
+
+  if (current.state === 'paused') {
+    if (Math.abs(deltaMs) <= 150) {
+      return `frozen while paused (${deltaMs >= 0 ? '+' : ''}${deltaMs}ms latest delta)`;
+    }
+    return `unexpected movement while paused (${deltaMs >= 0 ? '+' : ''}${deltaMs}ms latest delta)`;
+  }
+
+  return `state=${current.state} latest delta=${deltaMs >= 0 ? '+' : ''}${deltaMs}ms`;
+};
+
+const summarizeObservedEventSignals = (): string => {
+  const parityEventNames = [...observedSyncEvents].filter((name) => /remote|state|progress|play|pause|metadata|snapshot/i.test(name));
+  if (parityEventNames.length === 0) {
+    return 'none yet';
+  }
+
+  return parityEventNames.slice(-8).join(', ');
+};
+
+const updateParityInspector = (snapshot: PlaybackSnapshot): void => {
+  const lines = [
+    `state signal: ${snapshot.state}`,
+    `progress signal: ${summarizeProgressSignal()}`,
+    `metadata signal: ${formatRequiredMetadataSignal(snapshot)}`,
+    `observed sync events: ${summarizeObservedEventSignals()}`,
+    'manual remote check: background app, toggle lock-screen/notification play↔pause, then tap getSnapshot().',
+  ];
+
+  paritySummaryNode.textContent = lines.join('\n');
+};
+
 const log = (message: string, payload?: unknown): void => {
   const prefix = `[${new Date().toLocaleTimeString()}]`;
   const line = payload === undefined ? message : `${message} ${summarizePayload(payload)}`;
@@ -193,8 +291,10 @@ const addRecentEvent = (message: string): void => {
 
 const updateSnapshotViews = (snapshot: PlaybackSnapshot): void => {
   latestSnapshot = snapshot;
+  addProgressSample(snapshot);
   snapshotSummaryNode.textContent = summarizeSnapshot(snapshot);
   snapshotJsonNode.value = JSON.stringify(snapshot, null, 2);
+  updateParityInspector(snapshot);
   addRecentEvent(`snapshot summary ${summarizeSnapshot(snapshot)}`);
 };
 
@@ -232,9 +332,14 @@ const startSync = async (): Promise<void> => {
       log('sync snapshot', snapshot);
     },
     onEvent: (eventName, payload) => {
+      observedSyncEvents.add(eventName);
       const details = summarizePayload(payload);
       log(`event:${eventName}`, payload);
       addRecentEvent(`event:${eventName}${details ? ` | ${details}` : ''}`);
+
+      if (latestSnapshot) {
+        updateParityInspector(latestSnapshot);
+      }
     },
   });
 
@@ -419,4 +524,5 @@ if (!isNative) {
 
 if (latestSnapshot == null) {
   snapshotSummaryNode.textContent = 'No snapshot captured yet.';
+  paritySummaryNode.textContent = 'No parity signals yet.';
 }

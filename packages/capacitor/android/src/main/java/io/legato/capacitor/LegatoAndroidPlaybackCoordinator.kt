@@ -6,6 +6,7 @@ import android.os.Build
 import io.legato.core.core.LegatoAndroidCoreComponents
 import io.legato.core.core.LegatoAndroidCoreFactory
 import io.legato.core.core.LegatoAndroidPauseOrigin
+import io.legato.core.core.LegatoAndroidPlaybackState
 import io.legato.core.core.LegatoAndroidServiceMode
 import java.util.concurrent.atomic.AtomicLong
 
@@ -41,13 +42,16 @@ internal class LegatoAndroidPlaybackCoordinator(
     private var serviceRuntime: LegatoAndroidCoordinatorServiceRuntime = NoopLegatoAndroidCoordinatorServiceRuntime,
 ) {
     private val modeListeners = linkedMapOf<Long, (LegatoAndroidServiceMode) -> Unit>()
+    private val playbackStateListeners = linkedMapOf<Long, (LegatoAndroidPlaybackState) -> Unit>()
     private val modeListenerIds = AtomicLong(0L)
     private val lock = Any()
 
     private var projectedMode: LegatoAndroidServiceMode = core.playerEngine.getServiceMode()
+    private var projectedPlaybackState: LegatoAndroidPlaybackState = core.playerEngine.getSnapshot().state
 
     private val coreProjectionListenerId: Long = core.eventEmitter.addListener {
         projectServiceMode()
+        projectPlaybackState()
     }
 
     fun bindServiceRuntime(runtime: LegatoAndroidCoordinatorServiceRuntime) {
@@ -60,6 +64,7 @@ internal class LegatoAndroidPlaybackCoordinator(
     fun setup() {
         kotlinx.coroutines.runBlocking { core.playerEngine.setup() }
         projectServiceMode()
+        projectPlaybackState()
     }
 
     fun load(tracks: List<io.legato.core.core.LegatoAndroidTrack>, startIndex: Int? = null) {
@@ -67,36 +72,43 @@ internal class LegatoAndroidPlaybackCoordinator(
             core.playerEngine.load(tracks = tracks, startIndex = startIndex)
         }
         projectServiceMode()
+        projectPlaybackState()
     }
 
     fun play() {
         kotlinx.coroutines.runBlocking { core.playerEngine.play() }
         projectServiceMode()
+        projectPlaybackState()
     }
 
     fun pause() {
         kotlinx.coroutines.runBlocking { core.playerEngine.pause() }
         projectServiceMode()
+        projectPlaybackState()
     }
 
     fun stop() {
         kotlinx.coroutines.runBlocking { core.playerEngine.stop() }
         projectServiceMode()
+        projectPlaybackState()
     }
 
     fun seekTo(positionMs: Long) {
         kotlinx.coroutines.runBlocking { core.playerEngine.seekTo(positionMs) }
         projectServiceMode()
+        projectPlaybackState()
     }
 
     fun skipToNext() {
         kotlinx.coroutines.runBlocking { core.playerEngine.skipToNext() }
         projectServiceMode()
+        projectPlaybackState()
     }
 
     fun skipToPrevious() {
         kotlinx.coroutines.runBlocking { core.playerEngine.skipToPrevious() }
         projectServiceMode()
+        projectPlaybackState()
     }
 
     fun addCoreEventListener(listener: (io.legato.core.core.LegatoAndroidEvent) -> Unit): Long =
@@ -115,13 +127,30 @@ internal class LegatoAndroidPlaybackCoordinator(
         return id
     }
 
+    fun addPlaybackStateListener(listener: (LegatoAndroidPlaybackState) -> Unit): Long {
+        val id = modeListenerIds.incrementAndGet()
+        synchronized(lock) {
+            playbackStateListeners[id] = listener
+        }
+        listener(currentPlaybackState())
+        return id
+    }
+
     fun removeServiceModeListener(listenerId: Long) {
         synchronized(lock) {
             modeListeners.remove(listenerId)
         }
     }
 
+    fun removePlaybackStateListener(listenerId: Long) {
+        synchronized(lock) {
+            playbackStateListeners.remove(listenerId)
+        }
+    }
+
     fun currentServiceMode(): LegatoAndroidServiceMode = synchronized(lock) { projectedMode }
+
+    fun currentPlaybackState(): LegatoAndroidPlaybackState = synchronized(lock) { projectedPlaybackState }
 
     fun currentPauseOrigin(): LegatoAndroidPauseOrigin = core.playerEngine.getPauseOrigin()
 
@@ -144,6 +173,22 @@ internal class LegatoAndroidPlaybackCoordinator(
 
         if (shouldNotify) {
             listenersToNotify.forEach { it(nextMode) }
+        }
+    }
+
+    fun projectPlaybackState() {
+        val nextState = core.playerEngine.getSnapshot().state
+        val listenersToNotify: List<(LegatoAndroidPlaybackState) -> Unit>
+        val shouldNotify: Boolean
+
+        synchronized(lock) {
+            shouldNotify = nextState != projectedPlaybackState
+            projectedPlaybackState = nextState
+            listenersToNotify = playbackStateListeners.values.toList()
+        }
+
+        if (shouldNotify) {
+            listenersToNotify.forEach { it(nextState) }
         }
     }
 

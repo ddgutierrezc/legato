@@ -43,8 +43,9 @@ Harness now supports both one-click smoke and manual controls for:
 - `setup`, `sync.start`, `sync.stop`
 - `add`, `play`, `pause`, `stop`, `seekTo`, `getSnapshot`
 - copy-friendly recent events + raw log + snapshot summary/json
+- a compact **Remote parity inspector** summary (state/progress trend/metadata presence/event signals)
 
-Use direct samplelib MP3 URLs from the default fixtures (no redirect links) to keep playback behavior deterministic during native checks.
+Default fixtures now include title/artist/album/artwork/duration metadata and direct samplelib MP3 URLs (no redirect links) to keep playback behavior deterministic during native checks.
 
 Before opening Android Studio/Xcode after harness changes, ALWAYS refresh native hosts:
 
@@ -55,10 +56,12 @@ npm run cap:sync
 
 Manual parity checklist to close milestone validation:
 
-1. Background continuity: playback keeps running with app backgrounded and foreground notification remains active.
-2. Focus loss pauses playback.
-3. Focus regain does not auto-resume (explicit play required).
-4. `stop()` + idle tears down foreground service/notification.
+1. Start `Run smoke flow` (or manual setup/sync/add/play), then background the app.
+2. Trigger lock-screen/media-notification **pause**, return to app, tap `getSnapshot()`, and verify paused state + frozen progress.
+3. Trigger lock-screen/media-notification **play**, return to app, tap `getSnapshot()`, and verify playing state + advancing progress.
+4. Verify now-playing surfaces show title/artist/album/artwork/duration from fixture metadata.
+5. Trigger next/previous/seek from remote surfaces and confirm v1 inert behavior (no crash, no playback jump).
+6. (Android lifecycle carry-over) `stop()` + idle tears down foreground service/notification.
 
 ## Quick smoke checklist (manual, lightweight)
 

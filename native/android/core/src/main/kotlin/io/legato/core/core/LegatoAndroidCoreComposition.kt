@@ -3,11 +3,11 @@ package io.legato.core.core
 import io.legato.core.errors.LegatoAndroidErrorMapper
 import io.legato.core.events.LegatoAndroidEventEmitter
 import io.legato.core.mapping.LegatoAndroidTrackMapper
+import io.legato.core.remote.LegatoAndroidMediaSessionBridge
 import io.legato.core.queue.LegatoAndroidQueueManager
 import io.legato.core.remote.LegatoAndroidRemoteCommandManager
 import io.legato.core.runtime.LegatoAndroidMedia3PlaybackRuntime
 import io.legato.core.runtime.LegatoAndroidPlaybackRuntime
-import io.legato.core.session.LegatoAndroidAudioFocusSessionRuntime
 import io.legato.core.session.LegatoAndroidSessionManager
 import io.legato.core.snapshot.LegatoAndroidSnapshotStore
 import io.legato.core.state.LegatoAndroidStateMachine
@@ -19,9 +19,11 @@ data class LegatoAndroidCoreDependencies(
     val trackMapper: LegatoAndroidTrackMapper = LegatoAndroidTrackMapper(),
     val errorMapper: LegatoAndroidErrorMapper = LegatoAndroidErrorMapper(),
     val stateMachine: LegatoAndroidStateMachine = LegatoAndroidStateMachine(),
+    val mediaSessionBridge: LegatoAndroidMediaSessionBridge = LegatoAndroidMediaSessionBridge(),
     val sessionManager: LegatoAndroidSessionManager =
-        LegatoAndroidSessionManager(runtime = LegatoAndroidAudioFocusSessionRuntime()),
-    val remoteCommandManager: LegatoAndroidRemoteCommandManager = LegatoAndroidRemoteCommandManager(),
+        LegatoAndroidSessionManager(runtime = mediaSessionBridge),
+    val remoteCommandManager: LegatoAndroidRemoteCommandManager =
+        LegatoAndroidRemoteCommandManager(runtime = mediaSessionBridge),
     val playbackRuntime: LegatoAndroidPlaybackRuntime = LegatoAndroidMedia3PlaybackRuntime(),
 )
 
@@ -32,6 +34,7 @@ data class LegatoAndroidCoreComponents(
     val trackMapper: LegatoAndroidTrackMapper,
     val errorMapper: LegatoAndroidErrorMapper,
     val stateMachine: LegatoAndroidStateMachine,
+    val mediaSessionBridge: LegatoAndroidMediaSessionBridge,
     val sessionManager: LegatoAndroidSessionManager,
     val remoteCommandManager: LegatoAndroidRemoteCommandManager,
     val playbackRuntime: LegatoAndroidPlaybackRuntime,
@@ -62,6 +65,7 @@ object LegatoAndroidCoreFactory {
             trackMapper = dependencies.trackMapper,
             errorMapper = dependencies.errorMapper,
             stateMachine = dependencies.stateMachine,
+            mediaSessionBridge = dependencies.mediaSessionBridge,
             sessionManager = dependencies.sessionManager,
             remoteCommandManager = dependencies.remoteCommandManager,
             playbackRuntime = dependencies.playbackRuntime,
