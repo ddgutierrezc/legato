@@ -12,6 +12,9 @@
   },
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "legato": "./src/cli/index.mjs"
+  },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {

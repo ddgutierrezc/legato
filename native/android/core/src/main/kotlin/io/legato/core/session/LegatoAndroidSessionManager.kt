@@ -12,6 +12,14 @@ class LegatoAndroidSessionManager(
         runtime.configureSession()
     }
 
+    fun audioFocusPolicy(): LegatoAndroidAudioFocusPolicy {
+        return runtime.audioFocusPolicy()
+    }
+
+    fun onInterruption(signal: LegatoAndroidInterruptionSignal) {
+        runtime.onInterruption(signal)
+    }
+
     fun updatePlaybackState(state: LegatoAndroidPlaybackState) {
         runtime.updatePlaybackState(state)
     }

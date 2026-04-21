@@ -5,7 +5,8 @@ This directory contains the Android native core and runtime integration seams fo
 Current scope includes:
 - canonical queue/state/snapshot/event behavior,
 - manager scaffolding for session + remote command integration,
-- explicit runtime adapters/seams for playback/session/remote surfaces.
+- explicit runtime adapters/seams for playback/session/remote surfaces,
+- typed interruption + audio-focus policy contract surfaces (Milestone 1 groundwork only).
 
 Out of scope for this pass:
 - full Media3/ExoPlayer runtime binding,
@@ -13,6 +14,11 @@ Out of scope for this pass:
 - production-grade background playback behavior.
 
 The default runtime adapters are intentionally no-op/in-memory and exist to define stable integration boundaries.
+
+## Milestone 1 contract note
+
+Android session interruption/audio-focus surfaces in this module are contract seams only.
+They are intentionally no-op and DO NOT provide full Media3 audio-focus/background parity yet.
 
 ## Gradle module bootstrap
 

@@ -22,6 +22,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
 
     private var isSetup = false
     private var lastProgressEmission: ProgressEmissionToken?
+    private var sessionSignalListenerID: UUID?
 
     public init(
         queueManager: LegatoiOSQueueManager,
@@ -52,6 +53,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
             return
         }
 
+        registerSessionSignalListenerIfNeeded()
         sessionManager.configureSession()
         remoteCommandManager.bind(handler: onRemoteCommand)
         playbackRuntime.configure()
@@ -186,6 +188,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
             return
         }
 
+        removeSessionSignalListenerIfNeeded()
         remoteCommandManager.unbind()
         playbackRuntime.setObserver(nil)
         playbackRuntime.release()
@@ -492,6 +495,65 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
 
         eventEmitter.emit(name: .playbackError, payload: .playbackError(error: mapped))
         publishState(next)
+    }
+
+    private func registerSessionSignalListenerIfNeeded() {
+        guard sessionSignalListenerID == nil else {
+            return
+        }
+
+        sessionSignalListenerID = sessionManager.addSignalListener { [weak self] signal in
+            self?.handleSessionSignal(signal)
+        }
+    }
+
+    private func removeSessionSignalListenerIfNeeded() {
+        guard let sessionSignalListenerID else {
+            return
+        }
+
+        sessionManager.removeSignalListener(sessionSignalListenerID)
+        self.sessionSignalListenerID = nil
+    }
+
+    private func handleSessionSignal(_ signal: LegatoiOSSessionSignal) {
+        switch signal {
+        case .outputRouteRemoved, .interruptionBegan:
+            pausePlaybackForSessionSignal()
+        case .interruptionEnded(let shouldResume):
+            if !shouldResume {
+                pausePlaybackForSessionSignal()
+            }
+            // Conservative behavior: interruption end with shouldResume=true does not auto-resume.
+        case .runtimeError(let message):
+            publishSessionRuntimeError(message)
+        }
+    }
+
+    private func pausePlaybackForSessionSignal() {
+        guard isSetup else {
+            return
+        }
+
+        let currentState = snapshotStore.getPlaybackSnapshot().state
+        guard currentState == .playing || currentState == .buffering else {
+            return
+        }
+
+        do {
+            try playbackRuntime.pause()
+        } catch {
+            publishPlatformFailure(error)
+            return
+        }
+
+        transition(event: .pause)
+        refreshSnapshotFromRuntime(publishProgressEvent: true)
+    }
+
+    private func publishSessionRuntimeError(_ message: String) {
+        let mapped = LegatoiOSError(code: .platformError, message: message)
+        eventEmitter.emit(name: .playbackError, payload: .playbackError(error: mapped))
     }
 
     private func performRuntimeOperation(_ operation: () throws -> Void) throws {
