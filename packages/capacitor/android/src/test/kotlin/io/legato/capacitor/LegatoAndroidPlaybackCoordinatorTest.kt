@@ -88,6 +88,35 @@ class LegatoAndroidPlaybackCoordinatorTest {
         assertEquals(LegatoAndroidPauseOrigin.INTERRUPTION, coordinator.currentPauseOrigin())
     }
 
+    @Test
+    fun `coordinator projects playback state and notifies listeners on transitions`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+        val projectedStates = mutableListOf<LegatoAndroidPlaybackState>()
+        coordinator.addPlaybackStateListener { projectedStates += it }
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(
+                    id = "track-1",
+                    url = "https://example.com/track.mp3",
+                ),
+            ),
+        )
+
+        coordinator.play()
+        coordinator.pause()
+
+        assertEquals(LegatoAndroidPlaybackState.PAUSED, coordinator.currentPlaybackState())
+        assertTrue(projectedStates.contains(LegatoAndroidPlaybackState.PLAYING))
+        assertTrue(projectedStates.contains(LegatoAndroidPlaybackState.PAUSED))
+    }
+
     private fun buildCore(
         runtime: RecordingPlaybackRuntime,
         sessionRuntime: RecordingSessionRuntime,

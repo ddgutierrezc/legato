@@ -117,6 +117,17 @@
         font-size: 0.83rem;
       }
 
+      #parity-summary {
+        margin: 0;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        min-height: 96px;
+        white-space: pre-wrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+        font-size: 0.82rem;
+      }
+
       #events {
         min-height: 140px;
       }
@@ -172,6 +183,8 @@
         <section class="card stack">
           <h2>Snapshot summary</h2>
           <pre id="snapshot-summary">No snapshot captured yet.</pre>
+          <h2 style="margin-top: 0.35rem">Remote parity inspector (iOS + Android)</h2>
+          <pre id="parity-summary">No parity signals yet.</pre>
           <textarea id="snapshot-json" readonly spellcheck="false" placeholder="Latest snapshot JSON payload..."></textarea>
         </section>
 
@@ -186,12 +199,12 @@
         </section>
 
         <section class="card stack">
-          <h2>Android lifecycle validation checklist</h2>
+          <h2>Remote parity validation checklist</h2>
           <ul>
-            <li>Background continuity: start playback, background app, verify audio keeps running and service notification stays visible.</li>
-            <li>Focus loss pauses playback: trigger interruption/noisy route change and verify state becomes paused.</li>
-            <li>Focus regain does not auto-resume: after focus returns, playback must remain paused until explicit play().</li>
-            <li>stop+idle tears down foreground service: run stop() and verify foreground notification/service are removed.</li>
+            <li>Background play/pause parity: with playback running, background app and toggle lock-screen/notification play↔pause; verify state changes match manual play()/pause().</li>
+            <li>Now-playing metadata parity: verify title/artist/album/artwork/duration are visible in lock screen / media notification.</li>
+            <li>Progress parity: while playing, lock-screen/notification progress advances; after pause it stays frozen at pause point.</li>
+            <li>v1 command scope: next/previous/seek from remote surface must be inert (no crashes, no track/position jump).</li>
           </ul>
           <p>After harness updates: run <code>npm run build</code> and <code>npm run cap:sync</code> before Android Studio/Xcode validation.</p>
         </section>

@@ -74,20 +74,12 @@ class LegatoAndroidPlayerEngine(
 
     suspend fun play() {
         guardSetup()
-        if (!runRuntimeOperation {
-            playbackRuntime.play()
-        }) return
-        pauseOrigin = LegatoAndroidPauseOrigin.USER
-        transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.PLAY)
+        executePlay()
     }
 
     suspend fun pause() {
         guardSetup()
-        if (!runRuntimeOperation {
-            playbackRuntime.pause()
-        }) return
-        pauseOrigin = LegatoAndroidPauseOrigin.USER
-        transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.PAUSE)
+        executePause()
     }
 
     suspend fun stop() {
@@ -374,15 +366,21 @@ class LegatoAndroidPlayerEngine(
 
     private fun onRemoteCommand(command: LegatoAndroidRemoteCommand) {
         when (command) {
-            LegatoAndroidRemoteCommand.Play -> eventEmitter.emit(
-                name = LegatoAndroidEventName.REMOTE_PLAY,
-                payload = LegatoAndroidEventPayload.RemotePlay,
-            )
+            LegatoAndroidRemoteCommand.Play -> {
+                executePlay()
+                eventEmitter.emit(
+                    name = LegatoAndroidEventName.REMOTE_PLAY,
+                    payload = LegatoAndroidEventPayload.RemotePlay,
+                )
+            }
 
-            LegatoAndroidRemoteCommand.Pause -> eventEmitter.emit(
-                name = LegatoAndroidEventName.REMOTE_PAUSE,
-                payload = LegatoAndroidEventPayload.RemotePause,
-            )
+            LegatoAndroidRemoteCommand.Pause -> {
+                executePause()
+                eventEmitter.emit(
+                    name = LegatoAndroidEventName.REMOTE_PAUSE,
+                    payload = LegatoAndroidEventPayload.RemotePause,
+                )
+            }
 
             LegatoAndroidRemoteCommand.Next -> eventEmitter.emit(
                 name = LegatoAndroidEventName.REMOTE_NEXT,
@@ -399,7 +397,23 @@ class LegatoAndroidPlayerEngine(
                 payload = LegatoAndroidEventPayload.RemoteSeek(command.positionMs),
             )
         }
+    }
 
-        // TODO(phase-4): Route remote commands through the same transport pipeline as binding commands.
+    private fun executePlay() {
+        if (!runRuntimeOperation {
+            playbackRuntime.play()
+        }) return
+
+        pauseOrigin = LegatoAndroidPauseOrigin.USER
+        transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.PLAY)
+    }
+
+    private fun executePause() {
+        if (!runRuntimeOperation {
+            playbackRuntime.pause()
+        }) return
+
+        pauseOrigin = LegatoAndroidPauseOrigin.USER
+        transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.PAUSE)
     }
 }
