@@ -5,19 +5,78 @@ type LegatoSyncController = ReturnType<typeof createLegatoSync>;
 
 const smokeButton = document.querySelector<HTMLButtonElement>('#run-smoke');
 const endSmokeButton = document.querySelector<HTMLButtonElement>('#run-end-smoke');
-const copyButton = document.querySelector<HTMLButtonElement>('#copy-log');
+const copyLogButton = document.querySelector<HTMLButtonElement>('#copy-log');
+const copyEventsButton = document.querySelector<HTMLButtonElement>('#copy-events');
+const setupButton = document.querySelector<HTMLButtonElement>('#action-setup');
+const syncStartButton = document.querySelector<HTMLButtonElement>('#action-sync-start');
+const syncStopButton = document.querySelector<HTMLButtonElement>('#action-sync-stop');
+const addButton = document.querySelector<HTMLButtonElement>('#action-add');
+const playButton = document.querySelector<HTMLButtonElement>('#action-play');
+const pauseButton = document.querySelector<HTMLButtonElement>('#action-pause');
+const stopButton = document.querySelector<HTMLButtonElement>('#action-stop');
+const seekButton = document.querySelector<HTMLButtonElement>('#action-seek');
+const snapshotButton = document.querySelector<HTMLButtonElement>('#action-snapshot');
+const seekInput = document.querySelector<HTMLInputElement>('#seek-ms');
 const envStatusNode = document.querySelector<HTMLDivElement>('#env-status');
 const logNode = document.querySelector<HTMLTextAreaElement>('#log');
+const eventsNode = document.querySelector<HTMLTextAreaElement>('#events');
+const snapshotSummaryNode = document.querySelector<HTMLPreElement>('#snapshot-summary');
+const snapshotJsonNode = document.querySelector<HTMLTextAreaElement>('#snapshot-json');
 
-if (!smokeButton || !endSmokeButton || !copyButton || !envStatusNode || !logNode) {
+if (
+  !smokeButton
+  || !endSmokeButton
+  || !copyLogButton
+  || !copyEventsButton
+  || !setupButton
+  || !syncStartButton
+  || !syncStopButton
+  || !addButton
+  || !playButton
+  || !pauseButton
+  || !stopButton
+  || !seekButton
+  || !snapshotButton
+  || !seekInput
+  || !envStatusNode
+  || !logNode
+  || !eventsNode
+  || !snapshotSummaryNode
+  || !snapshotJsonNode
+) {
   throw new Error('Demo UI nodes are missing');
 }
 
 const nativeActionButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.native-action'));
 const playbackSmokeDelayMs = 1500;
 const endSmokeDelayMs = 6500;
+const recentEventsLimit = 24;
+
+const platform = Capacitor.getPlatform();
+const isNative = Capacitor.isNativePlatform();
 
 let syncController: LegatoSyncController | null = null;
+let latestSnapshot: PlaybackSnapshot | null = null;
+let recentEvents: string[] = [];
+
+const demoTracks: Track[] = [
+  {
+    id: 'track-demo-1',
+    url: 'https://samplelib.com/mp3/sample-3s.mp3',
+    title: 'Demo Track 1 (3s sample)',
+    artist: 'Samplelib',
+    duration: 3000,
+    type: 'progressive',
+  },
+  {
+    id: 'track-demo-2',
+    url: 'https://samplelib.com/mp3/sample-6s.mp3',
+    title: 'Demo Track 2 (6s sample)',
+    artist: 'Samplelib',
+    duration: 6000,
+    type: 'progressive',
+  },
+];
 
 const formatMs = (value: number | null | undefined): string => {
   if (typeof value !== 'number' || Number.isNaN(value)) {
@@ -46,6 +105,7 @@ const summarizeSnapshot = (snapshot: PlaybackSnapshot): string => {
     `duration=${formatMs(snapshot.duration)}`,
     `buffered=${formatMs(snapshot.bufferedPosition ?? null)}`,
     `queue=${queueLength}`,
+    `error=${snapshot.error ? JSON.stringify(snapshot.error) : 'none'}`,
   ].join(' | ');
 };
 
@@ -109,11 +169,6 @@ const summarizePayload = (payload: unknown): string => {
     ].join(' | ');
   }
 
-  if ('track' in payload || 'index' in payload) {
-    const active = payload as { index?: number | null; track?: { title?: string; id?: string } | null };
-    return `index=${active.index ?? 'null'} | track=${active.track?.title ?? active.track?.id ?? '(none)'}`;
-  }
-
   const compact = JSON.stringify(payload);
   return compact.length > 220 ? `${compact.slice(0, 220)}…` : compact;
 };
@@ -123,6 +178,24 @@ const log = (message: string, payload?: unknown): void => {
   const line = payload === undefined ? message : `${message} ${summarizePayload(payload)}`;
   logNode.value = `${logNode.value}${prefix} ${line}\n`;
   logNode.scrollTop = logNode.scrollHeight;
+};
+
+const renderRecentEvents = (): void => {
+  eventsNode.value = recentEvents.join('\n');
+  eventsNode.scrollTop = eventsNode.scrollHeight;
+};
+
+const addRecentEvent = (message: string): void => {
+  const prefix = `[${new Date().toLocaleTimeString()}]`;
+  recentEvents = [...recentEvents.slice(-recentEventsLimit + 1), `${prefix} ${message}`];
+  renderRecentEvents();
+};
+
+const updateSnapshotViews = (snapshot: PlaybackSnapshot): void => {
+  latestSnapshot = snapshot;
+  snapshotSummaryNode.textContent = summarizeSnapshot(snapshot);
+  snapshotJsonNode.value = JSON.stringify(snapshot, null, 2);
+  addRecentEvent(`snapshot summary ${summarizeSnapshot(snapshot)}`);
 };
 
 const setRunning = (running: boolean): void => {
@@ -137,8 +210,10 @@ const runNativeAction = async (name: string, action: () => Promise<void>): Promi
   try {
     await action();
     log(`${name} finished`);
+    addRecentEvent(`${name} finished`);
   } catch (error) {
     log(`${name} failed:`, error);
+    addRecentEvent(`${name} failed ${summarizePayload(error)}`);
   } finally {
     setRunning(false);
   }
@@ -147,25 +222,31 @@ const runNativeAction = async (name: string, action: () => Promise<void>): Promi
 const startSync = async (): Promise<void> => {
   if (syncController) {
     log('sync already active');
+    addRecentEvent('sync already active');
     return;
   }
 
   syncController = createLegatoSync({
     onSnapshot: (snapshot) => {
+      updateSnapshotViews(snapshot);
       log('sync snapshot', snapshot);
     },
     onEvent: (eventName, payload) => {
+      const details = summarizePayload(payload);
       log(`event:${eventName}`, payload);
+      addRecentEvent(`event:${eventName}${details ? ` | ${details}` : ''}`);
     },
   });
 
   const initial = await syncController.start();
+  updateSnapshotViews(initial);
   log('sync.start() initial snapshot', initial);
 };
 
 const stopSync = async (): Promise<void> => {
   if (!syncController) {
     log('sync is not active');
+    addRecentEvent('sync is not active');
     return;
   }
 
@@ -190,90 +271,92 @@ const copyText = async (text: string, emptyMessage: string, successMessage: stri
   }
 };
 
-const copyLog = async () => {
-  await copyText(logNode.value, 'No log output to copy yet.', 'Copied raw log to clipboard.');
-};
-
-const platform = Capacitor.getPlatform();
-const isNative = Capacitor.isNativePlatform();
-
-const demoTracks: Track[] = [
-  {
-    id: 'track-demo-1',
-    url: 'https://samplelib.com/mp3/sample-3s.mp3',
-    title: 'Demo Track 1 (3s sample)',
-    artist: 'Samplelib',
-    duration: 3000,
-    type: 'progressive',
-  },
-  {
-    id: 'track-demo-2',
-    url: 'https://samplelib.com/mp3/sample-6s.mp3',
-    title: 'Demo Track 2 (6s sample)',
-    artist: 'Samplelib',
-    duration: 6000,
-    type: 'progressive',
-  },
-];
-
-const runSmokeFlow = async (): Promise<void> => {
-  logNode.value = '';
-  log('Starting Legato minimal flow...');
-  log('platform:', platform);
-  log('isNativePlatform:', isNative);
-
+const setupAction = async (): Promise<void> => {
   await Legato.setup();
   log('setup() ok');
+};
 
-  await startSync();
-
+const addAction = async (): Promise<void> => {
   const afterAdd = await Legato.add({ tracks: demoTracks, startIndex: 0 });
+  updateSnapshotViews(afterAdd);
   log('add() snapshot', afterAdd);
+};
 
+const playAction = async (): Promise<void> => {
   await Legato.play();
   log('play() ok');
+};
+
+const pauseAction = async (): Promise<void> => {
+  await Legato.pause();
+  log('pause() ok');
+};
+
+const stopAction = async (): Promise<void> => {
+  await Legato.stop();
+  log('stop() ok');
+};
+
+const seekAction = async (): Promise<void> => {
+  const value = Number(seekInput.value);
+  const targetMs = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  await Legato.seekTo({ position: targetMs });
+  log(`seekTo(${targetMs}) ok`);
+};
+
+const snapshotAction = async (): Promise<void> => {
+  const snapshot = await Legato.getSnapshot();
+  updateSnapshotViews(snapshot);
+  log('getSnapshot() snapshot', snapshot);
+};
+
+const clearFlows = (): void => {
+  logNode.value = '';
+  recentEvents = [];
+  renderRecentEvents();
+};
+
+const runSmokeFlow = async (): Promise<void> => {
+  clearFlows();
+  log('Starting Legato smoke flow...');
+  log('platform:', platform);
+  log('isNativePlatform:', isNative);
+  log('Background check: start play(), send app to background, verify playback continues and notification remains active.');
+
+  await setupAction();
+  await startSync();
+  await addAction();
+  await playAction();
 
   log(`waiting ${playbackSmokeDelayMs}ms before pause() to validate audible playback...`);
   await new Promise((resolve) => setTimeout(resolve, playbackSmokeDelayMs));
 
-  await Legato.pause();
-  log('pause() ok');
-
-  const finalSnapshot = await Legato.getSnapshot();
-  log('getSnapshot() final snapshot', finalSnapshot);
-
-  await stopSync();
+  await pauseAction();
+  await snapshotAction();
 };
 
 const runLetItEndSmokeFlow = async (): Promise<void> => {
-  logNode.value = '';
+  clearFlows();
   log('Starting Legato let-it-end flow...');
   log('platform:', platform);
   log('isNativePlatform:', isNative);
+  log('Background check: keep app in background and watch for playback-ended event plus service teardown after stop/idle.');
 
-  await Legato.setup();
-  log('setup() ok');
-
+  await setupAction();
   await startSync();
-
-  const afterAdd = await Legato.add({ tracks: demoTracks, startIndex: 0 });
-  log('add() snapshot', afterAdd);
-
-  await Legato.play();
+  await addAction();
+  await playAction();
   log(`play() ok, wait ${endSmokeDelayMs}ms for track end...`);
 
   await new Promise((resolve) => setTimeout(resolve, endSmokeDelayMs));
-
-  const finalSnapshot = await Legato.getSnapshot();
-  log('final snapshot after end wait', finalSnapshot);
-
-  await stopSync();
+  await snapshotAction();
 };
 
 envStatusNode.textContent = `platform=${platform} | native=${isNative}`;
-log('Legato smoke harness ready.');
+log('Legato parity harness ready.');
 log('platform:', platform);
 log('isNativePlatform:', isNative);
+log('Use smoke buttons for quick pass/fail and manual controls for lifecycle/focus deep checks.');
 
 smokeButton.addEventListener('click', () => {
   void runNativeAction('run smoke flow', runSmokeFlow);
@@ -283,8 +366,48 @@ endSmokeButton.addEventListener('click', () => {
   void runNativeAction('run let-it-end smoke flow', runLetItEndSmokeFlow);
 });
 
-copyButton.addEventListener('click', () => {
-  void copyLog();
+setupButton.addEventListener('click', () => {
+  void runNativeAction('manual setup()', setupAction);
+});
+
+syncStartButton.addEventListener('click', () => {
+  void runNativeAction('manual sync.start()', startSync);
+});
+
+syncStopButton.addEventListener('click', () => {
+  void runNativeAction('manual sync.stop()', stopSync);
+});
+
+addButton.addEventListener('click', () => {
+  void runNativeAction('manual add()', addAction);
+});
+
+playButton.addEventListener('click', () => {
+  void runNativeAction('manual play()', playAction);
+});
+
+pauseButton.addEventListener('click', () => {
+  void runNativeAction('manual pause()', pauseAction);
+});
+
+stopButton.addEventListener('click', () => {
+  void runNativeAction('manual stop()', stopAction);
+});
+
+seekButton.addEventListener('click', () => {
+  void runNativeAction('manual seekTo()', seekAction);
+});
+
+snapshotButton.addEventListener('click', () => {
+  void runNativeAction('manual getSnapshot()', snapshotAction);
+});
+
+copyLogButton.addEventListener('click', () => {
+  void copyText(logNode.value, 'No log output to copy yet.', 'Copied raw log to clipboard.');
+});
+
+copyEventsButton.addEventListener('click', () => {
+  void copyText(eventsNode.value, 'No recent events to copy yet.', 'Copied recent events to clipboard.');
 });
 
 if (!isNative) {
@@ -292,4 +415,8 @@ if (!isNative) {
     button.disabled = true;
   });
   log('Native bridge not available in browser preview. Open from Xcode/Android Studio.');
+}
+
+if (latestSnapshot == null) {
+  snapshotSummaryNode.textContent = 'No snapshot captured yet.';
 }

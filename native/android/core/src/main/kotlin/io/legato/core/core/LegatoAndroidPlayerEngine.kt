@@ -6,7 +6,10 @@ import io.legato.core.mapping.LegatoAndroidTrackMapper
 import io.legato.core.queue.LegatoAndroidQueueManager
 import io.legato.core.remote.LegatoAndroidRemoteCommandManager
 import io.legato.core.runtime.LegatoAndroidPlaybackRuntime
+import io.legato.core.runtime.LegatoAndroidPlaybackRuntimeListener
+import io.legato.core.runtime.LegatoAndroidRuntimeProgress
 import io.legato.core.runtime.LegatoAndroidRuntimeTrackSource
+import io.legato.core.session.LegatoAndroidInterruptionSignal
 import io.legato.core.session.LegatoAndroidSessionManager
 import io.legato.core.snapshot.LegatoAndroidSnapshotStore
 import io.legato.core.state.LegatoAndroidStateMachine
@@ -23,6 +26,7 @@ class LegatoAndroidPlayerEngine(
     private val playbackRuntime: LegatoAndroidPlaybackRuntime,
 ) {
     private var isSetup: Boolean = false
+    private var pauseOrigin: LegatoAndroidPauseOrigin = LegatoAndroidPauseOrigin.USER
 
     suspend fun setup() {
         if (isSetup) {
@@ -30,7 +34,9 @@ class LegatoAndroidPlayerEngine(
         }
 
         sessionManager.configureSession()
+        sessionManager.setInterruptionListener(::onInterruption)
         remoteCommandManager.bind(::onRemoteCommand)
+        playbackRuntime.setListener(runtimeListener)
         playbackRuntime.configure()
         isSetup = true
     }
@@ -71,6 +77,7 @@ class LegatoAndroidPlayerEngine(
         if (!runRuntimeOperation {
             playbackRuntime.play()
         }) return
+        pauseOrigin = LegatoAndroidPauseOrigin.USER
         transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.PLAY)
     }
 
@@ -79,6 +86,7 @@ class LegatoAndroidPlayerEngine(
         if (!runRuntimeOperation {
             playbackRuntime.pause()
         }) return
+        pauseOrigin = LegatoAndroidPauseOrigin.USER
         transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.PAUSE)
     }
 
@@ -87,6 +95,7 @@ class LegatoAndroidPlayerEngine(
         if (!runRuntimeOperation {
             playbackRuntime.stop(resetPosition = true)
         }) return
+        pauseOrigin = LegatoAndroidPauseOrigin.USER
         transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.STOP)
         val runtimeSnapshot = playbackRuntime.snapshot()
         snapshotStore.updatePlaybackSnapshot {
@@ -172,15 +181,66 @@ class LegatoAndroidPlayerEngine(
 
     fun getSnapshot(): LegatoAndroidPlaybackSnapshot = snapshotStore.getPlaybackSnapshot()
 
+    fun getPauseOrigin(): LegatoAndroidPauseOrigin = pauseOrigin
+
+    fun getServiceMode(): LegatoAndroidServiceMode {
+        val state = snapshotStore.getPlaybackSnapshot().state
+        return when {
+            state == LegatoAndroidPlaybackState.PLAYING || state == LegatoAndroidPlaybackState.BUFFERING ->
+                LegatoAndroidServiceMode.PLAYBACK_ACTIVE
+
+            state == LegatoAndroidPlaybackState.PAUSED && pauseOrigin == LegatoAndroidPauseOrigin.INTERRUPTION ->
+                LegatoAndroidServiceMode.RESUME_PENDING_INTERRUPTION
+
+            else -> LegatoAndroidServiceMode.OFF
+        }
+    }
+
     fun release() {
         if (!isSetup) {
             return
         }
 
         remoteCommandManager.unbind()
+        playbackRuntime.setListener(null)
         playbackRuntime.release()
+        sessionManager.setInterruptionListener(null)
         sessionManager.releaseSession()
         isSetup = false
+    }
+
+    private val runtimeListener = object : LegatoAndroidPlaybackRuntimeListener {
+        override fun onProgress(progress: LegatoAndroidRuntimeProgress) {
+            snapshotStore.updatePlaybackSnapshot { snapshot ->
+                snapshot.copy(
+                    positionMs = progress.positionMs,
+                    durationMs = progress.durationMs ?: snapshot.durationMs,
+                    bufferedPositionMs = progress.bufferedPositionMs,
+                )
+            }
+            publishProgress(snapshotStore.getPlaybackSnapshot())
+        }
+
+        override fun onBuffering(isBuffering: Boolean) {
+            val input = if (isBuffering) {
+                LegatoAndroidStateMachine.LegatoAndroidStateInput.BUFFERING_STARTED
+            } else {
+                LegatoAndroidStateMachine.LegatoAndroidStateInput.BUFFERING_ENDED
+            }
+            transitionTo(input)
+        }
+
+        override fun onEnded() {
+            transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.TRACK_ENDED)
+            eventEmitter.emit(
+                name = LegatoAndroidEventName.PLAYBACK_ENDED,
+                payload = LegatoAndroidEventPayload.PlaybackEnded(snapshotStore.getPlaybackSnapshot()),
+            )
+        }
+
+        override fun onFatalError(error: Throwable) {
+            publishPlatformFailure(error)
+        }
     }
 
     private fun toRuntimeTrackSource(track: LegatoAndroidTrack): LegatoAndroidRuntimeTrackSource =
@@ -283,6 +343,33 @@ class LegatoAndroidPlayerEngine(
             payload = LegatoAndroidEventPayload.PlaybackError(mappedError),
         )
         publishState(nextState)
+    }
+
+    private fun onInterruption(signal: LegatoAndroidInterruptionSignal) {
+        when (signal) {
+            LegatoAndroidInterruptionSignal.AudioFocusGained -> {
+                // v1 policy: no automatic resume.
+            }
+
+            LegatoAndroidInterruptionSignal.AudioFocusLost,
+            LegatoAndroidInterruptionSignal.AudioFocusLostTransient,
+            LegatoAndroidInterruptionSignal.AudioFocusLostTransientCanDuck,
+            LegatoAndroidInterruptionSignal.BecomingNoisy,
+            -> pauseForInterruption()
+        }
+    }
+
+    private fun pauseForInterruption() {
+        val state = snapshotStore.getPlaybackSnapshot().state
+        if (state != LegatoAndroidPlaybackState.PLAYING && state != LegatoAndroidPlaybackState.BUFFERING) {
+            return
+        }
+
+        runRuntimeOperation {
+            playbackRuntime.pause()
+        }
+        pauseOrigin = LegatoAndroidPauseOrigin.INTERRUPTION
+        transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.PAUSE)
     }
 
     private fun onRemoteCommand(command: LegatoAndroidRemoteCommand) {

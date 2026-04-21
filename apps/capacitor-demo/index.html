@@ -133,22 +133,67 @@
   <body>
     <main>
       <h1>Legato Capacitor Demo</h1>
-      <p>Native playback smoke harness for iOS/Capacitor debugging.</p>
+      <p>Native playback validation harness for iOS + Android parity debugging.</p>
 
       <div class="stack" style="margin-top: 0.8rem">
         <section class="card stack">
           <h2>Smoke actions</h2>
           <div class="actions">
-            <button id="run-smoke" class="native-action" type="button">Run smoke flow</button>
+            <button id="run-smoke" class="native-action" type="button">Run smoke flow (setup/add/play/pause/snapshot)</button>
             <button id="run-end-smoke" class="native-action" type="button">Run let-it-end smoke</button>
             <button id="copy-log" type="button">Copy raw log</button>
+            <button id="copy-events" type="button">Copy recent events</button>
           </div>
           <div id="env-status">Detecting platform…</div>
         </section>
 
         <section class="card stack">
+          <h2>Manual native controls</h2>
+          <p>Use these when validating background/lifecycle behavior step-by-step.</p>
+          <div class="action-grid">
+            <button id="action-setup" class="native-action" type="button">setup()</button>
+            <button id="action-sync-start" class="native-action" type="button">sync.start()</button>
+            <button id="action-sync-stop" class="native-action" type="button">sync.stop()</button>
+            <button id="action-add" class="native-action" type="button">add()</button>
+            <button id="action-play" class="native-action" type="button">play()</button>
+            <button id="action-pause" class="native-action" type="button">pause()</button>
+            <button id="action-stop" class="native-action" type="button">stop()</button>
+            <button id="action-seek" class="native-action" type="button">seekTo()</button>
+            <button id="action-snapshot" class="native-action" type="button">getSnapshot()</button>
+          </div>
+          <div class="inline-fields">
+            <label>
+              Seek target (ms)
+              <input id="seek-ms" type="number" min="0" step="250" value="1200" />
+            </label>
+          </div>
+        </section>
+
+        <section class="card stack">
+          <h2>Snapshot summary</h2>
+          <pre id="snapshot-summary">No snapshot captured yet.</pre>
+          <textarea id="snapshot-json" readonly spellcheck="false" placeholder="Latest snapshot JSON payload..."></textarea>
+        </section>
+
+        <section class="card stack">
+          <h2>Recent events/progress (copy-friendly)</h2>
+          <textarea id="events" readonly spellcheck="false" placeholder="Recent sync events and operation results..."></textarea>
+        </section>
+
+        <section class="card stack">
           <h2>Raw operation log</h2>
           <textarea id="log" readonly spellcheck="false" placeholder="Action logs, payloads, and errors..."></textarea>
+        </section>
+
+        <section class="card stack">
+          <h2>Android lifecycle validation checklist</h2>
+          <ul>
+            <li>Background continuity: start playback, background app, verify audio keeps running and service notification stays visible.</li>
+            <li>Focus loss pauses playback: trigger interruption/noisy route change and verify state becomes paused.</li>
+            <li>Focus regain does not auto-resume: after focus returns, playback must remain paused until explicit play().</li>
+            <li>stop+idle tears down foreground service: run stop() and verify foreground notification/service are removed.</li>
+          </ul>
+          <p>After harness updates: run <code>npm run build</code> and <code>npm run cap:sync</code> before Android Studio/Xcode validation.</p>
         </section>
       </div>
     </main>

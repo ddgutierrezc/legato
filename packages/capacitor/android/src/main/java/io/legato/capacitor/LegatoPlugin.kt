@@ -5,39 +5,38 @@ import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
-import io.legato.core.core.LegatoAndroidCoreFactory
 import io.legato.core.core.LegatoAndroidEventName
 import io.legato.core.core.LegatoAndroidEventPayload
 import io.legato.core.core.LegatoAndroidPlaybackSnapshot
 import io.legato.core.core.LegatoAndroidPlaybackState
 import io.legato.core.core.LegatoAndroidQueueSnapshot
 import io.legato.core.core.LegatoAndroidErrorCode
-import kotlinx.coroutines.runBlocking
 
 @CapacitorPlugin(name = "Legato")
 class LegatoPlugin : Plugin() {
     private val mapper = LegatoCapacitorMapper()
-    private val core = LegatoAndroidCoreFactory.create()
+    private val coordinator = LegatoAndroidPlaybackCoordinatorStore.getOrCreate()
+    private val core get() = coordinator.core
     private var coreListenerId: Long? = null
 
     override fun load() {
         super.load()
-        coreListenerId = core.eventEmitter.addListener { event ->
+        coordinator.bindServiceRuntime(LegatoAndroidAppServiceRuntime(context.applicationContext))
+        coreListenerId = coordinator.addCoreEventListener { event ->
             notifyListeners(event.name.wireValue, mapper.eventPayloadToJs(event.payload))
         }
     }
 
     override fun handleOnDestroy() {
-        coreListenerId?.let(core.eventEmitter::removeListener)
+        coreListenerId?.let(coordinator::removeCoreEventListener)
         coreListenerId = null
-        core.playerEngine.release()
         super.handleOnDestroy()
     }
 
     @PluginMethod
     fun setup(call: PluginCall) {
         runCatching {
-            runBlocking { core.playerEngine.setup() }
+            coordinator.setup()
             call.resolve(ok())
         }.onFailure { reject(call, it) }
     }
@@ -67,6 +66,8 @@ class LegatoPlugin : Plugin() {
                     payload = LegatoAndroidEventPayload.PlaybackStateChanged(next.state),
                 )
             }
+
+            coordinator.projectServiceMode()
 
             call.resolve(snapshotResult(next))
         }.onFailure { reject(call, it) }
@@ -118,6 +119,8 @@ class LegatoPlugin : Plugin() {
                 )
             }
 
+            coordinator.projectServiceMode()
+
             call.resolve(snapshotResult(next))
         }.onFailure { reject(call, it) }
     }
@@ -142,6 +145,8 @@ class LegatoPlugin : Plugin() {
                 payload = LegatoAndroidEventPayload.PlaybackStateChanged(snapshot.state),
             )
 
+            coordinator.projectServiceMode()
+
             call.resolve(snapshotResult(snapshot))
         }.onFailure { reject(call, it) }
     }
@@ -149,7 +154,7 @@ class LegatoPlugin : Plugin() {
     @PluginMethod
     fun play(call: PluginCall) {
         runCatching {
-            runBlocking { core.playerEngine.play() }
+            coordinator.play()
             call.resolve(ok())
         }.onFailure { reject(call, it) }
     }
@@ -157,7 +162,7 @@ class LegatoPlugin : Plugin() {
     @PluginMethod
     fun pause(call: PluginCall) {
         runCatching {
-            runBlocking { core.playerEngine.pause() }
+            coordinator.pause()
             call.resolve(ok())
         }.onFailure { reject(call, it) }
     }
@@ -165,7 +170,7 @@ class LegatoPlugin : Plugin() {
     @PluginMethod
     fun stop(call: PluginCall) {
         runCatching {
-            runBlocking { core.playerEngine.stop() }
+            coordinator.stop()
             call.resolve(ok())
         }.onFailure { reject(call, it) }
     }
@@ -175,7 +180,7 @@ class LegatoPlugin : Plugin() {
         runCatching {
             val position = call.getDouble("position")?.toLong()
                 ?: error("seekTo.position is required")
-            runBlocking { core.playerEngine.seekTo(position) }
+            coordinator.seekTo(position)
             call.resolve(ok())
         }.onFailure { reject(call, it) }
     }
@@ -192,6 +197,7 @@ class LegatoPlugin : Plugin() {
             val next = snapshotWithQueue(previous, nextQueue)
             core.snapshotStore.replacePlaybackSnapshot(next)
             publishQueueTrackProgress(next)
+            coordinator.projectServiceMode()
             call.resolve(snapshotResult(next))
         }.onFailure { reject(call, it) }
     }
@@ -199,7 +205,7 @@ class LegatoPlugin : Plugin() {
     @PluginMethod
     fun skipToNext(call: PluginCall) {
         runCatching {
-            runBlocking { core.playerEngine.skipToNext() }
+            coordinator.skipToNext()
             call.resolve(ok())
         }.onFailure { reject(call, it) }
     }
@@ -207,7 +213,7 @@ class LegatoPlugin : Plugin() {
     @PluginMethod
     fun skipToPrevious(call: PluginCall) {
         runCatching {
-            runBlocking { core.playerEngine.skipToPrevious() }
+            coordinator.skipToPrevious()
             call.resolve(ok())
         }.onFailure { reject(call, it) }
     }

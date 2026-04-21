@@ -12,6 +12,8 @@ import io.legato.core.core.LegatoAndroidTrackType
 interface LegatoAndroidPlaybackRuntime {
     fun configure()
 
+    fun setListener(listener: LegatoAndroidPlaybackRuntimeListener?)
+
     fun replaceQueue(items: List<LegatoAndroidRuntimeTrackSource>, startIndex: Int?)
 
     fun selectIndex(index: Int)
@@ -27,6 +29,16 @@ interface LegatoAndroidPlaybackRuntime {
     fun snapshot(): LegatoAndroidRuntimeSnapshot
 
     fun release()
+}
+
+interface LegatoAndroidPlaybackRuntimeListener {
+    fun onProgress(progress: LegatoAndroidRuntimeProgress)
+
+    fun onBuffering(isBuffering: Boolean)
+
+    fun onEnded()
+
+    fun onFatalError(error: Throwable)
 }
 
 data class LegatoAndroidRuntimeTrackSource(
@@ -45,6 +57,7 @@ data class LegatoAndroidRuntimeProgress(
 data class LegatoAndroidRuntimeSnapshot(
     val stateHint: LegatoAndroidPlaybackState? = null,
     val currentIndex: Int? = null,
+    val isBufferingHint: Boolean = false,
     val progress: LegatoAndroidRuntimeProgress = LegatoAndroidRuntimeProgress(
         positionMs = 0L,
         durationMs = null,
@@ -58,12 +71,17 @@ data class LegatoAndroidRuntimeSnapshot(
  * This is intentionally NOT real playback: it only keeps deterministic runtime-facing state.
  */
 class LegatoAndroidNoopPlaybackRuntime : LegatoAndroidPlaybackRuntime {
+    private var listener: LegatoAndroidPlaybackRuntimeListener? = null
     private var currentIndex: Int? = null
     private var trackCount: Int = 0
     private var progress = LegatoAndroidRuntimeProgress(positionMs = 0L, durationMs = null, bufferedPositionMs = 0L)
 
     override fun configure() {
         // Intentionally no-op. Real implementation should initialize Media3 player/session objects.
+    }
+
+    override fun setListener(listener: LegatoAndroidPlaybackRuntimeListener?) {
+        this.listener = listener
     }
 
     override fun replaceQueue(items: List<LegatoAndroidRuntimeTrackSource>, startIndex: Int?) {
@@ -109,6 +127,7 @@ class LegatoAndroidNoopPlaybackRuntime : LegatoAndroidPlaybackRuntime {
     )
 
     override fun release() {
+        listener = null
         currentIndex = null
         trackCount = 0
         progress = LegatoAndroidRuntimeProgress(positionMs = 0L, durationMs = null, bufferedPositionMs = 0L)
