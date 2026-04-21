@@ -115,6 +115,18 @@ public struct LegatoiOSPlaybackSnapshot {
     }
 }
 
+public struct LegatoiOSTransportCapabilities: Equatable {
+    public let canSkipNext: Bool
+    public let canSkipPrevious: Bool
+    public let canSeek: Bool
+
+    public init(canSkipNext: Bool, canSkipPrevious: Bool, canSeek: Bool) {
+        self.canSkipNext = canSkipNext
+        self.canSkipPrevious = canSkipPrevious
+        self.canSeek = canSeek
+    }
+}
+
 public struct LegatoiOSNowPlayingMetadata {
     public let trackId: String
     public let title: String?

@@ -75,6 +75,12 @@ data class LegatoAndroidPlaybackSnapshot(
     val queue: LegatoAndroidQueueSnapshot,
 )
 
+data class LegatoAndroidTransportCapabilities(
+    val canSkipNext: Boolean,
+    val canSkipPrevious: Boolean,
+    val canSeek: Boolean,
+)
+
 data class LegatoAndroidNowPlayingMetadata(
     val trackId: String,
     val title: String? = null,

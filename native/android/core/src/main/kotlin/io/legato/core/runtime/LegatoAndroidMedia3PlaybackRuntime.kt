@@ -1,44 +1,54 @@
 package io.legato.core.runtime
 
+import android.os.Handler
+import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import io.legato.core.core.LegatoAndroidPlaybackState
 
 class LegatoAndroidMedia3PlaybackRuntime(
     private val player: Player? = null,
+    private val playerCommandExecutor: PlayerCommandExecutor = MainThreadPlayerCommandExecutor,
 ) : LegatoAndroidPlaybackRuntime {
     private var listener: LegatoAndroidPlaybackRuntimeListener? = null
     private var runtimeSnapshot: LegatoAndroidRuntimeSnapshot = LegatoAndroidRuntimeSnapshot()
 
     override fun configure() {
-        player?.addListener(
-            object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    when (playbackState) {
-                        Player.STATE_BUFFERING -> dispatchBuffering(true)
-                        Player.STATE_ENDED -> dispatchEnded()
+        withPlayer { currentPlayer ->
+            currentPlayer.addListener(
+                object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        when (playbackState) {
+                            Player.STATE_BUFFERING -> dispatchBuffering(true)
+                            Player.STATE_ENDED -> dispatchEnded()
+                        }
+                    }
+
+                    override fun onIsLoadingChanged(isLoading: Boolean) {
+                        dispatchBuffering(isLoading)
+                    }
+
+                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        dispatchFatalError(error)
+                    }
+
+                    override fun onEvents(player: Player, events: Player.Events) {
+                        if (
+                            events.contains(Player.EVENT_POSITION_DISCONTINUITY) ||
+                            events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED) ||
+                            events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)
+                        ) {
+                            dispatchProgress(
+                                positionMs = player.currentPosition,
+                                durationMs = player.duration.takeIf { it >= 0L },
+                                bufferedPositionMs = player.bufferedPosition,
+                                currentIndex = player.currentMediaItemIndex.takeIf { it >= 0 },
+                            )
+                        }
                     }
                 }
-
-                override fun onIsLoadingChanged(isLoading: Boolean) {
-                    dispatchBuffering(isLoading)
-                }
-
-                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    dispatchFatalError(error)
-                }
-
-                override fun onEvents(player: Player, events: Player.Events) {
-                    if (events.contains(Player.EVENT_POSITION_DISCONTINUITY) || events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
-                        dispatchProgress(
-                            positionMs = player.currentPosition,
-                            durationMs = player.duration.takeIf { it >= 0L },
-                            bufferedPositionMs = player.bufferedPosition,
-                        )
-                    }
-                }
-            },
-        )
+            )
+        }
     }
 
     override fun setListener(listener: LegatoAndroidPlaybackRuntimeListener?) {
@@ -53,38 +63,45 @@ class LegatoAndroidMedia3PlaybackRuntime(
             else -> 0
         }
 
-        player?.setMediaItems(
-            items.map { source -> MediaItem.fromUri(source.url) },
-            selectedIndex ?: 0,
-            0L,
-        )
+        withPlayer { currentPlayer ->
+            currentPlayer.setMediaItems(
+                items.map { source -> MediaItem.fromUri(source.url) },
+                selectedIndex ?: 0,
+                0L,
+            )
+        }
 
         runtimeSnapshot = runtimeSnapshot.copy(
             currentIndex = selectedIndex,
-            progress = runtimeSnapshot.progress.copy(positionMs = 0L, bufferedPositionMs = 0L),
+            progress = runtimeSnapshot.progress.copy(positionMs = 0L, durationMs = null, bufferedPositionMs = 0L),
             stateHint = LegatoAndroidPlaybackState.READY,
             isBufferingHint = false,
         )
     }
 
     override fun selectIndex(index: Int) {
-        player?.seekToDefaultPosition(index)
+        withPlayer { currentPlayer -> currentPlayer.seekToDefaultPosition(index) }
         runtimeSnapshot = runtimeSnapshot.copy(
             currentIndex = index,
-            progress = runtimeSnapshot.progress.copy(positionMs = 0L, bufferedPositionMs = 0L),
+            progress = runtimeSnapshot.progress.copy(positionMs = 0L, durationMs = null, bufferedPositionMs = 0L),
         )
     }
 
     override fun play() {
-        player?.play()
+        withPlayer { currentPlayer ->
+            if (currentPlayer.playbackState == Player.STATE_IDLE) {
+                currentPlayer.prepare()
+            }
+            currentPlayer.play()
+        }
     }
 
     override fun pause() {
-        player?.pause()
+        withPlayer { currentPlayer -> currentPlayer.pause() }
     }
 
     override fun stop(resetPosition: Boolean) {
-        player?.stop()
+        withPlayer { currentPlayer -> currentPlayer.stop() }
         if (resetPosition) {
             runtimeSnapshot = runtimeSnapshot.copy(
                 progress = runtimeSnapshot.progress.copy(positionMs = 0L, bufferedPositionMs = 0L),
@@ -95,7 +112,7 @@ class LegatoAndroidMedia3PlaybackRuntime(
 
     override fun seekTo(positionMs: Long) {
         val safePositionMs = positionMs.coerceAtLeast(0L)
-        player?.seekTo(safePositionMs)
+        withPlayer { currentPlayer -> currentPlayer.seekTo(safePositionMs) }
         runtimeSnapshot = runtimeSnapshot.copy(
             progress = runtimeSnapshot.progress.copy(positionMs = safePositionMs),
         )
@@ -105,17 +122,24 @@ class LegatoAndroidMedia3PlaybackRuntime(
 
     override fun release() {
         listener = null
-        player?.release()
+        withPlayer { currentPlayer -> currentPlayer.release() }
     }
 
-    fun dispatchProgress(positionMs: Long, durationMs: Long?, bufferedPositionMs: Long?) {
+    private inline fun withPlayer(crossinline operation: (Player) -> Unit) {
+        val currentPlayer = player ?: return
+        playerCommandExecutor.execute {
+            operation(currentPlayer)
+        }
+    }
+
+    fun dispatchProgress(positionMs: Long, durationMs: Long?, bufferedPositionMs: Long?, currentIndex: Int? = runtimeSnapshot.currentIndex) {
         val progress = LegatoAndroidRuntimeProgress(
             positionMs = positionMs.coerceAtLeast(0L),
             durationMs = durationMs?.takeIf { it >= 0L },
             bufferedPositionMs = bufferedPositionMs?.coerceAtLeast(0L),
         )
 
-        runtimeSnapshot = runtimeSnapshot.copy(progress = progress)
+        runtimeSnapshot = runtimeSnapshot.copy(currentIndex = currentIndex, progress = progress)
         listener?.onProgress(progress)
     }
 
@@ -141,5 +165,22 @@ class LegatoAndroidMedia3PlaybackRuntime(
             isBufferingHint = false,
         )
         listener?.onFatalError(error)
+    }
+}
+
+fun interface PlayerCommandExecutor {
+    fun execute(operation: () -> Unit)
+}
+
+private object MainThreadPlayerCommandExecutor : PlayerCommandExecutor {
+    private val handler: Handler by lazy { Handler(Looper.getMainLooper()) }
+
+    override fun execute(operation: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            operation()
+            return
+        }
+
+        handler.post(operation)
     }
 }

@@ -159,6 +159,37 @@ class LegatoAndroidPlayerEngineInterruptionPolicyTest {
         assertEquals(LegatoAndroidPlaybackState.PLAYING, engine.getSnapshot().state)
     }
 
+    @Test
+    fun `runtime progress transition syncs active track index and progress`() = runBlocking {
+        val playbackRuntime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val engine = buildEngine(playbackRuntime, sessionRuntime)
+
+        engine.setup()
+        engine.load(
+            tracks = listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3", durationMs = 100_000L),
+                LegatoAndroidTrack(id = "track-2", url = "https://example.com/2.mp3", durationMs = 200_000L),
+            ),
+        )
+        engine.play()
+
+        playbackRuntime.emitProgress(
+            currentIndex = 1,
+            positionMs = 3_000L,
+            durationMs = 200_000L,
+            bufferedPositionMs = 9_000L,
+        )
+
+        val snapshot = engine.getSnapshot()
+        assertEquals(1, snapshot.currentIndex)
+        assertEquals("track-2", snapshot.currentTrack?.id)
+        assertEquals(3_000L, snapshot.positionMs)
+        assertEquals(200_000L, snapshot.durationMs)
+        assertEquals(9_000L, snapshot.bufferedPositionMs)
+        assertEquals(1, snapshot.queue.currentIndex)
+    }
+
     private fun buildEngine(
         playbackRuntime: RecordingPlaybackRuntime,
         sessionRuntime: RecordingSessionRuntime,
@@ -227,7 +258,8 @@ private class RecordingPlaybackRuntime : LegatoAndroidPlaybackRuntime {
         listener?.onFatalError(error)
     }
 
-    fun emitProgress(positionMs: Long, durationMs: Long?, bufferedPositionMs: Long?) {
+    fun emitProgress(currentIndex: Int? = snapshot.currentIndex, positionMs: Long, durationMs: Long?, bufferedPositionMs: Long?) {
+        snapshot = snapshot.copy(currentIndex = currentIndex)
         listener?.onProgress(
             io.legato.core.runtime.LegatoAndroidRuntimeProgress(
                 positionMs = positionMs,

@@ -110,6 +110,81 @@ class LegatoAndroidCoreCompositionMediaSessionBridgeTest {
 
         assertTrue(events.any { it.name == LegatoAndroidEventName.REMOTE_PAUSE })
     }
+
+    @Test
+    fun `shared media-session bridge dispatches media-session next callback into canonical remote path`() = runBlocking {
+        val playbackRuntime = BridgeRecordingPlaybackRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val dependencies = LegatoAndroidCoreDependencies(
+            eventEmitter = eventEmitter,
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event: LegatoAndroidEvent -> events += event }
+
+        components.playerEngine.setup()
+        components.playerEngine.load(
+            tracks = listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3"),
+                LegatoAndroidTrack(id = "track-2", url = "https://example.com/2.mp3"),
+            ),
+        )
+
+        dependencies.mediaSessionBridge.dispatchMediaSessionSkipToNext()
+
+        assertTrue(events.any { it.name == LegatoAndroidEventName.REMOTE_NEXT })
+    }
+
+    @Test
+    fun `shared media-session bridge dispatches media-session previous callback into canonical remote path`() = runBlocking {
+        val playbackRuntime = BridgeRecordingPlaybackRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val dependencies = LegatoAndroidCoreDependencies(
+            eventEmitter = eventEmitter,
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event: LegatoAndroidEvent -> events += event }
+
+        components.playerEngine.setup()
+        components.playerEngine.load(
+            tracks = listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3"),
+                LegatoAndroidTrack(id = "track-2", url = "https://example.com/2.mp3"),
+            ),
+        )
+        components.playerEngine.skipToNext()
+
+        dependencies.mediaSessionBridge.dispatchMediaSessionSkipToPrevious()
+
+        assertTrue(events.any { it.name == LegatoAndroidEventName.REMOTE_PREVIOUS })
+    }
+
+    @Test
+    fun `shared media-session bridge dispatches media-session seek callback into canonical remote path`() = runBlocking {
+        val playbackRuntime = BridgeRecordingPlaybackRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val dependencies = LegatoAndroidCoreDependencies(
+            eventEmitter = eventEmitter,
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event: LegatoAndroidEvent -> events += event }
+
+        components.playerEngine.setup()
+        components.playerEngine.load(
+            tracks = listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3"),
+            ),
+        )
+
+        dependencies.mediaSessionBridge.dispatchMediaSessionSeekTo(42_000L)
+
+        assertTrue(events.any { it.name == LegatoAndroidEventName.REMOTE_SEEK })
+    }
 }
 
 private class BridgeRecordingPlaybackRuntime : LegatoAndroidPlaybackRuntime {

@@ -3,7 +3,7 @@ import Foundation
 public final class LegatoiOSNowPlayingManager {
     private let runtime: LegatoiOSNowPlayingRuntime
 
-    public init(runtime: LegatoiOSNowPlayingRuntime = LegatoiOSNoopNowPlayingRuntime()) {
+    public init(runtime: LegatoiOSNowPlayingRuntime = LegatoiOSMediaPlayerNowPlayingRuntime()) {
         self.runtime = runtime
     }
 

@@ -12,6 +12,7 @@ import org.junit.Test;
 public class HarnessValidationContractTest {
 
     private static final String[] HARNESS_CONTROL_IDS = new String[] {
+            "id=\"run-boundary-smoke\"",
             "id=\"action-setup\"",
             "id=\"action-sync-start\"",
             "id=\"action-sync-stop\"",
@@ -19,44 +20,52 @@ public class HarnessValidationContractTest {
             "id=\"action-play\"",
             "id=\"action-pause\"",
             "id=\"action-stop\"",
+            "id=\"action-previous\"",
+            "id=\"action-next\"",
             "id=\"action-seek\"",
             "id=\"action-snapshot\"",
             "id=\"copy-events\""
     };
 
     @Test
-    public void indexHtml_exposesManualControlsAndValidationChecklist() throws Exception {
+    public void indexHtml_exposesRemoteTransportV2ControlsAndChecklist() throws Exception {
         String html = readRepoFile("apps/capacitor-demo/index.html");
 
         for (String control : HARNESS_CONTROL_IDS) {
             assertTrue("Missing control marker in index.html: " + control, html.contains(control));
         }
 
-        assertTrue("Missing Android lifecycle checklist section", html.contains("Android lifecycle validation checklist"));
-        assertTrue("Missing focus-loss checklist item", html.contains("Focus loss pauses playback"));
-        assertTrue("Missing no-auto-resume checklist item", html.contains("Focus regain does not auto-resume"));
-        assertTrue("Missing service teardown checklist item", html.contains("stop+idle tears down foreground service"));
+        assertTrue("Missing capability summary node", html.contains("id=\"capability-summary\""));
+        assertTrue("Missing transport checklist section", html.contains("Remote transport v2 validation checklist"));
+        assertTrue("Missing remote next/previous checklist item", html.contains("Remote next/previous parity"));
+        assertTrue("Missing remote seek checklist item", html.contains("Remote seek parity"));
+        assertTrue("Missing boundary checklist item", html.contains("Boundary behavior parity"));
+        assertTrue("Missing now-playing checklist item", html.contains("Now-playing metadata parity"));
         assertTrue("Missing recent events node", html.contains("id=\"events\""));
         assertTrue("Missing snapshot summary node", html.contains("id=\"snapshot-summary\""));
         assertTrue("Missing snapshot JSON node", html.contains("id=\"snapshot-json\""));
     }
 
     @Test
-    public void mainTs_usesDirectAudioUrlsAndAndroidFocusedLogging() throws Exception {
+    public void mainTs_usesDirectAudioUrlsAndExposesBoundaryAndCapabilitySignals() throws Exception {
         String mainTs = readRepoFile("apps/capacitor-demo/src/main.ts");
 
         assertTrue("Smoke defaults should avoid redirect URLs", !mainTs.contains("soundhelix.com") && !mainTs.contains("redirect"));
         assertTrue("Expected direct samplelib URL for smoke fixture", mainTs.contains("https://samplelib.com/mp3/sample-3s.mp3"));
-        assertTrue("Expected explicit background instructions logger", mainTs.contains("Background check:"));
-        assertTrue("Expected Android parity snapshot logging", mainTs.contains("snapshot summary"));
+        assertTrue("Expected skip-to-next handler", mainTs.contains("Legato.skipToNext()"));
+        assertTrue("Expected skip-to-previous handler", mainTs.contains("Legato.skipToPrevious()"));
+        assertTrue("Expected capability projection renderer", mainTs.contains("renderCapabilitySummary"));
+        assertTrue("Expected boundary smoke flow helper", mainTs.contains("runBoundarySmokeFlow"));
         assertTrue("Expected recent events rendering helper", mainTs.contains("renderRecentEvents"));
     }
 
     @Test
-    public void readme_includesBuildAndSyncValidationReminder() throws Exception {
+    public void readme_includesRemoteTransportV2ValidationReminder() throws Exception {
         String readme = readRepoFile("apps/capacitor-demo/README.md");
 
-        assertTrue("README should include Android parity validation heading", readme.contains("Android parity v1 validation"));
+        assertTrue("README should include transport v2 heading", readme.contains("Remote transport richness v2 validation"));
+        assertTrue("README should include manual next/previous mention", readme.contains("skipToNext") && readme.contains("skipToPrevious"));
+        assertTrue("README should include capability projection mention", readme.contains("canSkipNext") && readme.contains("canSkipPrevious"));
         assertTrue("README should include build reminder", readme.contains("npm run build"));
         assertTrue("README should include cap sync reminder", readme.contains("npm run cap:sync"));
     }

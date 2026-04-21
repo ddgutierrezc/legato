@@ -16,6 +16,11 @@ let package = Package(
         .target(
             name: "LegatoCore",
             path: "Sources/LegatoCore"
+        ),
+        .testTarget(
+            name: "LegatoCoreTests",
+            dependencies: ["LegatoCore"],
+            path: "Tests/LegatoCoreTests"
         )
     ]
 )

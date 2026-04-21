@@ -128,6 +128,16 @@
         font-size: 0.82rem;
       }
 
+      #capability-summary {
+        margin: 0;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        min-height: 56px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+        font-size: 0.82rem;
+      }
+
       #events {
         min-height: 140px;
       }
@@ -152,6 +162,7 @@
           <div class="actions">
             <button id="run-smoke" class="native-action" type="button">Run smoke flow (setup/add/play/pause/snapshot)</button>
             <button id="run-end-smoke" class="native-action" type="button">Run let-it-end smoke</button>
+            <button id="run-boundary-smoke" class="native-action" type="button">Run boundary smoke (previous/next/end)</button>
             <button id="copy-log" type="button">Copy raw log</button>
             <button id="copy-events" type="button">Copy recent events</button>
           </div>
@@ -169,6 +180,8 @@
             <button id="action-play" class="native-action" type="button">play()</button>
             <button id="action-pause" class="native-action" type="button">pause()</button>
             <button id="action-stop" class="native-action" type="button">stop()</button>
+            <button id="action-previous" class="native-action" type="button">skipToPrevious()</button>
+            <button id="action-next" class="native-action" type="button">skipToNext()</button>
             <button id="action-seek" class="native-action" type="button">seekTo()</button>
             <button id="action-snapshot" class="native-action" type="button">getSnapshot()</button>
           </div>
@@ -183,6 +196,8 @@
         <section class="card stack">
           <h2>Snapshot summary</h2>
           <pre id="snapshot-summary">No snapshot captured yet.</pre>
+          <h2 style="margin-top: 0.35rem">Capability projection</h2>
+          <pre id="capability-summary">No capability projection yet.</pre>
           <h2 style="margin-top: 0.35rem">Remote parity inspector (iOS + Android)</h2>
           <pre id="parity-summary">No parity signals yet.</pre>
           <textarea id="snapshot-json" readonly spellcheck="false" placeholder="Latest snapshot JSON payload..."></textarea>
@@ -199,12 +214,15 @@
         </section>
 
         <section class="card stack">
-          <h2>Remote parity validation checklist</h2>
+          <h2>Remote transport v2 validation checklist</h2>
           <ul>
             <li>Background play/pause parity: with playback running, background app and toggle lock-screen/notification play↔pause; verify state changes match manual play()/pause().</li>
-            <li>Now-playing metadata parity: verify title/artist/album/artwork/duration are visible in lock screen / media notification.</li>
+            <li>Remote next/previous parity: on lock-screen/notification and manual buttons, next/previous must match queue transitions from skipToNext()/skipToPrevious().</li>
+            <li>Remote seek parity: lock-screen/notification seek must match seekTo() and keep snapshot position aligned.</li>
+            <li>Boundary behavior parity: previous at first track restarts to 0, next at last track transitions to ended + playbackEnded event.</li>
+            <li>Capability projection parity: canSkipNext/canSkipPrevious/canSeek summary must align with queue index + ended/empty states.</li>
             <li>Progress parity: while playing, lock-screen/notification progress advances; after pause it stays frozen at pause point.</li>
-            <li>v1 command scope: next/previous/seek from remote surface must be inert (no crashes, no track/position jump).</li>
+            <li>Now-playing metadata parity: verify title/artist/album/artwork/duration are visible in lock screen / media notification.</li>
           </ul>
           <p>After harness updates: run <code>npm run build</code> and <code>npm run cap:sync</code> before Android Studio/Xcode validation.</p>
         </section>

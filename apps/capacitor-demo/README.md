@@ -36,14 +36,15 @@ Validate native bridge + snapshot/event plumbing for the minimal flow in `src/ma
 
 This is a **native smoke** (Android/iOS host), not a browser-only check.
 
-## Android parity v1 validation
+## Remote transport richness v2 validation
 
 Harness now supports both one-click smoke and manual controls for:
 
 - `setup`, `sync.start`, `sync.stop`
-- `add`, `play`, `pause`, `stop`, `seekTo`, `getSnapshot`
+- `add`, `play`, `pause`, `stop`, `skipToPrevious`, `skipToNext`, `seekTo`, `getSnapshot`
 - copy-friendly recent events + raw log + snapshot summary/json
 - a compact **Remote parity inspector** summary (state/progress trend/metadata presence/event signals)
+- a compact **Capability projection** summary (`canSkipNext`, `canSkipPrevious`, `canSeek`, queue/index)
 
 Default fixtures now include title/artist/album/artwork/duration metadata and direct samplelib MP3 URLs (no redirect links) to keep playback behavior deterministic during native checks.
 
@@ -60,8 +61,11 @@ Manual parity checklist to close milestone validation:
 2. Trigger lock-screen/media-notification **pause**, return to app, tap `getSnapshot()`, and verify paused state + frozen progress.
 3. Trigger lock-screen/media-notification **play**, return to app, tap `getSnapshot()`, and verify playing state + advancing progress.
 4. Verify now-playing surfaces show title/artist/album/artwork/duration from fixture metadata.
-5. Trigger next/previous/seek from remote surfaces and confirm v1 inert behavior (no crash, no playback jump).
-6. (Android lifecycle carry-over) `stop()` + idle tears down foreground service/notification.
+5. Trigger remote/manual `skipToNext`/`skipToPrevious` and verify queue transitions match canonical engine behavior.
+6. Trigger remote/manual seek and verify snapshot position updates consistently.
+7. Validate capability projection summary: mid-queue enables next/previous, first track disables previous, ended disables all (`canSkipNext=false`, `canSkipPrevious=false`, `canSeek=false`).
+8. Verify now-playing surfaces show title/artist/album/artwork/duration from fixture metadata.
+9. (Android lifecycle carry-over) `stop()` + idle tears down foreground service/notification.
 
 ## Quick smoke checklist (manual, lightweight)
 
