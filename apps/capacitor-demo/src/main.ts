@@ -72,6 +72,7 @@ if (
 const nativeActionButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.native-action'));
 const playbackSmokeDelayMs = 1500;
 const endSmokeDelayMs = 6500;
+const boundarySettleDelayMs = 300;
 const recentEventsLimit = 24;
 const progressSamplesLimit = 8;
 
@@ -598,12 +599,15 @@ const runBoundarySmokeFlow = async (): Promise<void> => {
   await playAction();
 
   await previousAction();
+  await new Promise((resolve) => setTimeout(resolve, boundarySettleDelayMs));
   await snapshotAction();
 
   await nextAction();
+  await new Promise((resolve) => setTimeout(resolve, boundarySettleDelayMs));
   await snapshotAction();
 
   await nextAction();
+  await new Promise((resolve) => setTimeout(resolve, boundarySettleDelayMs));
   await snapshotAction();
   completeSmokeVerdict();
 };

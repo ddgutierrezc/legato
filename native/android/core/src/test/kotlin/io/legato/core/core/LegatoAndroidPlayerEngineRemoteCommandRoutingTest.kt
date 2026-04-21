@@ -169,6 +169,31 @@ class LegatoAndroidPlayerEngineRemoteCommandRoutingTest {
     }
 
     @Test
+    fun `remote next at end does not duplicate playbackEnded when runtime ended callback arrives late`() = runBlocking {
+        val playbackRuntime = RemoteRoutingPlaybackRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val dependencies = LegatoAndroidCoreDependencies(
+            eventEmitter = eventEmitter,
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event -> events += event }
+
+        components.playerEngine.setup()
+        components.playerEngine.load(tracks = listOf(track(id = "1"), track(id = "2")))
+        components.playerEngine.play()
+        components.playerEngine.skipToNext()
+
+        dependencies.mediaSessionBridge.dispatchRemoteCommandForTesting(LegatoAndroidRemoteCommand.Next)
+        playbackRuntime.emitEnded()
+
+        val playbackEndedCount = events.count { it.name == LegatoAndroidEventName.PLAYBACK_ENDED }
+        assertEquals(LegatoAndroidPlaybackState.ENDED, components.playerEngine.getSnapshot().state)
+        assertEquals(1, playbackEndedCount)
+    }
+
+    @Test
     fun `remote previous seeks to zero when current position is greater than threshold`() = runBlocking {
         val playbackRuntime = RemoteRoutingPlaybackRuntime()
         val eventEmitter = LegatoAndroidEventEmitter()
@@ -336,5 +361,9 @@ private class RemoteRoutingPlaybackRuntime : LegatoAndroidPlaybackRuntime {
 
     fun emitBuffering(isBuffering: Boolean) {
         listener?.onBuffering(isBuffering)
+    }
+
+    fun emitEnded() {
+        listener?.onEnded()
     }
 }

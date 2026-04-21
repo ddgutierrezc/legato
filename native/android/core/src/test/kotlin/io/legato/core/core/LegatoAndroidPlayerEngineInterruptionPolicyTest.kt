@@ -115,6 +115,38 @@ class LegatoAndroidPlayerEngineInterruptionPolicyTest {
     }
 
     @Test
+    fun `runtime ended callback is deduped and ignores late progress callbacks`() = runBlocking {
+        val playbackRuntime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event -> events += event }
+        val engine = buildEngine(playbackRuntime, sessionRuntime, eventEmitter)
+
+        engine.setup()
+        engine.load(tracks = listOf(LegatoAndroidTrack(id = "track-1", url = "https://example.com/audio.mp3")))
+        engine.play()
+        playbackRuntime.emitProgress(positionMs = 12_000L, durationMs = 120_000L, bufferedPositionMs = 24_000L)
+
+        events.clear()
+        playbackRuntime.emitEnded()
+        val endedSnapshot = engine.getSnapshot()
+
+        playbackRuntime.emitEnded()
+        playbackRuntime.emitProgress(positionMs = 15_000L, durationMs = 120_000L, bufferedPositionMs = 30_000L)
+
+        val finalSnapshot = engine.getSnapshot()
+        val endedEvents = events.count { it.name == LegatoAndroidEventName.PLAYBACK_ENDED }
+        val progressEvents = events.count { it.name == LegatoAndroidEventName.PLAYBACK_PROGRESS }
+
+        assertEquals(1, endedEvents)
+        assertEquals(0, progressEvents)
+        assertEquals(LegatoAndroidPlaybackState.ENDED, finalSnapshot.state)
+        assertEquals(endedSnapshot.positionMs, finalSnapshot.positionMs)
+        assertEquals(endedSnapshot.bufferedPositionMs, finalSnapshot.bufferedPositionMs)
+    }
+
+    @Test
     fun `runtime buffering callbacks cannot rebound state after ended`() = runBlocking {
         val playbackRuntime = RecordingPlaybackRuntime()
         val sessionRuntime = RecordingSessionRuntime()
