@@ -1,6 +1,8 @@
 import Foundation
 
 public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
+    private static let previousRestartThresholdMs: Int64 = 3_000
+
     private let queueManager: LegatoiOSQueueManager
     private let eventEmitter: LegatoiOSEventEmitter
     private let snapshotStore: LegatoiOSSnapshotStore
@@ -56,6 +58,9 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
         registerSessionSignalListenerIfNeeded()
         sessionManager.configureSession()
         remoteCommandManager.bind(handler: onRemoteCommand)
+        remoteCommandManager.updateTransportCapabilities(
+            LegatoiOSTransportCapabilitiesProjector.fromSnapshot(snapshotStore.getPlaybackSnapshot())
+        )
         playbackRuntime.configure()
         playbackRuntime.setObserver(self)
         isSetup = true
@@ -132,6 +137,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
     public func skipToNext() throws {
         try guardSetup()
         guard let movedIndex = queueManager.moveToNext() else {
+            emitEndedAtQueueBoundaryIfNeeded()
             return
         }
 
@@ -156,6 +162,21 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
 
     public func skipToPrevious() throws {
         try guardSetup()
+        let currentSnapshot = snapshotStore.getPlaybackSnapshot()
+        guard let currentIndex = currentSnapshot.currentIndex else {
+            return
+        }
+
+        if currentSnapshot.positionMs > Self.previousRestartThresholdMs {
+            try seek(to: 0)
+            return
+        }
+
+        if currentIndex <= 0 {
+            try seek(to: 0)
+            return
+        }
+
         guard let movedIndex = queueManager.moveToPrevious() else {
             return
         }
@@ -360,6 +381,10 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
                 queue: queueOverride ?? previous.queue
             )
         }
+
+        remoteCommandManager.updateTransportCapabilities(
+            LegatoiOSTransportCapabilitiesProjector.fromSnapshot(snapshotStore.getPlaybackSnapshot())
+        )
     }
 
     private func shouldApplyRuntimeStateHint(
@@ -568,17 +593,39 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
     private func onRemoteCommand(_ command: LegatoiOSRemoteCommand) {
         switch command {
         case .play:
+            try? play()
             eventEmitter.emit(name: .remotePlay, payload: .remotePlay)
         case .pause:
+            try? pause()
             eventEmitter.emit(name: .remotePause, payload: .remotePause)
         case .next:
+            try? skipToNext()
             eventEmitter.emit(name: .remoteNext, payload: .remoteNext)
         case .previous:
+            try? skipToPrevious()
             eventEmitter.emit(name: .remotePrevious, payload: .remotePrevious)
         case .seek(let positionMs):
+            try? seek(to: positionMs)
             eventEmitter.emit(name: .remoteSeek, payload: .remoteSeek(positionMs: positionMs))
         }
+    }
 
-        // TODO(phase-4): Route remote commands through canonical transport command handlers.
+    private func emitEndedAtQueueBoundaryIfNeeded() {
+        let snapshot = snapshotStore.getPlaybackSnapshot()
+        guard let currentIndex = snapshot.currentIndex else {
+            return
+        }
+
+        let items = snapshot.queue.items
+        guard !items.isEmpty, currentIndex == items.count - 1 else {
+            return
+        }
+
+        transition(event: .trackEnded)
+        let endedSnapshot = snapshotStore.getPlaybackSnapshot()
+        remoteCommandManager.updateTransportCapabilities(
+            LegatoiOSTransportCapabilitiesProjector.fromSnapshot(endedSnapshot)
+        )
+        eventEmitter.emit(name: .playbackEnded, payload: .playbackEnded(snapshot: endedSnapshot))
     }
 }

@@ -33,6 +33,7 @@ class LegatoAndroidPlayerEngineRemoteCommandRoutingTest {
 
         assertEquals(1, playbackRuntime.pauseCalls)
         assertEquals(LegatoAndroidPlaybackState.PAUSED, components.playerEngine.getSnapshot().state)
+        assertEquals(LegatoAndroidServiceMode.PLAYBACK_ACTIVE, components.playerEngine.getServiceMode())
 
         val remoteEvents = events.drop(eventsBeforeRemote)
         assertTrue(remoteEvents.any { it.name == LegatoAndroidEventName.REMOTE_PAUSE })
@@ -42,6 +43,26 @@ class LegatoAndroidPlayerEngineRemoteCommandRoutingTest {
                     (it.payload as? LegatoAndroidEventPayload.PlaybackStateChanged)?.state == LegatoAndroidPlaybackState.PAUSED
             },
         )
+    }
+
+    @Test
+    fun `stop tears down service mode after paused resumable session`() = runBlocking {
+        val playbackRuntime = RemoteRoutingPlaybackRuntime()
+        val dependencies = LegatoAndroidCoreDependencies(
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+
+        components.playerEngine.setup()
+        components.playerEngine.load(tracks = listOf(track()))
+        components.playerEngine.play()
+        dependencies.mediaSessionBridge.dispatchRemoteCommandForTesting(LegatoAndroidRemoteCommand.Pause)
+
+        assertEquals(LegatoAndroidServiceMode.PLAYBACK_ACTIVE, components.playerEngine.getServiceMode())
+
+        components.playerEngine.stop()
+
+        assertEquals(LegatoAndroidServiceMode.OFF, components.playerEngine.getServiceMode())
     }
 
     @Test
@@ -77,7 +98,112 @@ class LegatoAndroidPlayerEngineRemoteCommandRoutingTest {
     }
 
     @Test
-    fun `remote next previous and seek stay no-op in v1`() = runBlocking {
+    fun `remote next routes through canonical skip handler`() = runBlocking {
+        val playbackRuntime = RemoteRoutingPlaybackRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val dependencies = LegatoAndroidCoreDependencies(
+            eventEmitter = eventEmitter,
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event -> events += event }
+
+        components.playerEngine.setup()
+        components.playerEngine.load(tracks = listOf(track(id = "1"), track(id = "2")))
+        components.playerEngine.play()
+        playbackRuntime.resetCommandCounters()
+
+        dependencies.mediaSessionBridge.dispatchRemoteCommandForTesting(LegatoAndroidRemoteCommand.Next)
+
+        assertEquals(1, playbackRuntime.selectIndexCalls)
+        assertEquals(0, playbackRuntime.seekCalls)
+        assertEquals(1, components.playerEngine.getSnapshot().currentIndex)
+        assertTrue(events.any { it.name == LegatoAndroidEventName.REMOTE_NEXT })
+    }
+
+    @Test
+    fun `remote next at end transitions playback to ended and emits playbackEnded`() = runBlocking {
+        val playbackRuntime = RemoteRoutingPlaybackRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val dependencies = LegatoAndroidCoreDependencies(
+            eventEmitter = eventEmitter,
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event -> events += event }
+
+        components.playerEngine.setup()
+        components.playerEngine.load(tracks = listOf(track(id = "1"), track(id = "2")))
+        components.playerEngine.play()
+        components.playerEngine.skipToNext()
+        playbackRuntime.resetCommandCounters()
+
+        dependencies.mediaSessionBridge.dispatchRemoteCommandForTesting(LegatoAndroidRemoteCommand.Next)
+
+        assertEquals(LegatoAndroidPlaybackState.ENDED, components.playerEngine.getSnapshot().state)
+        assertEquals(0, playbackRuntime.selectIndexCalls)
+        assertTrue(events.any { it.name == LegatoAndroidEventName.PLAYBACK_ENDED })
+        assertTrue(events.any { it.name == LegatoAndroidEventName.REMOTE_NEXT })
+    }
+
+    @Test
+    fun `remote previous seeks to zero when current position is greater than threshold`() = runBlocking {
+        val playbackRuntime = RemoteRoutingPlaybackRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val dependencies = LegatoAndroidCoreDependencies(
+            eventEmitter = eventEmitter,
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event -> events += event }
+
+        components.playerEngine.setup()
+        components.playerEngine.load(tracks = listOf(track(id = "1"), track(id = "2")))
+        components.playerEngine.skipToNext()
+        components.playerEngine.seekTo(7_500L)
+        playbackRuntime.resetCommandCounters()
+
+        dependencies.mediaSessionBridge.dispatchRemoteCommandForTesting(LegatoAndroidRemoteCommand.Previous)
+
+        assertEquals(1, playbackRuntime.seekCalls)
+        assertEquals(0, playbackRuntime.selectIndexCalls)
+        assertEquals(1, components.playerEngine.getSnapshot().currentIndex)
+        assertEquals(0L, components.playerEngine.getSnapshot().positionMs)
+        assertTrue(events.any { it.name == LegatoAndroidEventName.REMOTE_PREVIOUS })
+    }
+
+    @Test
+    fun `remote previous skips to previous track when position is at or below threshold`() = runBlocking {
+        val playbackRuntime = RemoteRoutingPlaybackRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val dependencies = LegatoAndroidCoreDependencies(
+            eventEmitter = eventEmitter,
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event -> events += event }
+
+        components.playerEngine.setup()
+        components.playerEngine.load(tracks = listOf(track(id = "1"), track(id = "2"), track(id = "3")))
+        components.playerEngine.skipToNext()
+        components.playerEngine.skipToNext()
+        components.playerEngine.seekTo(2_000L)
+        playbackRuntime.resetCommandCounters()
+
+        dependencies.mediaSessionBridge.dispatchRemoteCommandForTesting(LegatoAndroidRemoteCommand.Previous)
+
+        assertEquals(1, playbackRuntime.selectIndexCalls)
+        assertEquals(0, playbackRuntime.seekCalls)
+        assertEquals(1, components.playerEngine.getSnapshot().currentIndex)
+        assertTrue(events.any { it.name == LegatoAndroidEventName.REMOTE_PREVIOUS })
+    }
+
+    @Test
+    fun `remote previous on first track seeks to zero`() = runBlocking {
         val playbackRuntime = RemoteRoutingPlaybackRuntime()
         val dependencies = LegatoAndroidCoreDependencies(
             playbackRuntime = playbackRuntime,
@@ -85,23 +211,43 @@ class LegatoAndroidPlayerEngineRemoteCommandRoutingTest {
         val components = LegatoAndroidCoreFactory.create(dependencies)
 
         components.playerEngine.setup()
-        components.playerEngine.load(tracks = listOf(track()))
-        components.playerEngine.play()
+        components.playerEngine.load(tracks = listOf(track(id = "1"), track(id = "2")))
+        components.playerEngine.seekTo(2_000L)
         playbackRuntime.resetCommandCounters()
 
-        dependencies.mediaSessionBridge.dispatchRemoteCommandForTesting(LegatoAndroidRemoteCommand.Next)
         dependencies.mediaSessionBridge.dispatchRemoteCommandForTesting(LegatoAndroidRemoteCommand.Previous)
-        dependencies.mediaSessionBridge.dispatchRemoteCommandForTesting(LegatoAndroidRemoteCommand.Seek(45_000L))
 
-        assertEquals(0, playbackRuntime.pauseCalls)
-        assertEquals(0, playbackRuntime.playCalls)
-        assertEquals(0, playbackRuntime.seekCalls)
+        assertEquals(1, playbackRuntime.seekCalls)
         assertEquals(0, playbackRuntime.selectIndexCalls)
-        assertEquals(LegatoAndroidPlaybackState.PLAYING, components.playerEngine.getSnapshot().state)
+        assertEquals(0, components.playerEngine.getSnapshot().currentIndex)
+        assertEquals(0L, components.playerEngine.getSnapshot().positionMs)
     }
 
-    private fun track(): LegatoAndroidTrack = LegatoAndroidTrack(
-        id = "remote-routing-track",
+    @Test
+    fun `remote seek routes through canonical seek handler`() = runBlocking {
+        val playbackRuntime = RemoteRoutingPlaybackRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val dependencies = LegatoAndroidCoreDependencies(
+            eventEmitter = eventEmitter,
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event -> events += event }
+
+        components.playerEngine.setup()
+        components.playerEngine.load(tracks = listOf(track(id = "1")))
+        playbackRuntime.resetCommandCounters()
+
+        dependencies.mediaSessionBridge.dispatchRemoteCommandForTesting(LegatoAndroidRemoteCommand.Seek(45_000L))
+
+        assertEquals(1, playbackRuntime.seekCalls)
+        assertEquals(45_000L, components.playerEngine.getSnapshot().positionMs)
+        assertTrue(events.any { it.name == LegatoAndroidEventName.REMOTE_SEEK })
+    }
+
+    private fun track(id: String = "remote-routing-track"): LegatoAndroidTrack = LegatoAndroidTrack(
+        id = id,
         url = "https://example.com/audio.mp3",
         title = "Remote Routing",
         artist = "Legato",

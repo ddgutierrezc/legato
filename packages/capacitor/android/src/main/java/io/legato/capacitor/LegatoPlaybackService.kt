@@ -13,21 +13,25 @@ import android.os.Build
 import android.os.IBinder
 import io.legato.core.core.LegatoAndroidPlaybackState
 import io.legato.core.core.LegatoAndroidServiceMode
+import io.legato.core.queue.LegatoAndroidTransportCapabilitiesProjector
 import io.legato.core.remote.LegatoAndroidMediaSessionBridge
 
 class LegatoPlaybackService : Service() {
-    private val coordinator = LegatoAndroidPlaybackCoordinatorStore.getOrCreate()
+    private lateinit var coordinator: LegatoAndroidPlaybackCoordinator
     private var modeListenerId: Long? = null
     private var playbackStateListenerId: Long? = null
     private var foregroundActive: Boolean = false
-    private var currentMode: LegatoAndroidServiceMode = coordinator.currentServiceMode()
-    private var currentPlaybackState: LegatoAndroidPlaybackState = coordinator.currentPlaybackState()
+    private var currentMode: LegatoAndroidServiceMode = LegatoAndroidServiceMode.OFF
+    private var currentPlaybackState: LegatoAndroidPlaybackState = LegatoAndroidPlaybackState.IDLE
     private var mediaSession: MediaSession? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        coordinator = LegatoAndroidPlaybackCoordinatorStore.getOrCreate(applicationContext)
+        currentMode = coordinator.currentServiceMode()
+        currentPlaybackState = coordinator.currentPlaybackState()
         modeListenerId = coordinator.addServiceModeListener(::onServiceModeChanged)
         playbackStateListenerId = coordinator.addPlaybackStateListener(::onPlaybackStateChanged)
 
@@ -41,6 +45,18 @@ class LegatoPlaybackService : Service() {
                     override fun onPause() {
                         coordinator.core.mediaSessionBridge.dispatchMediaSessionPause()
                     }
+
+                    override fun onSkipToNext() {
+                        coordinator.core.mediaSessionBridge.dispatchMediaSessionSkipToNext()
+                    }
+
+                    override fun onSkipToPrevious() {
+                        coordinator.core.mediaSessionBridge.dispatchMediaSessionSkipToPrevious()
+                    }
+
+                    override fun onSeekTo(pos: Long) {
+                        coordinator.core.mediaSessionBridge.dispatchMediaSessionSeekTo(pos)
+                    }
                 },
             )
             setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)
@@ -50,9 +66,9 @@ class LegatoPlaybackService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        LegatoPlaybackNotificationTransport.transportControlFromIntentAction(intent?.action)
-            ?.let { control ->
-                coordinator.core.mediaSessionBridge.dispatchTransportControl(control)
+        LegatoPlaybackNotificationTransport.remoteCommandFromIntentAction(intent?.action)
+            ?.let { command ->
+                dispatchNotificationRemoteCommand(command)
                 return START_STICKY
             }
 
@@ -131,17 +147,10 @@ class LegatoPlaybackService : Service() {
             )
         }
 
-        val projectedControl = LegatoPlaybackNotificationTransport.projectedControlFor(currentPlaybackState)
-        val transportPendingIntent = PendingIntent.getService(
-            this,
-            REQUEST_CODE_TRANSPORT,
-            Intent(this, LegatoPlaybackService::class.java).apply {
-                action = when (projectedControl) {
-                    LegatoAndroidMediaSessionBridge.TransportControl.PLAY -> LegatoPlaybackNotificationTransport.ACTION_PLAY
-                    LegatoAndroidMediaSessionBridge.TransportControl.PAUSE -> LegatoPlaybackNotificationTransport.ACTION_PAUSE
-                }
-            },
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        val capabilities = LegatoAndroidTransportCapabilitiesProjector.fromSnapshot(coordinator.core.playerEngine.getSnapshot())
+        val notificationActions = LegatoPlaybackNotificationTransport.notificationActionModelFor(
+            state = currentPlaybackState,
+            capabilities = capabilities,
         )
 
         val contentText = when (mode) {
@@ -164,23 +173,31 @@ class LegatoPlaybackService : Service() {
             .setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_TRANSPORT)
             .setContentIntent(launchPendingIntent)
-            .addAction(
+
+        notificationActions.forEachIndexed { index, model ->
+            val actionPendingIntent = PendingIntent.getService(
+                this,
+                REQUEST_CODE_TRANSPORT_BASE + index,
+                Intent(this, LegatoPlaybackService::class.java).apply {
+                    action = model.intentAction
+                },
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            builder.addAction(
                 Notification.Action.Builder(
-                    if (projectedControl == LegatoAndroidMediaSessionBridge.TransportControl.PAUSE) {
-                        android.R.drawable.ic_media_pause
-                    } else {
-                        android.R.drawable.ic_media_play
-                    },
-                    if (projectedControl == LegatoAndroidMediaSessionBridge.TransportControl.PAUSE) "Pause" else "Play",
-                    transportPendingIntent,
+                    iconForAction(model.intentAction),
+                    model.label,
+                    actionPendingIntent,
                 ).build(),
             )
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            val compactIndexes = IntArray(minOf(notificationActions.size, MAX_COMPACT_ACTIONS)) { it }
             builder.setStyle(
                 Notification.MediaStyle()
                     .setMediaSession(mediaSession?.sessionToken)
-                    .setShowActionsInCompactView(0),
+                    .setShowActionsInCompactView(*compactIndexes),
             )
         }
 
@@ -188,8 +205,9 @@ class LegatoPlaybackService : Service() {
     }
 
     private fun syncMediaSessionPlaybackState(state: LegatoAndroidPlaybackState) {
+        val capabilities = LegatoAndroidTransportCapabilitiesProjector.fromSnapshot(coordinator.core.playerEngine.getSnapshot())
         val playbackState = PlaybackState.Builder()
-            .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE)
+            .setActions(LegatoPlaybackNotificationTransport.playbackStateActionsFor(state, capabilities))
             .setState(
                 when (state) {
                     LegatoAndroidPlaybackState.PLAYING,
@@ -217,13 +235,36 @@ class LegatoPlaybackService : Service() {
         mediaSession?.setPlaybackState(playbackState)
     }
 
+    private fun iconForAction(action: String): Int {
+        return when (action) {
+            LegatoPlaybackNotificationTransport.ACTION_PLAY -> android.R.drawable.ic_media_play
+            LegatoPlaybackNotificationTransport.ACTION_PAUSE -> android.R.drawable.ic_media_pause
+            LegatoPlaybackNotificationTransport.ACTION_NEXT -> android.R.drawable.ic_media_next
+            LegatoPlaybackNotificationTransport.ACTION_PREVIOUS -> android.R.drawable.ic_media_previous
+            else -> android.R.drawable.ic_media_play
+        }
+    }
+
+    private fun dispatchNotificationRemoteCommand(command: io.legato.core.core.LegatoAndroidRemoteCommand) {
+        when (command) {
+            io.legato.core.core.LegatoAndroidRemoteCommand.Play -> coordinator.core.mediaSessionBridge.dispatchMediaSessionPlay()
+            io.legato.core.core.LegatoAndroidRemoteCommand.Pause -> coordinator.core.mediaSessionBridge.dispatchMediaSessionPause()
+            io.legato.core.core.LegatoAndroidRemoteCommand.Next -> coordinator.core.mediaSessionBridge.dispatchMediaSessionSkipToNext()
+            io.legato.core.core.LegatoAndroidRemoteCommand.Previous -> coordinator.core.mediaSessionBridge.dispatchMediaSessionSkipToPrevious()
+            is io.legato.core.core.LegatoAndroidRemoteCommand.Seek -> {
+                coordinator.core.mediaSessionBridge.dispatchMediaSessionSeekTo(command.positionMs)
+            }
+        }
+    }
+
     companion object {
         internal const val EXTRA_SERVICE_MODE: String = "legato.service_mode"
         private const val CHANNEL_ID: String = "legato.playback"
         private const val CHANNEL_NAME: String = "Legato playback"
         private const val NOTIFICATION_ID: Int = 4242
         private const val REQUEST_CODE_OPEN_APP: Int = 1001
-        private const val REQUEST_CODE_TRANSPORT: Int = 1002
+        private const val REQUEST_CODE_TRANSPORT_BASE: Int = 1002
+        private const val MAX_COMPACT_ACTIONS: Int = 3
         private const val MEDIA_SESSION_TAG: String = "legato.playback"
     }
 }

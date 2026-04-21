@@ -26,6 +26,7 @@ import io.legato.core.state.LegatoAndroidStateMachine
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class LegatoAndroidPlaybackCoordinatorTest {
@@ -117,6 +118,102 @@ class LegatoAndroidPlaybackCoordinatorTest {
         assertTrue(projectedStates.contains(LegatoAndroidPlaybackState.PAUSED))
     }
 
+    @Test
+    fun `coordinator add rebinds merged queue through runtime`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3"),
+            ),
+        )
+
+        coordinator.add(
+            tracks = listOf(
+                LegatoAndroidTrack(id = "track-2", url = "https://example.com/2.mp3"),
+            ),
+        )
+
+        assertEquals(2, runtime.replaceQueueCalls)
+        assertEquals(listOf("track-1", "track-2"), runtime.lastReplacedQueueIds)
+        assertEquals(2, coordinator.core.playerEngine.getSnapshot().queue.items.size)
+    }
+
+    @Test
+    fun `coordinator add with empty tracks keeps runtime queue untouched`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3"),
+            ),
+        )
+
+        coordinator.add(tracks = emptyList())
+
+        assertEquals(1, runtime.replaceQueueCalls)
+        assertEquals(listOf("track-1"), runtime.lastReplacedQueueIds)
+    }
+
+    @Test
+    fun `coordinator skipTo routes index selection through runtime`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3"),
+                LegatoAndroidTrack(id = "track-2", url = "https://example.com/2.mp3"),
+            ),
+        )
+
+        coordinator.skipTo(1)
+
+        assertEquals(listOf(1), runtime.selectedIndices)
+        assertEquals(1, coordinator.core.playerEngine.getSnapshot().currentIndex)
+    }
+
+    @Test
+    fun `coordinator skipTo rejects out of bounds index`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3"),
+            ),
+        )
+
+        try {
+            coordinator.skipTo(5)
+            fail("Expected skipTo to reject out of bounds index")
+        } catch (_: IllegalArgumentException) {
+            assertTrue(runtime.selectedIndices.isEmpty())
+        }
+    }
+
     private fun buildCore(
         runtime: RecordingPlaybackRuntime,
         sessionRuntime: RecordingSessionRuntime,
@@ -156,6 +253,15 @@ private class RecordingPlaybackRuntime : LegatoAndroidPlaybackRuntime {
     var playCallCount: Int = 0
         private set
 
+    var replaceQueueCalls: Int = 0
+        private set
+
+    var lastReplacedQueueIds: List<String> = emptyList()
+        private set
+
+    var selectedIndices: List<Int> = emptyList()
+        private set
+
     override fun configure() = Unit
 
     override fun setListener(listener: LegatoAndroidPlaybackRuntimeListener?) {
@@ -163,10 +269,13 @@ private class RecordingPlaybackRuntime : LegatoAndroidPlaybackRuntime {
     }
 
     override fun replaceQueue(items: List<LegatoAndroidRuntimeTrackSource>, startIndex: Int?) {
+        replaceQueueCalls += 1
+        lastReplacedQueueIds = items.map { it.id }
         snapshot = snapshot.copy(currentIndex = if (items.isEmpty()) null else (startIndex ?: 0))
     }
 
     override fun selectIndex(index: Int) {
+        selectedIndices = selectedIndices + index
         snapshot = snapshot.copy(currentIndex = index)
     }
 

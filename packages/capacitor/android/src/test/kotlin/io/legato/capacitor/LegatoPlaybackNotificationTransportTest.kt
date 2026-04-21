@@ -1,9 +1,11 @@
 package io.legato.capacitor
 
 import io.legato.core.core.LegatoAndroidPlaybackState
+import io.legato.core.core.LegatoAndroidTransportCapabilities
 import io.legato.core.remote.LegatoAndroidMediaSessionBridge
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LegatoPlaybackNotificationTransportTest {
@@ -40,5 +42,73 @@ class LegatoPlaybackNotificationTransportTest {
             ),
         )
         assertNull(LegatoPlaybackNotificationTransport.transportControlFromIntentAction("unsupported"))
+    }
+
+    @Test
+    fun `playback-state actions include next previous and seek when capabilities allow`() {
+        val actions = LegatoPlaybackNotificationTransport.playbackStateActionsFor(
+            state = LegatoAndroidPlaybackState.PLAYING,
+            capabilities = LegatoAndroidTransportCapabilities(
+                canSkipNext = true,
+                canSkipPrevious = true,
+                canSeek = true,
+            ),
+        )
+
+        assertTrue(actions and android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT != 0L)
+        assertTrue(actions and android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS != 0L)
+        assertTrue(actions and android.media.session.PlaybackState.ACTION_SEEK_TO != 0L)
+    }
+
+    @Test
+    fun `playback-state actions omit next when capability is false`() {
+        val actions = LegatoPlaybackNotificationTransport.playbackStateActionsFor(
+            state = LegatoAndroidPlaybackState.PAUSED,
+            capabilities = LegatoAndroidTransportCapabilities(
+                canSkipNext = false,
+                canSkipPrevious = true,
+                canSeek = true,
+            ),
+        )
+
+        assertEquals(0L, actions and android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT)
+        assertTrue(actions and android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS != 0L)
+    }
+
+    @Test
+    fun `notification actions include capability-driven previous and next around projected transport control`() {
+        val actions = LegatoPlaybackNotificationTransport.notificationActionModelFor(
+            state = LegatoAndroidPlaybackState.PAUSED,
+            capabilities = LegatoAndroidTransportCapabilities(
+                canSkipNext = true,
+                canSkipPrevious = true,
+                canSeek = true,
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                LegatoPlaybackNotificationTransport.ACTION_PREVIOUS,
+                LegatoPlaybackNotificationTransport.ACTION_PLAY,
+                LegatoPlaybackNotificationTransport.ACTION_NEXT,
+            ),
+            actions.map { it.intentAction },
+        )
+    }
+
+    @Test
+    fun `notification intent action maps previous and next to remote commands`() {
+        assertEquals(
+            io.legato.core.core.LegatoAndroidRemoteCommand.Previous,
+            LegatoPlaybackNotificationTransport.remoteCommandFromIntentAction(
+                LegatoPlaybackNotificationTransport.ACTION_PREVIOUS,
+            ),
+        )
+        assertEquals(
+            io.legato.core.core.LegatoAndroidRemoteCommand.Next,
+            LegatoPlaybackNotificationTransport.remoteCommandFromIntentAction(
+                LegatoPlaybackNotificationTransport.ACTION_NEXT,
+            ),
+        )
     }
 }

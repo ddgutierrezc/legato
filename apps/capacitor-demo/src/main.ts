@@ -5,6 +5,7 @@ type LegatoSyncController = ReturnType<typeof createLegatoSync>;
 
 const smokeButton = document.querySelector<HTMLButtonElement>('#run-smoke');
 const endSmokeButton = document.querySelector<HTMLButtonElement>('#run-end-smoke');
+const boundarySmokeButton = document.querySelector<HTMLButtonElement>('#run-boundary-smoke');
 const copyLogButton = document.querySelector<HTMLButtonElement>('#copy-log');
 const copyEventsButton = document.querySelector<HTMLButtonElement>('#copy-events');
 const setupButton = document.querySelector<HTMLButtonElement>('#action-setup');
@@ -14,6 +15,8 @@ const addButton = document.querySelector<HTMLButtonElement>('#action-add');
 const playButton = document.querySelector<HTMLButtonElement>('#action-play');
 const pauseButton = document.querySelector<HTMLButtonElement>('#action-pause');
 const stopButton = document.querySelector<HTMLButtonElement>('#action-stop');
+const previousButton = document.querySelector<HTMLButtonElement>('#action-previous');
+const nextButton = document.querySelector<HTMLButtonElement>('#action-next');
 const seekButton = document.querySelector<HTMLButtonElement>('#action-seek');
 const snapshotButton = document.querySelector<HTMLButtonElement>('#action-snapshot');
 const seekInput = document.querySelector<HTMLInputElement>('#seek-ms');
@@ -21,12 +24,14 @@ const envStatusNode = document.querySelector<HTMLDivElement>('#env-status');
 const logNode = document.querySelector<HTMLTextAreaElement>('#log');
 const eventsNode = document.querySelector<HTMLTextAreaElement>('#events');
 const snapshotSummaryNode = document.querySelector<HTMLPreElement>('#snapshot-summary');
+const capabilitySummaryNode = document.querySelector<HTMLPreElement>('#capability-summary');
 const paritySummaryNode = document.querySelector<HTMLPreElement>('#parity-summary');
 const snapshotJsonNode = document.querySelector<HTMLTextAreaElement>('#snapshot-json');
 
 if (
   !smokeButton
   || !endSmokeButton
+  || !boundarySmokeButton
   || !copyLogButton
   || !copyEventsButton
   || !setupButton
@@ -36,6 +41,8 @@ if (
   || !playButton
   || !pauseButton
   || !stopButton
+  || !previousButton
+  || !nextButton
   || !seekButton
   || !snapshotButton
   || !seekInput
@@ -43,6 +50,7 @@ if (
   || !logNode
   || !eventsNode
   || !snapshotSummaryNode
+  || !capabilitySummaryNode
   || !paritySummaryNode
   || !snapshotJsonNode
 ) {
@@ -72,7 +80,7 @@ const demoTracks: Track[] = [
     artist: 'Samplelib',
     album: 'Legato Remote Parity Fixtures',
     artwork: 'https://samplelib.com/lib/preview/png/sample-bumblebee-400x300.png',
-    duration: 3000,
+    duration: 3239,
     type: 'progressive',
   },
   {
@@ -82,7 +90,7 @@ const demoTracks: Track[] = [
     artist: 'Samplelib',
     album: 'Legato Remote Parity Fixtures',
     artwork: 'https://samplelib.com/lib/preview/png/sample-bumblebee-400x300.png',
-    duration: 6000,
+    duration: 6426,
     type: 'progressive',
   },
 ];
@@ -115,6 +123,56 @@ const summarizeSnapshot = (snapshot: PlaybackSnapshot): string => {
     `buffered=${formatMs(snapshot.bufferedPosition ?? null)}`,
     `queue=${queueLength}`,
     `error=${snapshot.error ? JSON.stringify(snapshot.error) : 'none'}`,
+  ].join(' | ');
+};
+
+type ProjectedCapabilities = {
+  canSkipNext: boolean;
+  canSkipPrevious: boolean;
+  canSeek: boolean;
+  queueLength: number;
+  currentIndex: number | null;
+};
+
+const projectCapabilities = (snapshot: PlaybackSnapshot): ProjectedCapabilities => {
+  const queueItems = (snapshot.queue as { items?: unknown[]; tracks?: unknown[] }).items
+    ?? (snapshot.queue as { items?: unknown[]; tracks?: unknown[] }).tracks
+    ?? [];
+  const queueLength = queueItems.length;
+  const indexValue = snapshot.currentIndex;
+  const currentIndex = typeof indexValue === 'number' && Number.isInteger(indexValue) ? indexValue : null;
+  const hasQueue = queueLength > 0;
+  const isEnded = snapshot.state === 'ended';
+
+  const canSkipNext = hasQueue
+    && !isEnded
+    && currentIndex !== null
+    && currentIndex >= 0
+    && currentIndex < queueLength - 1;
+  const canSkipPrevious = hasQueue
+    && !isEnded
+    && currentIndex !== null
+    && currentIndex > 0
+    && currentIndex < queueLength;
+  const canSeek = hasQueue && !isEnded;
+
+  return {
+    canSkipNext,
+    canSkipPrevious,
+    canSeek,
+    queueLength,
+    currentIndex,
+  };
+};
+
+const renderCapabilitySummary = (snapshot: PlaybackSnapshot): void => {
+  const projection = projectCapabilities(snapshot);
+  capabilitySummaryNode.textContent = [
+    `canSkipNext=${projection.canSkipNext}`,
+    `canSkipPrevious=${projection.canSkipPrevious}`,
+    `canSeek=${projection.canSeek}`,
+    `queue=${projection.queueLength}`,
+    `index=${projection.currentIndex ?? 'null'}`,
   ].join(' | ');
 };
 
@@ -293,6 +351,7 @@ const updateSnapshotViews = (snapshot: PlaybackSnapshot): void => {
   latestSnapshot = snapshot;
   addProgressSample(snapshot);
   snapshotSummaryNode.textContent = summarizeSnapshot(snapshot);
+  renderCapabilitySummary(snapshot);
   snapshotJsonNode.value = JSON.stringify(snapshot, null, 2);
   updateParityInspector(snapshot);
   addRecentEvent(`snapshot summary ${summarizeSnapshot(snapshot)}`);
@@ -402,6 +461,16 @@ const stopAction = async (): Promise<void> => {
   log('stop() ok');
 };
 
+const previousAction = async (): Promise<void> => {
+  await Legato.skipToPrevious();
+  log('skipToPrevious() ok');
+};
+
+const nextAction = async (): Promise<void> => {
+  await Legato.skipToNext();
+  log('skipToNext() ok');
+};
+
 const seekAction = async (): Promise<void> => {
   const value = Number(seekInput.value);
   const targetMs = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
@@ -457,6 +526,28 @@ const runLetItEndSmokeFlow = async (): Promise<void> => {
   await snapshotAction();
 };
 
+const runBoundarySmokeFlow = async (): Promise<void> => {
+  clearFlows();
+  log('Starting Legato boundary smoke flow...');
+  log('platform:', platform);
+  log('isNativePlatform:', isNative);
+  log('Boundary check: previous on first track should restart to 0; next on last track should end playback.');
+
+  await setupAction();
+  await startSync();
+  await addAction();
+  await playAction();
+
+  await previousAction();
+  await snapshotAction();
+
+  await nextAction();
+  await snapshotAction();
+
+  await nextAction();
+  await snapshotAction();
+};
+
 envStatusNode.textContent = `platform=${platform} | native=${isNative}`;
 log('Legato parity harness ready.');
 log('platform:', platform);
@@ -469,6 +560,10 @@ smokeButton.addEventListener('click', () => {
 
 endSmokeButton.addEventListener('click', () => {
   void runNativeAction('run let-it-end smoke flow', runLetItEndSmokeFlow);
+});
+
+boundarySmokeButton.addEventListener('click', () => {
+  void runNativeAction('run boundary smoke flow', runBoundarySmokeFlow);
 });
 
 setupButton.addEventListener('click', () => {
@@ -499,6 +594,14 @@ stopButton.addEventListener('click', () => {
   void runNativeAction('manual stop()', stopAction);
 });
 
+previousButton.addEventListener('click', () => {
+  void runNativeAction('manual skipToPrevious()', previousAction);
+});
+
+nextButton.addEventListener('click', () => {
+  void runNativeAction('manual skipToNext()', nextAction);
+});
+
 seekButton.addEventListener('click', () => {
   void runNativeAction('manual seekTo()', seekAction);
 });
@@ -524,5 +627,6 @@ if (!isNative) {
 
 if (latestSnapshot == null) {
   snapshotSummaryNode.textContent = 'No snapshot captured yet.';
+  capabilitySummaryNode.textContent = 'No capability projection yet.';
   paritySummaryNode.textContent = 'No parity signals yet.';
 }

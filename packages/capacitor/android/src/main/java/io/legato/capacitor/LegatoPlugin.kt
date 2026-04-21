@@ -15,12 +15,13 @@ import io.legato.core.core.LegatoAndroidErrorCode
 @CapacitorPlugin(name = "Legato")
 class LegatoPlugin : Plugin() {
     private val mapper = LegatoCapacitorMapper()
-    private val coordinator = LegatoAndroidPlaybackCoordinatorStore.getOrCreate()
+    private lateinit var coordinator: LegatoAndroidPlaybackCoordinator
     private val core get() = coordinator.core
     private var coreListenerId: Long? = null
 
     override fun load() {
         super.load()
+        coordinator = LegatoAndroidPlaybackCoordinatorStore.getOrCreate(context.applicationContext)
         coordinator.bindServiceRuntime(LegatoAndroidAppServiceRuntime(context.applicationContext))
         coreListenerId = coordinator.addCoreEventListener { event ->
             notifyListeners(event.name.wireValue, mapper.eventPayloadToJs(event.payload))
@@ -47,29 +48,8 @@ class LegatoPlugin : Plugin() {
             val tracks = mapper.tracksFromJs(call.getArray("tracks"))
             val startIndex = call.getInt("startIndex")
 
-            val mappedTracks = core.trackMapper.mapContractTracks(tracks)
-            val queueSnapshot = if (startIndex != null) {
-                val mergedItems = core.queueManager.getQueueSnapshot().items + mappedTracks
-                core.queueManager.replaceQueue(mergedItems, startIndex)
-            } else {
-                core.queueManager.addToQueue(mappedTracks)
-            }
-
-            val previous = core.snapshotStore.getPlaybackSnapshot()
-            val next = snapshotWithQueue(previous, queueSnapshot)
-            core.snapshotStore.replacePlaybackSnapshot(next)
-
-            publishQueueTrackProgress(next)
-            if (previous.state != next.state) {
-                core.eventEmitter.emit(
-                    name = LegatoAndroidEventName.PLAYBACK_STATE_CHANGED,
-                    payload = LegatoAndroidEventPayload.PlaybackStateChanged(next.state),
-                )
-            }
-
-            coordinator.projectServiceMode()
-
-            call.resolve(snapshotResult(next))
+            coordinator.add(tracks = tracks, startIndex = startIndex)
+            call.resolve(snapshotResult(core.playerEngine.getSnapshot()))
         }.onFailure { reject(call, it) }
     }
 
@@ -189,16 +169,8 @@ class LegatoPlugin : Plugin() {
     fun skipTo(call: PluginCall) {
         runCatching {
             val index = call.getInt("index") ?: error("skipTo.index is required")
-            val queueSnapshot = core.queueManager.getQueueSnapshot()
-            require(index in queueSnapshot.items.indices) { "skipTo.index out of bounds" }
-
-            val nextQueue = core.queueManager.replaceQueue(queueSnapshot.items, index)
-            val previous = core.snapshotStore.getPlaybackSnapshot()
-            val next = snapshotWithQueue(previous, nextQueue)
-            core.snapshotStore.replacePlaybackSnapshot(next)
-            publishQueueTrackProgress(next)
-            coordinator.projectServiceMode()
-            call.resolve(snapshotResult(next))
+            coordinator.skipTo(index)
+            call.resolve(snapshotResult(core.playerEngine.getSnapshot()))
         }.onFailure { reject(call, it) }
     }
 

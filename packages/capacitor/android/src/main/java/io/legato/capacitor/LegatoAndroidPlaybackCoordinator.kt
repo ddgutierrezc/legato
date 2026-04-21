@@ -3,11 +3,15 @@ package io.legato.capacitor
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.media3.exoplayer.ExoPlayer
 import io.legato.core.core.LegatoAndroidCoreComponents
+import io.legato.core.core.LegatoAndroidCoreDependencies
 import io.legato.core.core.LegatoAndroidCoreFactory
 import io.legato.core.core.LegatoAndroidPauseOrigin
 import io.legato.core.core.LegatoAndroidPlaybackState
 import io.legato.core.core.LegatoAndroidServiceMode
+import io.legato.core.core.LegatoAndroidTrack
+import io.legato.core.runtime.LegatoAndroidMedia3PlaybackRuntime
 import java.util.concurrent.atomic.AtomicLong
 
 internal fun interface LegatoAndroidCoordinatorServiceRuntime {
@@ -75,6 +79,14 @@ internal class LegatoAndroidPlaybackCoordinator(
         projectPlaybackState()
     }
 
+    fun add(tracks: List<LegatoAndroidTrack>, startIndex: Int? = null) {
+        kotlinx.coroutines.runBlocking {
+            core.playerEngine.add(tracks = tracks, startIndex = startIndex)
+        }
+        projectServiceMode()
+        projectPlaybackState()
+    }
+
     fun play() {
         kotlinx.coroutines.runBlocking { core.playerEngine.play() }
         projectServiceMode()
@@ -107,6 +119,12 @@ internal class LegatoAndroidPlaybackCoordinator(
 
     fun skipToPrevious() {
         kotlinx.coroutines.runBlocking { core.playerEngine.skipToPrevious() }
+        projectServiceMode()
+        projectPlaybackState()
+    }
+
+    fun skipTo(index: Int) {
+        kotlinx.coroutines.runBlocking { core.playerEngine.skipTo(index) }
         projectServiceMode()
         projectPlaybackState()
     }
@@ -202,8 +220,16 @@ internal object LegatoAndroidPlaybackCoordinatorStore {
     private val lock = Any()
     private var coordinator: LegatoAndroidPlaybackCoordinator? = null
 
-    fun getOrCreate(): LegatoAndroidPlaybackCoordinator = synchronized(lock) {
-        coordinator ?: LegatoAndroidPlaybackCoordinator(core = LegatoAndroidCoreFactory.create()).also {
+    fun getOrCreate(appContext: Context): LegatoAndroidPlaybackCoordinator = synchronized(lock) {
+        coordinator ?: LegatoAndroidPlaybackCoordinator(
+            core = LegatoAndroidCoreFactory.create(
+                dependencies = LegatoAndroidCoreDependencies(
+                    playbackRuntime = LegatoAndroidMedia3PlaybackRuntime(
+                        player = ExoPlayer.Builder(appContext).build(),
+                    ),
+                ),
+            ),
+        ).also {
             coordinator = it
         }
     }

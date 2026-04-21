@@ -4,7 +4,7 @@ public final class LegatoiOSRemoteCommandManager {
     private let runtime: LegatoiOSRemoteCommandRuntime
     private var commandHandler: ((LegatoiOSRemoteCommand) -> Void)?
 
-    public init(runtime: LegatoiOSRemoteCommandRuntime = LegatoiOSNoopRemoteCommandRuntime()) {
+    public init(runtime: LegatoiOSRemoteCommandRuntime = LegatoiOSMediaPlayerRemoteCommandRuntime()) {
         self.runtime = runtime
     }
 
@@ -15,6 +15,10 @@ public final class LegatoiOSRemoteCommandManager {
 
     public func updatePlaybackState(_ state: LegatoiOSPlaybackState) {
         runtime.updatePlaybackState(state)
+    }
+
+    public func updateTransportCapabilities(_ capabilities: LegatoiOSTransportCapabilities) {
+        runtime.updateTransportCapabilities(capabilities)
     }
 
     public func unbind() {

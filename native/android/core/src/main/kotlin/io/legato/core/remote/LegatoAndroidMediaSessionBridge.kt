@@ -100,6 +100,18 @@ class LegatoAndroidMediaSessionBridge : LegatoAndroidSessionRuntime, LegatoAndro
         remoteDispatch?.invoke(LegatoAndroidRemoteCommand.Pause)
     }
 
+    fun dispatchMediaSessionSkipToNext() {
+        remoteDispatch?.invoke(LegatoAndroidRemoteCommand.Next)
+    }
+
+    fun dispatchMediaSessionSkipToPrevious() {
+        remoteDispatch?.invoke(LegatoAndroidRemoteCommand.Previous)
+    }
+
+    fun dispatchMediaSessionSeekTo(positionMs: Long) {
+        remoteDispatch?.invoke(LegatoAndroidRemoteCommand.Seek(positionMs))
+    }
+
     fun dispatchTransportControl(control: TransportControl) {
         when (control) {
             TransportControl.PLAY -> dispatchMediaSessionPlay()
