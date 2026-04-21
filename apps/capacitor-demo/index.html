@@ -149,6 +149,41 @@
       #log {
         min-height: 220px;
       }
+
+      #verdict-status {
+        font-weight: 700;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 0.45rem 0.6rem;
+      }
+
+      #verdict-status[data-status='PASS'] {
+        border-color: #15803d;
+        color: #15803d;
+      }
+
+      #verdict-status[data-status='FAIL'] {
+        border-color: #b91c1c;
+        color: #b91c1c;
+      }
+
+      #verdict-summary {
+        margin: 0;
+        padding: 0.65rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        min-height: 74px;
+        white-space: pre-wrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+        font-size: 0.82rem;
+      }
+
+      #verdict-checks {
+        margin: 0;
+        padding-left: 1.1rem;
+        display: grid;
+        gap: 0.28rem;
+      }
     </style>
   </head>
   <body>
@@ -167,6 +202,11 @@
             <button id="copy-events" type="button">Copy recent events</button>
           </div>
           <div id="env-status">Detecting platform…</div>
+          <div id="verdict-status" data-status="IDLE">Smoke verdict: IDLE</div>
+          <pre id="verdict-summary">flow=none
+status=IDLE
+No smoke run yet.</pre>
+          <ul id="verdict-checks"></ul>
         </section>
 
         <section class="card stack">

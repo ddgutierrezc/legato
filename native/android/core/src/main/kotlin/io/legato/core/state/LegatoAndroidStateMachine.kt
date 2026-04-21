@@ -53,6 +53,7 @@ class LegatoAndroidStateMachine {
             LegatoAndroidPlaybackState.BUFFERING to setOf(
                 LegatoAndroidPlaybackState.PLAYING,
                 LegatoAndroidPlaybackState.PAUSED,
+                LegatoAndroidPlaybackState.ENDED,
                 LegatoAndroidPlaybackState.READY,
                 LegatoAndroidPlaybackState.LOADING,
                 LegatoAndroidPlaybackState.IDLE,

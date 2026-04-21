@@ -115,6 +115,26 @@ class LegatoAndroidPlayerEngineInterruptionPolicyTest {
     }
 
     @Test
+    fun `runtime buffering callbacks cannot rebound state after ended`() = runBlocking {
+        val playbackRuntime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val engine = buildEngine(playbackRuntime, sessionRuntime)
+
+        engine.setup()
+        engine.load(tracks = listOf(LegatoAndroidTrack(id = "track-1", url = "https://example.com/audio.mp3")))
+        engine.play()
+
+        playbackRuntime.emitBuffering(true)
+        assertEquals(LegatoAndroidPlaybackState.BUFFERING, engine.getSnapshot().state)
+
+        playbackRuntime.emitEnded()
+        assertEquals(LegatoAndroidPlaybackState.ENDED, engine.getSnapshot().state)
+
+        playbackRuntime.emitBuffering(false)
+        assertEquals(LegatoAndroidPlaybackState.ENDED, engine.getSnapshot().state)
+    }
+
+    @Test
     fun `runtime fatal error callback transitions state and emits playback error`() = runBlocking {
         val playbackRuntime = RecordingPlaybackRuntime()
         val sessionRuntime = RecordingSessionRuntime()
@@ -188,6 +208,53 @@ class LegatoAndroidPlayerEngineInterruptionPolicyTest {
         assertEquals(200_000L, snapshot.durationMs)
         assertEquals(9_000L, snapshot.bufferedPositionMs)
         assertEquals(1, snapshot.queue.currentIndex)
+    }
+
+    @Test
+    fun `user paused with active track remains playback active for service projection`() = runBlocking {
+        val playbackRuntime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val engine = buildEngine(playbackRuntime, sessionRuntime)
+
+        engine.setup()
+        engine.load(tracks = listOf(LegatoAndroidTrack(id = "track-1", url = "https://example.com/audio.mp3")))
+        engine.play()
+        engine.pause()
+
+        assertEquals(LegatoAndroidPlaybackState.PAUSED, engine.getSnapshot().state)
+        assertEquals(LegatoAndroidPauseOrigin.USER, engine.getPauseOrigin())
+        assertEquals(LegatoAndroidServiceMode.PLAYBACK_ACTIVE, engine.getServiceMode())
+    }
+
+    @Test
+    fun `runtime progress ignores out of bounds index while still publishing progress`() = runBlocking {
+        val playbackRuntime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val engine = buildEngine(playbackRuntime, sessionRuntime)
+
+        engine.setup()
+        engine.load(
+            tracks = listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3", durationMs = 100_000L),
+                LegatoAndroidTrack(id = "track-2", url = "https://example.com/2.mp3", durationMs = 200_000L),
+            ),
+        )
+        engine.play()
+
+        playbackRuntime.emitProgress(
+            currentIndex = 99,
+            positionMs = 7_500L,
+            durationMs = 333_000L,
+            bufferedPositionMs = 11_000L,
+        )
+
+        val snapshot = engine.getSnapshot()
+        assertEquals(0, snapshot.currentIndex)
+        assertEquals("track-1", snapshot.currentTrack?.id)
+        assertEquals(7_500L, snapshot.positionMs)
+        assertEquals(333_000L, snapshot.durationMs)
+        assertEquals(11_000L, snapshot.bufferedPositionMs)
+        assertEquals(0, snapshot.queue.currentIndex)
     }
 
     private fun buildEngine(

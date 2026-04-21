@@ -29,7 +29,10 @@ class LegatoPlaybackService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        coordinator = LegatoAndroidPlaybackCoordinatorStore.getOrCreate(applicationContext)
+        coordinator = resolveOnCreateDependency(
+            contextProvider = { applicationContext },
+            resolver = LegatoAndroidPlaybackCoordinatorStore::getOrCreate,
+        )
         currentMode = coordinator.currentServiceMode()
         currentPlaybackState = coordinator.currentPlaybackState()
         modeListenerId = coordinator.addServiceModeListener(::onServiceModeChanged)
@@ -267,4 +270,8 @@ class LegatoPlaybackService : Service() {
         private const val MAX_COMPACT_ACTIONS: Int = 3
         private const val MEDIA_SESSION_TAG: String = "legato.playback"
     }
+}
+
+internal fun <C, R> resolveOnCreateDependency(contextProvider: () -> C, resolver: (C) -> R): R {
+    return resolver(contextProvider())
 }

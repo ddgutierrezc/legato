@@ -149,6 +149,26 @@ class LegatoAndroidPlayerEngineRemoteCommandRoutingTest {
     }
 
     @Test
+    fun `remote next at end ignores stale buffering callbacks after ended`() = runBlocking {
+        val playbackRuntime = RemoteRoutingPlaybackRuntime()
+        val dependencies = LegatoAndroidCoreDependencies(
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+
+        components.playerEngine.setup()
+        components.playerEngine.load(tracks = listOf(track(id = "1"), track(id = "2")))
+        components.playerEngine.play()
+        components.playerEngine.skipToNext()
+
+        dependencies.mediaSessionBridge.dispatchRemoteCommandForTesting(LegatoAndroidRemoteCommand.Next)
+        assertEquals(LegatoAndroidPlaybackState.ENDED, components.playerEngine.getSnapshot().state)
+
+        playbackRuntime.emitBuffering(false)
+        assertEquals(LegatoAndroidPlaybackState.ENDED, components.playerEngine.getSnapshot().state)
+    }
+
+    @Test
     fun `remote previous seeks to zero when current position is greater than threshold`() = runBlocking {
         val playbackRuntime = RemoteRoutingPlaybackRuntime()
         val eventEmitter = LegatoAndroidEventEmitter()
@@ -312,5 +332,9 @@ private class RemoteRoutingPlaybackRuntime : LegatoAndroidPlaybackRuntime {
         pauseCalls = 0
         seekCalls = 0
         selectIndexCalls = 0
+    }
+
+    fun emitBuffering(isBuffering: Boolean) {
+        listener?.onBuffering(isBuffering)
     }
 }
