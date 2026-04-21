@@ -297,7 +297,11 @@ class LegatoAndroidPlayerEngine(
             return
         }
 
-        transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.TRACK_ENDED)
+        val transitioned = transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.TRACK_ENDED)
+        if (!transitioned) {
+            return
+        }
+
         val endedSnapshot = snapshotStore.getPlaybackSnapshot()
         eventEmitter.emit(
             name = LegatoAndroidEventName.PLAYBACK_ENDED,
@@ -341,6 +345,10 @@ class LegatoAndroidPlayerEngine(
 
     private val runtimeListener = object : LegatoAndroidPlaybackRuntimeListener {
         override fun onProgress(progress: LegatoAndroidRuntimeProgress) {
+            if (snapshotStore.getPlaybackSnapshot().state == LegatoAndroidPlaybackState.ENDED) {
+                return
+            }
+
             val runtimeSnapshot = playbackRuntime.snapshot()
             var activeItemChanged = false
 
@@ -378,7 +386,11 @@ class LegatoAndroidPlayerEngine(
         }
 
         override fun onEnded() {
-            transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.TRACK_ENDED)
+            val transitioned = transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.TRACK_ENDED)
+            if (!transitioned) {
+                return
+            }
+
             eventEmitter.emit(
                 name = LegatoAndroidEventName.PLAYBACK_ENDED,
                 payload = LegatoAndroidEventPayload.PlaybackEnded(snapshotStore.getPlaybackSnapshot()),
@@ -401,15 +413,16 @@ class LegatoAndroidPlayerEngine(
     private inline fun runRuntimeOperation(block: () -> Unit): Boolean =
         runCatching(block).onFailure(::publishPlatformFailure).isSuccess
 
-    private fun transitionTo(input: LegatoAndroidStateMachine.LegatoAndroidStateInput) {
+    private fun transitionTo(input: LegatoAndroidStateMachine.LegatoAndroidStateInput): Boolean {
         val previous = snapshotStore.getPlaybackSnapshot()
         val nextState = stateMachine.reduce(previous.state, input)
         if (nextState == previous.state) {
-            return
+            return false
         }
 
         snapshotStore.updatePlaybackSnapshot { it.copy(state = nextState) }
         publishState(nextState)
+        return true
     }
 
     private fun synchronizeActiveItemFromRuntime(
