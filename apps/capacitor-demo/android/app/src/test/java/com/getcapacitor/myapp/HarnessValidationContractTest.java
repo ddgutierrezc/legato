@@ -24,7 +24,8 @@ public class HarnessValidationContractTest {
             "id=\"action-next\"",
             "id=\"action-seek\"",
             "id=\"action-snapshot\"",
-            "id=\"copy-events\""
+            "id=\"copy-events\"",
+            "id=\"copy-smoke-report\""
     };
 
     @Test
@@ -44,11 +45,15 @@ public class HarnessValidationContractTest {
         assertTrue("Missing recent events node", html.contains("id=\"events\""));
         assertTrue("Missing snapshot summary node", html.contains("id=\"snapshot-summary\""));
         assertTrue("Missing snapshot JSON node", html.contains("id=\"snapshot-json\""));
+        assertTrue("Missing automation status node", html.contains("id=\"automation-status\""));
+        assertTrue("Missing automation report node", html.contains("id=\"smoke-report-json\""));
+        assertTrue("Missing automation snapshot node", html.contains("id=\"automation-snapshot\""));
     }
 
     @Test
     public void mainTs_usesDirectAudioUrlsAndExposesBoundaryAndCapabilitySignals() throws Exception {
         String mainTs = readRepoFile("apps/capacitor-demo/src/main.ts");
+        String smokeAutomation = readRepoFile("apps/capacitor-demo/src/smoke-automation.js");
 
         assertTrue("Smoke defaults should avoid redirect URLs", !mainTs.contains("soundhelix.com") && !mainTs.contains("redirect"));
         assertTrue("Expected direct samplelib URL for smoke fixture", mainTs.contains("https://samplelib.com/mp3/sample-3s.mp3"));
@@ -57,6 +62,8 @@ public class HarnessValidationContractTest {
         assertTrue("Expected capability projection renderer", mainTs.contains("renderCapabilitySummary"));
         assertTrue("Expected boundary smoke flow helper", mainTs.contains("runBoundarySmokeFlow"));
         assertTrue("Expected recent events rendering helper", mainTs.contains("renderRecentEvents"));
+        assertTrue("Expected smoke marker prefix", smokeAutomation.contains("LEGATO_SMOKE_REPORT"));
+        assertTrue("Expected smoke report emission", mainTs.contains("buildSmokeMarkerLine"));
     }
 
     @Test

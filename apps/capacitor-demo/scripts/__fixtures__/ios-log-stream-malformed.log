@@ -1,0 +1,2 @@
+2026-04-22 19:05:00.000 Df legato-capacitor-demo[90123:456789] [js] [19:05:00] setup() ok
+2026-04-22 19:05:00.120 Df legato-capacitor-demo[90123:456789] [js] [19:05:00] LEGATO_SMOKE_REPORT {"schemaVersion":1,"flow":"smoke","status":"PASS","checks":[]

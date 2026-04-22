@@ -1,0 +1,3 @@
+04-22 17:10:00.000 12345 12345 I Capacitor/Console: File: https://localhost/assets/index-abc123.js - Line 120 - Msg: [17:10:00] Starting Legato smoke flow...
+04-22 17:10:00.250 12345 12345 I Capacitor/Console: File: https://localhost/assets/index-abc123.js - Line 121 - Msg: [17:10:00] setup() ok
+04-22 17:10:00.900 12345 12345 I Capacitor/Console: File: https://localhost/assets/index-abc123.js - Line 122 - Msg: [17:10:00] run smoke flow finished

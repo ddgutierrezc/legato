@@ -56,12 +56,42 @@ const statusFromChecks = (checks) => {
   return checks.every((check) => check.ok) ? PASS : FAIL;
 };
 
+export const deriveSmokeStatusFromChecks = (checks, errorSummary = null) => {
+  if (typeof errorSummary === 'string' && errorSummary.trim() !== '') {
+    return FAIL;
+  }
+
+  return statusFromChecks(checks);
+};
+
 const formatSnapshotSummary = (metrics) => [
   `state=${metrics.state}`,
   `track=${metrics.currentTrack}`,
   `position=${metrics.position ?? 'n/a'}`,
   `duration=${metrics.duration ?? 'n/a'}`,
 ].join(' | ');
+
+export const createSmokeChecks = (flow, snapshot) => {
+  const metrics = readSnapshotMetrics(snapshot);
+  return [...createBaseChecks(metrics), ...createFlowChecks(flow, metrics)];
+};
+
+export const createSmokeSnapshotSummary = (snapshot) => {
+  const metrics = readSnapshotMetrics(snapshot);
+  return formatSnapshotSummary(metrics);
+};
+
+export const buildSmokeReportV1 = ({ verdict, recentEvents = [] }) => ({
+  schemaVersion: 1,
+  flow: 'smoke',
+  status: verdict.status === PASS ? PASS : FAIL,
+  checks: Array.isArray(verdict.checks) ? verdict.checks : [],
+  snapshotSummary: typeof verdict.snapshotSummary === 'string' ? verdict.snapshotSummary : 'No snapshot summary available.',
+  recentEvents: Array.isArray(recentEvents) ? recentEvents.filter((event) => typeof event === 'string') : [],
+  errors: verdict.status === FAIL
+    ? [verdict.errorSummary ?? 'One or more smoke checks failed.'].filter((entry) => typeof entry === 'string' && entry.trim() !== '')
+    : [],
+});
 
 export const createInitialSmokeVerdict = () => ({
   flow: null,
@@ -87,12 +117,11 @@ export const reduceSmokeVerdict = (state, action) => {
       };
 
     case 'snapshot': {
-      const metrics = readSnapshotMetrics(action.snapshot);
-      const checks = [...createBaseChecks(metrics), ...createFlowChecks(state.flow, metrics)];
+      const checks = createSmokeChecks(state.flow, action.snapshot);
       return {
         ...state,
         checks,
-        snapshotSummary: formatSnapshotSummary(metrics),
+        snapshotSummary: createSmokeSnapshotSummary(action.snapshot),
       };
     }
 
@@ -110,7 +139,7 @@ export const reduceSmokeVerdict = (state, action) => {
 
       return {
         ...state,
-        status: statusFromChecks(state.checks),
+        status: deriveSmokeStatusFromChecks(state.checks, state.errorSummary),
       };
     }
 

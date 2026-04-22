@@ -36,6 +36,38 @@ Validate native bridge + snapshot/event plumbing for the minimal flow in `src/ma
 
 This is a **native smoke** (Android/iOS host), not a browser-only check.
 
+## Smoke automation (v1, smoke-only)
+
+This repository now includes a smoke report collector + validator pipeline for Android and iOS.
+
+- Do not broaden this automation beyond `smoke` in v1.
+- The manual harness is still the primary debugging workflow.
+- Automation is meant to make PASS/FAIL artifacts repeatable, not replace interactive debugging controls.
+
+Run from `apps/capacitor-demo` after running the smoke flow in native hosts:
+
+```bash
+# 1) Refresh host assets before native test loops
+npm run build
+npm run cap:sync
+
+# 2) Collect latest smoke marker report from platform logs
+npm run collect:smoke:android
+npm run collect:smoke:ios
+
+# 3) Validate artifacts with shared PASS/FAIL semantics
+npm run validate:smoke:android
+npm run validate:smoke:ios
+npm run validate:smoke:all
+```
+
+`validate:smoke:*` returns:
+
+- exit code `0` only when all supplied artifacts pass schema + check semantics
+- non-zero when any artifact fails schema/check/collector expectations
+
+When automation reports FAIL, capture logs/events/snapshot from the harness panel and continue diagnosis manually.
+
 ## Remote transport richness v2 validation
 
 Harness now supports both one-click smoke and manual controls for:

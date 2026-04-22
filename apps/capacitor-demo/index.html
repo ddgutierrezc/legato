@@ -167,6 +167,28 @@
         color: #b91c1c;
       }
 
+      #automation-status {
+        font-weight: 700;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 0.45rem 0.6rem;
+      }
+
+      #automation-status[data-status='pass'] {
+        border-color: #15803d;
+        color: #15803d;
+      }
+
+      #automation-status[data-status='fail'] {
+        border-color: #b91c1c;
+        color: #b91c1c;
+      }
+
+      #automation-status[data-status='idle'] {
+        border-color: #64748b;
+        color: #334155;
+      }
+
       #verdict-summary {
         margin: 0;
         padding: 0.65rem;
@@ -183,6 +205,21 @@
         padding-left: 1.1rem;
         display: grid;
         gap: 0.28rem;
+      }
+
+      #smoke-report-json,
+      #automation-snapshot {
+        min-height: 130px;
+      }
+
+      #automation-snapshot {
+        margin: 0;
+        padding: 0.65rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        white-space: pre-wrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+        font-size: 0.82rem;
       }
     </style>
   </head>
@@ -208,6 +245,19 @@
 status=IDLE
 No smoke run yet.</pre>
           <ul id="verdict-checks"></ul>
+        </section>
+
+        <section class="card stack">
+          <h2>Automation report (SmokeReport v1)</h2>
+          <div class="actions">
+            <button id="copy-smoke-report" type="button">Copy smoke report JSON</button>
+          </div>
+          <div id="automation-status" data-status="idle">Automation status: IDLE</div>
+          <pre id="automation-snapshot">status=IDLE
+snapshot=No smoke run yet.
+recentEvents=none
+errors=none</pre>
+          <textarea id="smoke-report-json" readonly spellcheck="false" placeholder="LEGATO_SMOKE_REPORT payload JSON..."></textarea>
         </section>
 
         <section class="card stack">
