@@ -1,8 +1,11 @@
 package io.legato.capacitor
 
+import android.graphics.Bitmap
 import android.media.session.PlaybackState
+import io.legato.core.core.LegatoAndroidNowPlayingMetadata
 import io.legato.core.core.LegatoAndroidPlaybackState
 import io.legato.core.core.LegatoAndroidRemoteCommand
+import io.legato.core.core.LegatoAndroidServiceMode
 import io.legato.core.core.LegatoAndroidTransportCapabilities
 import io.legato.core.remote.LegatoAndroidMediaSessionBridge
 
@@ -10,6 +13,12 @@ internal object LegatoPlaybackNotificationTransport {
     data class NotificationActionModel(
         val intentAction: String,
         val label: String,
+    )
+
+    data class NotificationMetadataModel(
+        val title: String,
+        val contentText: String,
+        val largeIcon: Bitmap?,
     )
 
     const val ACTION_PLAY: String = "io.legato.capacitor.action.PLAY"
@@ -79,5 +88,24 @@ internal object LegatoPlaybackNotificationTransport {
             actions += NotificationActionModel(intentAction = ACTION_NEXT, label = "Next")
         }
         return actions
+    }
+
+    fun notificationMetadataModelFor(
+        mode: LegatoAndroidServiceMode,
+        metadata: LegatoAndroidNowPlayingMetadata?,
+        largeIcon: Bitmap?,
+    ): NotificationMetadataModel {
+        val title = metadata?.title?.takeIf { it.isNotBlank() } ?: "Legato Playback"
+        val contentText = metadata?.artist?.takeIf { it.isNotBlank() }
+            ?: when (mode) {
+                LegatoAndroidServiceMode.PLAYBACK_ACTIVE -> "Playback active"
+                LegatoAndroidServiceMode.RESUME_PENDING_INTERRUPTION -> "Paused by interruption"
+                LegatoAndroidServiceMode.OFF -> "Idle"
+            }
+        return NotificationMetadataModel(
+            title = title,
+            contentText = contentText,
+            largeIcon = largeIcon,
+        )
     }
 }

@@ -12,6 +12,7 @@ type LegatoSyncController = ReturnType<typeof createLegatoSync>;
 const smokeButton = document.querySelector<HTMLButtonElement>('#run-smoke');
 const endSmokeButton = document.querySelector<HTMLButtonElement>('#run-end-smoke');
 const boundarySmokeButton = document.querySelector<HTMLButtonElement>('#run-boundary-smoke');
+const artworkRaceButton = document.querySelector<HTMLButtonElement>('#run-artwork-race');
 const copyLogButton = document.querySelector<HTMLButtonElement>('#copy-log');
 const copyEventsButton = document.querySelector<HTMLButtonElement>('#copy-events');
 const setupButton = document.querySelector<HTMLButtonElement>('#action-setup');
@@ -41,6 +42,7 @@ if (
   !smokeButton
   || !endSmokeButton
   || !boundarySmokeButton
+  || !artworkRaceButton
   || !copyLogButton
   || !copyEventsButton
   || !setupButton
@@ -73,6 +75,7 @@ const nativeActionButtons = Array.from(document.querySelectorAll<HTMLButtonEleme
 const playbackSmokeDelayMs = 1500;
 const endSmokeDelayMs = 6500;
 const boundarySettleDelayMs = 300;
+const artworkRaceSettleDelayMs = 180;
 const recentEventsLimit = 24;
 const progressSamplesLimit = 8;
 
@@ -93,8 +96,8 @@ const demoTracks: Track[] = [
     url: 'https://samplelib.com/mp3/sample-3s.mp3',
     title: 'Demo Track 1 (3s sample)',
     artist: 'Samplelib',
-    album: 'Legato Remote Parity Fixtures',
-    artwork: 'https://samplelib.com/lib/preview/png/sample-bumblebee-400x300.png',
+    album: 'Legato Artwork Fixture A',
+    artwork: 'https://i.pravatar.cc/300',
     duration: 3239,
     type: 'progressive',
   },
@@ -103,12 +106,27 @@ const demoTracks: Track[] = [
     url: 'https://samplelib.com/mp3/sample-6s.mp3',
     title: 'Demo Track 2 (6s sample)',
     artist: 'Samplelib',
-    album: 'Legato Remote Parity Fixtures',
-    artwork: 'https://samplelib.com/lib/preview/png/sample-bumblebee-400x300.png',
+    album: 'Legato Artwork Fixture B',
+    artwork: 'https://i.pravatar.cc/300',
     duration: 6426,
     type: 'progressive',
   },
+  {
+    id: 'track-demo-3',
+    url: 'https://samplelib.com/mp3/sample-3s.mp3',
+    title: 'Demo Track 3 (3s no-artwork fallback)',
+    artist: 'Samplelib',
+    album: 'Legato Artwork Fallback Fixture',
+    duration: 3239,
+    type: 'progressive',
+  },
 ];
+
+const expectedArtworkByTrackId: Record<string, string | null> = {
+  'track-demo-1': demoTracks[0].artwork ?? null,
+  'track-demo-2': demoTracks[1].artwork ?? null,
+  'track-demo-3': null,
+};
 
 const formatMs = (value: number | null | undefined): string => {
   if (typeof value !== 'number' || Number.isNaN(value)) {
@@ -333,10 +351,37 @@ const summarizeObservedEventSignals = (): string => {
 };
 
 const updateParityInspector = (snapshot: PlaybackSnapshot): void => {
+  const track = snapshot.currentTrack as { id?: string; artwork?: string | null } | null | undefined;
+  const trackId = typeof track?.id === 'string' ? track.id : null;
+  const currentArtwork = typeof track?.artwork === 'string' && track.artwork.trim().length > 0
+    ? track.artwork.trim()
+    : null;
+  const expectedArtwork = trackId ? (expectedArtworkByTrackId[trackId] ?? null) : null;
+  const artworkSignal = (() => {
+    if (!trackId) {
+      return 'no active track (artwork cleared expected)';
+    }
+
+    if (!expectedArtwork) {
+      return currentArtwork
+        ? `expected fallback clear, but snapshot still has artwork=${currentArtwork}`
+        : 'fallback OK: active track has no artwork and snapshot is clear';
+    }
+
+    if (!currentArtwork) {
+      return `pending artwork load for ${trackId} (expect ${expectedArtwork})`;
+    }
+
+    return currentArtwork === expectedArtwork
+      ? `artwork OK for ${trackId}`
+      : `stale/other artwork detected for ${trackId}: got ${currentArtwork}`;
+  })();
+
   const lines = [
     `state signal: ${snapshot.state}`,
     `progress signal: ${summarizeProgressSignal()}`,
     `metadata signal: ${formatRequiredMetadataSignal(snapshot)}`,
+    `artwork signal: ${artworkSignal}`,
     `observed sync events: ${summarizeObservedEventSignals()}`,
     'manual remote check: background app, toggle lock-screen/notification play↔pause, then tap getSnapshot().',
   ];
@@ -612,6 +657,26 @@ const runBoundarySmokeFlow = async (): Promise<void> => {
   completeSmokeVerdict();
 };
 
+const runArtworkRaceFlow = async (): Promise<void> => {
+  clearFlows();
+  log('Starting artwork race flow (rapid switch + fallback probe)...');
+  log('Expected behavior: artwork should track active item, stale fetches should not overwrite latest track, and no-artwork track should clear artwork.');
+
+  await setupAction();
+  await startSync();
+  await addAction();
+  await playAction();
+
+  await new Promise((resolve) => setTimeout(resolve, artworkRaceSettleDelayMs));
+  await nextAction();
+  await new Promise((resolve) => setTimeout(resolve, artworkRaceSettleDelayMs));
+  await nextAction();
+  await new Promise((resolve) => setTimeout(resolve, artworkRaceSettleDelayMs));
+  await previousAction();
+  await new Promise((resolve) => setTimeout(resolve, artworkRaceSettleDelayMs));
+  await snapshotAction();
+};
+
 envStatusNode.textContent = `platform=${platform} | native=${isNative}`;
 log('Legato parity harness ready.');
 log('platform:', platform);
@@ -628,6 +693,10 @@ endSmokeButton.addEventListener('click', () => {
 
 boundarySmokeButton.addEventListener('click', () => {
   void runNativeAction('run boundary smoke flow', runBoundarySmokeFlow);
+});
+
+artworkRaceButton.addEventListener('click', () => {
+  void runNativeAction('run artwork race flow', runArtworkRaceFlow);
 });
 
 setupButton.addEventListener('click', () => {

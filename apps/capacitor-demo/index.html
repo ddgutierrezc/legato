@@ -198,6 +198,7 @@
             <button id="run-smoke" class="native-action" type="button">Run smoke flow (setup/add/play/pause/snapshot)</button>
             <button id="run-end-smoke" class="native-action" type="button">Run let-it-end smoke</button>
             <button id="run-boundary-smoke" class="native-action" type="button">Run boundary smoke (previous/next/end)</button>
+            <button id="run-artwork-race" class="native-action" type="button">Run artwork race (rapid switch + fallback)</button>
             <button id="copy-log" type="button">Copy raw log</button>
             <button id="copy-events" type="button">Copy recent events</button>
           </div>
@@ -263,6 +264,8 @@ No smoke run yet.</pre>
             <li>Capability projection parity: canSkipNext/canSkipPrevious/canSeek summary must align with queue index + ended/empty states.</li>
             <li>Progress parity: while playing, lock-screen/notification progress advances; after pause it stays frozen at pause point.</li>
             <li>Now-playing metadata parity: verify title/artist/album/artwork/duration are visible in lock screen / media notification.</li>
+            <li>Artwork replacement/stale guard: run <code>Run artwork race</code>, then verify lock-screen/notification artwork matches the final active track (no stale previous image).</li>
+            <li>Artwork fallback clear: during the race flow, track 3 has no artwork; verify lock-screen/notification clears artwork before switching back to an artwork track.</li>
           </ul>
           <p>After harness updates: run <code>npm run build</code> and <code>npm run cap:sync</code> before Android Studio/Xcode validation.</p>
         </section>

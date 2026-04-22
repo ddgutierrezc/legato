@@ -1,6 +1,8 @@
 package io.legato.capacitor
 
 import io.legato.core.core.LegatoAndroidPlaybackState
+import io.legato.core.core.LegatoAndroidNowPlayingMetadata
+import io.legato.core.core.LegatoAndroidServiceMode
 import io.legato.core.core.LegatoAndroidTransportCapabilities
 import io.legato.core.remote.LegatoAndroidMediaSessionBridge
 import org.junit.Assert.assertEquals
@@ -9,6 +11,36 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LegatoPlaybackNotificationTransportTest {
+    @Test
+    fun `notification metadata prefers track title and artist`() {
+        val projected = LegatoPlaybackNotificationTransport.notificationMetadataModelFor(
+            mode = LegatoAndroidServiceMode.PLAYBACK_ACTIVE,
+            metadata = LegatoAndroidNowPlayingMetadata(
+                trackId = "track-1",
+                title = "Song title",
+                artist = "Artist name",
+            ),
+            largeIcon = null,
+        )
+
+        assertEquals("Song title", projected.title)
+        assertEquals("Artist name", projected.contentText)
+        assertEquals(null, projected.largeIcon)
+    }
+
+    @Test
+    fun `notification metadata falls back to mode copy when track text is missing`() {
+        val projected = LegatoPlaybackNotificationTransport.notificationMetadataModelFor(
+            mode = LegatoAndroidServiceMode.RESUME_PENDING_INTERRUPTION,
+            metadata = LegatoAndroidNowPlayingMetadata(trackId = "track-1"),
+            largeIcon = null,
+        )
+
+        assertEquals("Legato Playback", projected.title)
+        assertEquals("Paused by interruption", projected.contentText)
+        assertEquals(null, projected.largeIcon)
+    }
+
     @Test
     fun `notification projects pause action while currently playing`() {
         val projectedAction = LegatoPlaybackNotificationTransport.projectedControlFor(

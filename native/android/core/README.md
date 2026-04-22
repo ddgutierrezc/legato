@@ -28,3 +28,14 @@ with namespace `io.legato.core`, `compileSdk 34`, `minSdk 24`, and Java/Kotlin 1
 This keeps it directly referenceable from `@legato/capacitor` via:
 
 `project(':native:android:core')`
+
+## Dependency composition
+
+This module currently uses **manual composition + constructor injection**, not a DI container like Koin.
+
+The canonical composition root is:
+
+- `LegatoAndroidCoreDependencies`
+- `LegatoAndroidCoreFactory.create(...)`
+
+That is the current project standard unless the graph grows enough to justify a dedicated container.
