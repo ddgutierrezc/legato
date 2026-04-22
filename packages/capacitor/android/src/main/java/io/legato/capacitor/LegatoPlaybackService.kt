@@ -7,23 +7,45 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
+import io.legato.core.core.LegatoAndroidNowPlayingMetadata
 import io.legato.core.core.LegatoAndroidPlaybackState
 import io.legato.core.core.LegatoAndroidServiceMode
 import io.legato.core.queue.LegatoAndroidTransportCapabilitiesProjector
 import io.legato.core.remote.LegatoAndroidMediaSessionBridge
+import java.net.URL
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class LegatoPlaybackService : Service() {
     private lateinit var coordinator: LegatoAndroidPlaybackCoordinator
+    private var metadataListenerId: Long? = null
     private var modeListenerId: Long? = null
     private var playbackStateListenerId: Long? = null
     private var foregroundActive: Boolean = false
     private var currentMode: LegatoAndroidServiceMode = LegatoAndroidServiceMode.OFF
     private var currentPlaybackState: LegatoAndroidPlaybackState = LegatoAndroidPlaybackState.IDLE
+    private var currentNowPlayingMetadata: LegatoAndroidNowPlayingMetadata? = null
+    private var currentArtworkBitmap: Bitmap? = null
+    private var activeArtworkRequestToken: ArtworkRequestToken? = null
+    private var activeArtworkJob: Job? = null
     private var mediaSession: MediaSession? = null
+    private val artworkRequestTokenFactory: ArtworkRequestTokenFactory = ArtworkRequestTokenFactory()
+    private val artworkLoader: LegatoPlaybackArtworkLoader = DefaultLegatoPlaybackArtworkLoader
+    private val artworkDiagnostics: LegatoPlaybackArtworkDiagnostics = AndroidLogcatArtworkDiagnostics
+    private val artworkScope: CoroutineScope = CoroutineScope(SupervisorJob())
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -35,8 +57,10 @@ class LegatoPlaybackService : Service() {
         )
         currentMode = coordinator.currentServiceMode()
         currentPlaybackState = coordinator.currentPlaybackState()
+        currentNowPlayingMetadata = coordinator.currentNowPlayingMetadata()
         modeListenerId = coordinator.addServiceModeListener(::onServiceModeChanged)
         playbackStateListenerId = coordinator.addPlaybackStateListener(::onPlaybackStateChanged)
+        metadataListenerId = coordinator.addNowPlayingMetadataListener(::onNowPlayingMetadataChanged)
 
         mediaSession = MediaSession(this, MEDIA_SESSION_TAG).apply {
             setCallback(
@@ -66,6 +90,8 @@ class LegatoPlaybackService : Service() {
             isActive = true
         }
         syncMediaSessionPlaybackState(currentPlaybackState)
+        publishNowPlayingSurfaces()
+        refreshArtworkFor(currentNowPlayingMetadata)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -89,6 +115,12 @@ class LegatoPlaybackService : Service() {
         modeListenerId = null
         playbackStateListenerId?.let(coordinator::removePlaybackStateListener)
         playbackStateListenerId = null
+        metadataListenerId?.let(coordinator::removeNowPlayingMetadataListener)
+        metadataListenerId = null
+
+        activeArtworkJob?.cancel()
+        activeArtworkJob = null
+        artworkScope.cancel()
 
         mediaSession?.release()
         mediaSession = null
@@ -117,10 +149,98 @@ class LegatoPlaybackService : Service() {
     private fun onPlaybackStateChanged(state: LegatoAndroidPlaybackState) {
         currentPlaybackState = state
         syncMediaSessionPlaybackState(state)
+        publishNowPlayingSurfaces()
+    }
+
+    private fun onNowPlayingMetadataChanged(metadata: LegatoAndroidNowPlayingMetadata?) {
+        currentNowPlayingMetadata = metadata
+        currentArtworkBitmap = null
+        publishNowPlayingSurfaces()
+        refreshArtworkFor(metadata)
+    }
+
+    private fun refreshArtworkFor(metadata: LegatoAndroidNowPlayingMetadata?) {
+        activeArtworkJob?.cancel()
+        activeArtworkJob = null
+
+        val artworkUrl = metadata?.artwork?.takeIf { it.isNotBlank() }
+        if (metadata == null || artworkUrl == null) {
+            activeArtworkRequestToken = null
+            return
+        }
+
+        val token = artworkRequestTokenFactory.next(trackId = metadata.trackId, artworkUrl = artworkUrl)
+        activeArtworkRequestToken = token
+        artworkDiagnostics.record(
+            stage = "load",
+            outcome = "started",
+            token = token,
+            detail = "url_present",
+        )
+        activeArtworkJob = artworkScope.launch {
+            val loadResult = artworkLoader.load(artworkUrl)
+            val bitmap = when (loadResult) {
+                is ArtworkLoadResult.Success -> {
+                    artworkDiagnostics.record(
+                        stage = "decode",
+                        outcome = "success",
+                        token = token,
+                        detail = "bitmap_ready",
+                    )
+                    loadResult.bitmap
+                }
+
+                is ArtworkLoadResult.FetchFailure -> {
+                    artworkDiagnostics.record(
+                        stage = "fetch",
+                        outcome = "failure",
+                        token = token,
+                        detail = loadResult.error::class.java.simpleName,
+                    )
+                    null
+                }
+
+                ArtworkLoadResult.DecodeFailure -> {
+                    artworkDiagnostics.record(
+                        stage = "decode",
+                        outcome = "failure",
+                        token = token,
+                        detail = "bitmap_null",
+                    )
+                    null
+                }
+            }
+            if (shouldApplyArtworkResult(activeArtworkRequestToken, token, currentNowPlayingMetadata)) {
+                currentArtworkBitmap = bitmap
+                val metadataPublished = publishNowPlayingSurfaces()
+                artworkDiagnostics.record(
+                    stage = "publish",
+                    outcome = if (bitmap != null && metadataPublished) "success" else "failure",
+                    token = token,
+                    detail = when {
+                        bitmap == null -> "no_bitmap"
+                        !metadataPublished -> "media_session_missing"
+                        else -> "metadata_updated"
+                    },
+                )
+            } else {
+                artworkDiagnostics.record(
+                    stage = "publish",
+                    outcome = "failure",
+                    token = token,
+                    detail = "stale_request",
+                )
+            }
+        }
+    }
+
+    private fun publishNowPlayingSurfaces(): Boolean {
+        val metadataPublished = syncMediaSessionMetadata(currentNowPlayingMetadata, currentArtworkBitmap)
         if (foregroundActive && currentMode != LegatoAndroidServiceMode.OFF) {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.notify(NOTIFICATION_ID, buildNotification(currentMode))
         }
+        return metadataPublished
     }
 
     private fun startForegroundInternal(mode: LegatoAndroidServiceMode) {
@@ -156,11 +276,11 @@ class LegatoPlaybackService : Service() {
             capabilities = capabilities,
         )
 
-        val contentText = when (mode) {
-            LegatoAndroidServiceMode.PLAYBACK_ACTIVE -> "Playback active"
-            LegatoAndroidServiceMode.RESUME_PENDING_INTERRUPTION -> "Paused by interruption"
-            LegatoAndroidServiceMode.OFF -> "Idle"
-        }
+        val metadataModel = LegatoPlaybackNotificationTransport.notificationMetadataModelFor(
+            mode = mode,
+            metadata = currentNowPlayingMetadata,
+            largeIcon = currentArtworkBitmap,
+        )
 
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
@@ -170,12 +290,13 @@ class LegatoPlaybackService : Service() {
 
         builder
             .setSmallIcon(android.R.drawable.ic_media_play)
-            .setContentTitle("Legato Playback")
-            .setContentText(contentText)
+            .setContentTitle(metadataModel.title)
+            .setContentText(metadataModel.contentText)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_TRANSPORT)
             .setContentIntent(launchPendingIntent)
+            .setLargeIcon(metadataModel.largeIcon)
 
         notificationActions.forEachIndexed { index, model ->
             val actionPendingIntent = PendingIntent.getService(
@@ -238,6 +359,31 @@ class LegatoPlaybackService : Service() {
         mediaSession?.setPlaybackState(playbackState)
     }
 
+    private fun syncMediaSessionMetadata(metadata: LegatoAndroidNowPlayingMetadata?, artwork: Bitmap?): Boolean {
+        val mediaMetadata = MediaMetadata.Builder().apply {
+            metadata?.title?.takeIf { it.isNotBlank() }?.let {
+                putString(MediaMetadata.METADATA_KEY_TITLE, it)
+            }
+            metadata?.artist?.takeIf { it.isNotBlank() }?.let {
+                putString(MediaMetadata.METADATA_KEY_ARTIST, it)
+            }
+            metadata?.album?.takeIf { it.isNotBlank() }?.let {
+                putString(MediaMetadata.METADATA_KEY_ALBUM, it)
+            }
+            metadata?.durationMs?.let {
+                putLong(MediaMetadata.METADATA_KEY_DURATION, it)
+            }
+            artwork?.let {
+                putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, it)
+                putBitmap(MediaMetadata.METADATA_KEY_ART, it)
+                putBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON, it)
+            }
+        }.build()
+        val session = mediaSession ?: return false
+        session.setMetadata(mediaMetadata)
+        return true
+    }
+
     private fun iconForAction(action: String): Int {
         return when (action) {
             LegatoPlaybackNotificationTransport.ACTION_PLAY -> android.R.drawable.ic_media_play
@@ -274,4 +420,91 @@ class LegatoPlaybackService : Service() {
 
 internal fun <C, R> resolveOnCreateDependency(contextProvider: () -> C, resolver: (C) -> R): R {
     return resolver(contextProvider())
+}
+
+internal data class ArtworkRequestToken(
+    val requestId: Long,
+    val trackId: String,
+    val artworkUrl: String,
+) {
+    fun matches(requestId: Long, trackId: String, artworkUrl: String): Boolean {
+        return this.requestId == requestId && this.trackId == trackId && this.artworkUrl == artworkUrl
+    }
+}
+
+internal fun currentArtworkRequestKey(metadata: LegatoAndroidNowPlayingMetadata?): String? {
+    val artworkUrl = metadata?.artwork?.takeIf { it.isNotBlank() } ?: return null
+    return "${metadata.trackId}|$artworkUrl"
+}
+
+internal fun shouldApplyArtworkResult(
+    activeToken: ArtworkRequestToken?,
+    completedToken: ArtworkRequestToken,
+    activeMetadata: LegatoAndroidNowPlayingMetadata?,
+): Boolean {
+    val activeKey = currentArtworkRequestKey(activeMetadata) ?: return false
+    val completedKey = "${completedToken.trackId}|${completedToken.artworkUrl}"
+    return activeToken?.matches(
+        requestId = completedToken.requestId,
+        trackId = completedToken.trackId,
+        artworkUrl = completedToken.artworkUrl,
+    ) == true && activeKey == completedKey
+}
+
+internal fun interface LegatoPlaybackArtworkLoader {
+    suspend fun load(artworkUrl: String): ArtworkLoadResult
+}
+
+internal object DefaultLegatoPlaybackArtworkLoader : LegatoPlaybackArtworkLoader {
+    override suspend fun load(artworkUrl: String): ArtworkLoadResult = withContext(Dispatchers.IO) {
+        val stream = runCatching { URL(artworkUrl).openStream() }
+            .getOrElse { error -> return@withContext ArtworkLoadResult.FetchFailure(error) }
+
+        stream.use {
+            val bitmap = BitmapFactory.decodeStream(it)
+            if (bitmap != null) {
+                ArtworkLoadResult.Success(bitmap)
+            } else {
+                ArtworkLoadResult.DecodeFailure
+            }
+        }
+    }
+}
+
+internal sealed interface ArtworkLoadResult {
+    data class Success(val bitmap: Bitmap) : ArtworkLoadResult
+
+    data class FetchFailure(val error: Throwable) : ArtworkLoadResult
+
+    data object DecodeFailure : ArtworkLoadResult
+}
+
+internal interface LegatoPlaybackArtworkDiagnostics {
+    fun record(stage: String, outcome: String, token: ArtworkRequestToken, detail: String)
+}
+
+internal object AndroidLogcatArtworkDiagnostics : LegatoPlaybackArtworkDiagnostics {
+    override fun record(stage: String, outcome: String, token: ArtworkRequestToken, detail: String) {
+        Log.d(
+            ARTWORK_DIAGNOSTICS_TAG,
+            "event=artwork stage=$stage outcome=$outcome requestId=${token.requestId} trackId=${token.trackId} detail=$detail",
+        )
+    }
+
+    private const val ARTWORK_DIAGNOSTICS_TAG: String = "LegatoArtwork"
+}
+
+internal class ArtworkRequestTokenFactory(
+    initialRequestId: Long = 0L,
+) {
+    private var counter: Long = initialRequestId
+
+    fun next(trackId: String, artworkUrl: String): ArtworkRequestToken {
+        counter += 1L
+        return ArtworkRequestToken(
+            requestId = counter,
+            trackId = trackId,
+            artworkUrl = artworkUrl,
+        )
+    }
 }

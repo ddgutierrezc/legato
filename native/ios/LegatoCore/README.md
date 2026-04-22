@@ -13,3 +13,14 @@ Out of scope for this pass:
 - production-grade background playback behavior.
 
 Default runtime adapters are intentionally no-op/in-memory and define stable handoff points for real iOS runtime wiring.
+
+## Dependency composition
+
+This module currently uses **manual composition + constructor injection**, not a DI container such as Swinject or Factory.
+
+The canonical composition root is:
+
+- `LegatoiOSCoreDependencies`
+- `LegatoiOSCoreFactory.make(...)`
+
+That is the current project standard unless the graph/lifecycle complexity grows enough to justify containerization later.

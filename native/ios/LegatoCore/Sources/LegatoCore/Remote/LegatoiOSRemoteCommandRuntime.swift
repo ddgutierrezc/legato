@@ -166,7 +166,7 @@ private final class LegatoiOSLiveRemoteCommand: LegatoiOSRemoteCommandHandler {
         command.addTarget { _ in
             handler()
             return .success
-        }
+        } as AnyObject
     }
 
     func removeTarget(_ token: AnyObject) {
@@ -194,7 +194,7 @@ private final class LegatoiOSLiveChangePlaybackPositionCommand: LegatoiOSChangeP
             }
             handler(positionEvent.positionTime)
             return .success
-        }
+        } as AnyObject
     }
 
     func removeTarget(_ token: AnyObject) {

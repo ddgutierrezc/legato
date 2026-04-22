@@ -25,11 +25,116 @@ import io.legato.core.snapshot.LegatoAndroidSnapshotStore
 import io.legato.core.state.LegatoAndroidStateMachine
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
 class LegatoAndroidPlaybackCoordinatorTest {
+    @Test
+    fun `coordinator exposes current now-playing metadata from active track`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(
+                    id = "track-1",
+                    url = "https://example.com/track.mp3",
+                    title = "Song",
+                    artist = "Artist",
+                    album = "Album",
+                    artwork = "https://example.com/artwork.jpg",
+                    durationMs = 42_000,
+                ),
+            ),
+        )
+
+        val metadata = coordinator.currentNowPlayingMetadata()
+        assertEquals("track-1", metadata?.trackId)
+        assertEquals("Song", metadata?.title)
+        assertEquals("Artist", metadata?.artist)
+        assertEquals("Album", metadata?.album)
+        assertEquals("https://example.com/artwork.jpg", metadata?.artwork)
+        assertEquals(42_000L, metadata?.durationMs)
+    }
+
+    @Test
+    fun `coordinator notifies now-playing metadata listeners when active track changes`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+        val observed = mutableListOf<LegatoAndroidNowPlayingMetadata?>()
+        coordinator.addNowPlayingMetadataListener { observed += it }
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(
+                    id = "track-1",
+                    url = "https://example.com/track.mp3",
+                    title = "Song",
+                ),
+            ),
+        )
+        assertNull(observed.first())
+        assertTrue(observed.any { it?.trackId == "track-1" })
+    }
+
+    @Test
+    fun `coordinator now-playing metadata listener emits null after stop`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+        val observed = mutableListOf<LegatoAndroidNowPlayingMetadata?>()
+        coordinator.addNowPlayingMetadataListener { observed += it }
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(
+                    id = "track-1",
+                    url = "https://example.com/track.mp3",
+                    title = "Song",
+                ),
+            ),
+        )
+        coordinator.stop()
+
+        assertEquals("track-1", observed.firstOrNull { it?.trackId == "track-1" }?.trackId)
+        assertNull(observed.last())
+    }
+
+    @Test
+    fun `coordinator stop without active track does not emit duplicate null metadata`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+        val observed = mutableListOf<LegatoAndroidNowPlayingMetadata?>()
+        coordinator.addNowPlayingMetadataListener { observed += it }
+
+        coordinator.setup()
+        coordinator.stop()
+
+        assertEquals(1, observed.size)
+        assertNull(observed.single())
+        assertNull(coordinator.currentNowPlayingMetadata())
+    }
+
     @Test
     fun `coordinator projects active and off service modes from engine transitions`() = runBlocking {
         val runtime = RecordingPlaybackRuntime()
