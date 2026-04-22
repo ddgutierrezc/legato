@@ -1,6 +1,7 @@
 package io.legato.capacitor
 
 import io.legato.core.core.LegatoAndroidNowPlayingMetadata
+import io.legato.core.core.LegatoAndroidPlaybackState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -10,6 +11,91 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 class LegatoPlaybackServiceBootstrapTest {
+    @Test
+    fun `media-session projection keeps canonical snapshot position when playback resumes`() {
+        val projection = projectMediaSessionPlaybackState(
+            state = LegatoAndroidPlaybackState.PLAYING,
+            snapshotPositionMs = 93_000L,
+            activeTrackId = "track-1",
+            previousProjection = null,
+        )
+
+        assertEquals(93_000L, projection.positionMs)
+        assertNotEquals(0L, projection.positionMs)
+    }
+
+    @Test
+    fun `media-session projection re-bases position after seek without resetting to zero`() {
+        val projection = projectMediaSessionPlaybackState(
+            state = LegatoAndroidPlaybackState.PLAYING,
+            snapshotPositionMs = 205_000L,
+            activeTrackId = "track-1",
+            previousProjection = null,
+        )
+
+        assertEquals(205_000L, projection.positionMs)
+        assertNotEquals(0L, projection.positionMs)
+    }
+
+    @Test
+    fun `media-session projection publishes buffering without synthetic progress speed`() {
+        val projection = projectMediaSessionPlaybackState(
+            state = LegatoAndroidPlaybackState.BUFFERING,
+            snapshotPositionMs = 1_500L,
+            activeTrackId = "track-1",
+            previousProjection = null,
+        )
+
+        assertEquals(android.media.session.PlaybackState.STATE_BUFFERING, projection.playbackStateCode)
+        assertEquals(0f, projection.playbackSpeed)
+    }
+
+    @Test
+    fun `media-session projection clamps small same-track rewinds to avoid early visual jumps`() {
+        val projection = projectMediaSessionPlaybackState(
+            state = LegatoAndroidPlaybackState.PLAYING,
+            snapshotPositionMs = 2_200L,
+            activeTrackId = "track-1",
+            previousProjection = MediaSessionPlaybackProjection(
+                playbackStateCode = android.media.session.PlaybackState.STATE_PLAYING,
+                positionMs = 3_000L,
+                playbackSpeed = 1f,
+                activeTrackId = "track-1",
+            ),
+        )
+
+        assertEquals(3_000L, projection.positionMs)
+    }
+
+    @Test
+    fun `media-session projection allows explicit rewinds and track transitions`() {
+        val sameTrackSeekBackProjection = projectMediaSessionPlaybackState(
+            state = LegatoAndroidPlaybackState.PLAYING,
+            snapshotPositionMs = 1_000L,
+            activeTrackId = "track-1",
+            previousProjection = MediaSessionPlaybackProjection(
+                playbackStateCode = android.media.session.PlaybackState.STATE_PLAYING,
+                positionMs = 15_000L,
+                playbackSpeed = 1f,
+                activeTrackId = "track-1",
+            ),
+        )
+        val nextTrackProjection = projectMediaSessionPlaybackState(
+            state = LegatoAndroidPlaybackState.BUFFERING,
+            snapshotPositionMs = 0L,
+            activeTrackId = "track-2",
+            previousProjection = MediaSessionPlaybackProjection(
+                playbackStateCode = android.media.session.PlaybackState.STATE_PLAYING,
+                positionMs = 15_000L,
+                playbackSpeed = 1f,
+                activeTrackId = "track-1",
+            ),
+        )
+
+        assertEquals(1_000L, sameTrackSeekBackProjection.positionMs)
+        assertEquals(0L, nextTrackProjection.positionMs)
+    }
+
     @Test
     fun `artwork completion applies only when token and active metadata still match`() {
         val activeToken = ArtworkRequestToken(

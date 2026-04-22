@@ -119,21 +119,21 @@ const demoTracks: Track[] = [
   },
   {
     id: 'track-demo-2',
-    url: 'https://samplelib.com/mp3/sample-6s.mp3',
-    title: 'Demo Track 2 (6s sample)',
+    url: 'https://samplelib.com/mp3/sample-15s.mp3',
+    title: 'Demo Track 2 (15s sample)',
     artist: 'Samplelib',
     album: 'Legato Artwork Fixture B',
     artwork: 'https://i.pravatar.cc/300',
-    duration: 6426,
+    duration: 19200,
     type: 'progressive',
   },
   {
     id: 'track-demo-3',
-    url: 'https://samplelib.com/mp3/sample-3s.mp3',
-    title: 'Demo Track 3 (3s no-artwork fallback)',
+    url: 'https://samplelib.com/mp3/sample-9s.mp3',
+    title: 'Demo Track 3 (9s no-artwork fallback)',
     artist: 'Samplelib',
     album: 'Legato Artwork Fallback Fixture',
-    duration: 3239,
+    duration: 9613,
     type: 'progressive',
   },
 ];
@@ -399,7 +399,7 @@ const updateParityInspector = (snapshot: PlaybackSnapshot): void => {
     `metadata signal: ${formatRequiredMetadataSignal(snapshot)}`,
     `artwork signal: ${artworkSignal}`,
     `observed sync events: ${summarizeObservedEventSignals()}`,
-    'manual remote check: background app, toggle lock-screen/notification play↔pause, then tap getSnapshot().',
+    'manual fidelity check: Android lockscreen/notification position rebases from real snapshot after resume/seek, and iOS now-playing playbackRate mirrors play/pause (1.0 vs 0.0).',
   ];
 
   paritySummaryNode.textContent = lines.join('\n');
@@ -640,8 +640,25 @@ const clearFlows = (): void => {
   logNode.value = '';
   recentEvents = [];
   latestSmokeReport = null;
+  observedSyncEvents.clear();
   renderRecentEvents();
   renderAutomationPanel();
+};
+
+const resetSmokeBaseline = async (): Promise<void> => {
+  if (syncController) {
+    await stopSync();
+  }
+
+  try {
+    await Legato.stop();
+    log('preflight stop() ok');
+  } catch {
+    // Ignore if playback was not active yet.
+  }
+
+  latestSnapshot = null;
+  recentProgressSamples = [];
 };
 
 const runSmokeFlow = async (): Promise<void> => {
@@ -653,6 +670,7 @@ const runSmokeFlow = async (): Promise<void> => {
   log('Background check: start play(), send app to background, verify playback continues and notification remains active.');
 
   await setupAction();
+  await resetSmokeBaseline();
   await startSync();
   await addAction();
   await playAction();
@@ -674,6 +692,7 @@ const runLetItEndSmokeFlow = async (): Promise<void> => {
   log('Background check: keep app in background and watch for playback-ended event plus service teardown after stop/idle.');
 
   await setupAction();
+  await resetSmokeBaseline();
   await startSync();
   await addAction();
   await playAction();
@@ -693,6 +712,7 @@ const runBoundarySmokeFlow = async (): Promise<void> => {
   log('Boundary check: previous on first track should restart to 0; next on last track should end playback.');
 
   await setupAction();
+  await resetSmokeBaseline();
   await startSync();
   await addAction();
   await playAction();
@@ -717,6 +737,7 @@ const runArtworkRaceFlow = async (): Promise<void> => {
   log('Expected behavior: artwork should track active item, stale fetches should not overwrite latest track, and no-artwork track should clear artwork.');
 
   await setupAction();
+  await resetSmokeBaseline();
   await startSync();
   await addAction();
   await playAction();

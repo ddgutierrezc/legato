@@ -1,7 +1,72 @@
 import XCTest
 @testable import LegatoCore
 
+#if canImport(MediaPlayer) && os(iOS)
+import MediaPlayer
+#endif
+
 final class LegatoiOSNowPlayingRuntimeTests: XCTestCase {
+    func testUpdatePlaybackStatePlayingWritesPlaybackRateOne() {
+        let center = FakeNowPlayingInfoCenter()
+        let runtime = LegatoiOSMediaPlayerNowPlayingRuntime(infoCenter: center)
+
+        runtime.updatePlaybackState(.playing)
+
+        XCTAssertEqual(center.nowPlayingInfo?[LegatoiOSNowPlayingInfoKey.playbackRate] as? Double, 1.0)
+        XCTAssertEqual(center.nowPlayingInfo?[LegatoiOSNowPlayingInfoKey.defaultPlaybackRate] as? Double, 1.0)
+    }
+
+    func testUpdatePlaybackStateNonPlayingWritesPlaybackRateZero() {
+        let center = FakeNowPlayingInfoCenter()
+        let runtime = LegatoiOSMediaPlayerNowPlayingRuntime(infoCenter: center)
+
+        let nonPlayingStates: [LegatoiOSPlaybackState] = [
+            .idle,
+            .loading,
+            .ready,
+            .paused,
+            .buffering,
+            .ended,
+            .error
+        ]
+
+        for state in nonPlayingStates {
+            runtime.updatePlaybackState(state)
+            XCTAssertEqual(
+                center.nowPlayingInfo?[LegatoiOSNowPlayingInfoKey.playbackRate] as? Double,
+                0.0,
+                "Expected playbackRate = 0.0 for state \(state)"
+            )
+            XCTAssertEqual(
+                center.nowPlayingInfo?[LegatoiOSNowPlayingInfoKey.defaultPlaybackRate] as? Double,
+                1.0,
+                "Expected defaultPlaybackRate = 1.0 for state \(state)"
+            )
+        }
+    }
+
+    func testNowPlayingInfoKeysMapToExpectedMediaPlayerPayloadKeys() {
+        #if canImport(MediaPlayer) && os(iOS)
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.title, MPMediaItemPropertyTitle)
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.artist, MPMediaItemPropertyArtist)
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.album, MPMediaItemPropertyAlbumTitle)
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.duration, MPMediaItemPropertyPlaybackDuration)
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.elapsedTime, MPNowPlayingInfoPropertyElapsedPlaybackTime)
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.playbackRate, MPNowPlayingInfoPropertyPlaybackRate)
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.defaultPlaybackRate, MPNowPlayingInfoPropertyDefaultPlaybackRate)
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.artwork, MPMediaItemPropertyArtwork)
+        #else
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.title, "title")
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.artist, "artist")
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.album, "albumTitle")
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.duration, "playbackDuration")
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.elapsedTime, "elapsedPlaybackTime")
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.playbackRate, "playbackRate")
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.defaultPlaybackRate, "defaultPlaybackRate")
+        XCTAssertEqual(LegatoiOSNowPlayingInfoKey.artwork, "artwork")
+        #endif
+    }
+
     func testUpdateMetadataRotatesActiveArtworkToken() {
         let center = FakeNowPlayingInfoCenter()
         let runtime = LegatoiOSMediaPlayerNowPlayingRuntime(
@@ -87,6 +152,67 @@ final class LegatoiOSNowPlayingRuntimeTests: XCTestCase {
         let info = center.nowPlayingInfo
         XCTAssertEqual(info?[LegatoiOSNowPlayingInfoKey.elapsedTime] as? Double, 15.5)
         XCTAssertEqual(info?[LegatoiOSNowPlayingInfoKey.duration] as? Double, 120)
+    }
+
+    func testPauseResumeKeepsElapsedPositionAndDefaultPlaybackRate() {
+        let center = FakeNowPlayingInfoCenter()
+        let runtime = LegatoiOSMediaPlayerNowPlayingRuntime(infoCenter: center)
+
+        runtime.updateProgress(.init(positionMs: 45_000, durationMs: 120_000, bufferedPositionMs: nil))
+        runtime.updatePlaybackState(.paused)
+
+        XCTAssertEqual(center.nowPlayingInfo?[LegatoiOSNowPlayingInfoKey.elapsedTime] as? Double, 45)
+        XCTAssertEqual(center.nowPlayingInfo?[LegatoiOSNowPlayingInfoKey.playbackRate] as? Double, 0.0)
+        XCTAssertEqual(center.nowPlayingInfo?[LegatoiOSNowPlayingInfoKey.defaultPlaybackRate] as? Double, 1.0)
+
+        runtime.updatePlaybackState(.playing)
+
+        XCTAssertEqual(center.nowPlayingInfo?[LegatoiOSNowPlayingInfoKey.elapsedTime] as? Double, 45)
+        XCTAssertEqual(center.nowPlayingInfo?[LegatoiOSNowPlayingInfoKey.playbackRate] as? Double, 1.0)
+        XCTAssertEqual(center.nowPlayingInfo?[LegatoiOSNowPlayingInfoKey.defaultPlaybackRate] as? Double, 1.0)
+    }
+
+    func testUpdatePlaybackStateRestoresCoherentPayloadWhenInfoCenterIsClearedExternally() {
+        let center = FakeNowPlayingInfoCenter()
+        let runtime = LegatoiOSMediaPlayerNowPlayingRuntime(infoCenter: center)
+
+        runtime.updateMetadata(
+            .init(
+                trackId: "track-1",
+                title: "Song",
+                artist: "Artist",
+                album: "Album",
+                durationMs: 120_000
+            )
+        )
+        runtime.updateProgress(.init(positionMs: 45_000, durationMs: 120_000, bufferedPositionMs: nil))
+
+        center.nowPlayingInfo = nil
+        runtime.updatePlaybackState(.paused)
+
+        let info = center.nowPlayingInfo
+        XCTAssertEqual(info?[LegatoiOSNowPlayingInfoKey.title] as? String, "Song")
+        XCTAssertEqual(info?[LegatoiOSNowPlayingInfoKey.duration] as? Double, 120)
+        XCTAssertEqual(info?[LegatoiOSNowPlayingInfoKey.elapsedTime] as? Double, 45)
+        XCTAssertEqual(info?[LegatoiOSNowPlayingInfoKey.playbackRate] as? Double, 0.0)
+        XCTAssertEqual(info?[LegatoiOSNowPlayingInfoKey.defaultPlaybackRate] as? Double, 1.0)
+    }
+
+    func testUpdatePlaybackStateRestoresElapsedWhenInfoCenterPayloadBecomesPartial() {
+        let center = FakeNowPlayingInfoCenter()
+        let runtime = LegatoiOSMediaPlayerNowPlayingRuntime(infoCenter: center)
+
+        runtime.updateProgress(.init(positionMs: 45_000, durationMs: 120_000, bufferedPositionMs: nil))
+        runtime.updatePlaybackState(.paused)
+
+        center.nowPlayingInfo = [LegatoiOSNowPlayingInfoKey.title: "Song"]
+        runtime.updatePlaybackState(.playing)
+
+        let info = center.nowPlayingInfo
+        XCTAssertEqual(info?[LegatoiOSNowPlayingInfoKey.elapsedTime] as? Double, 45)
+        XCTAssertEqual(info?[LegatoiOSNowPlayingInfoKey.duration] as? Double, 120)
+        XCTAssertEqual(info?[LegatoiOSNowPlayingInfoKey.playbackRate] as? Double, 1.0)
+        XCTAssertEqual(info?[LegatoiOSNowPlayingInfoKey.defaultPlaybackRate] as? Double, 1.0)
     }
 
     func testClearRemovesNowPlayingInfo() {

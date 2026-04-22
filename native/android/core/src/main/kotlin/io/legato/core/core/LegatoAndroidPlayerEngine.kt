@@ -357,10 +357,18 @@ class LegatoAndroidPlayerEngine(
                 activeItemChanged = syncedSnapshot.currentIndex != snapshot.currentIndex ||
                     syncedSnapshot.currentTrack?.id != snapshot.currentTrack?.id
 
+                val projectedProgress = if (activeItemChanged) {
+                    runtimeSnapshot.progress
+                } else {
+                    progress
+                }
+
                 syncedSnapshot.copy(
-                    positionMs = progress.positionMs,
-                    durationMs = progress.durationMs ?: syncedSnapshot.currentTrack?.durationMs ?: syncedSnapshot.durationMs,
-                    bufferedPositionMs = progress.bufferedPositionMs,
+                    positionMs = projectedProgress.positionMs,
+                    durationMs = projectedProgress.durationMs
+                        ?: syncedSnapshot.currentTrack?.durationMs
+                        ?: syncedSnapshot.durationMs,
+                    bufferedPositionMs = projectedProgress.bufferedPositionMs,
                 )
             }
 

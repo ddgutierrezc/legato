@@ -41,6 +41,14 @@ public class HarnessValidationContractTest {
         assertTrue("Missing remote next/previous checklist item", html.contains("Remote next/previous parity"));
         assertTrue("Missing remote seek checklist item", html.contains("Remote seek parity"));
         assertTrue("Missing boundary checklist item", html.contains("Boundary behavior parity"));
+        assertTrue(
+                "Missing Android position fidelity checklist item",
+                html.contains("Android lockscreen/notification position from real snapshot")
+        );
+        assertTrue(
+                "Missing iOS playbackRate fidelity checklist item",
+                html.contains("iOS now-playing playbackRate fidelity")
+        );
         assertTrue("Missing now-playing checklist item", html.contains("Now-playing metadata parity"));
         assertTrue("Missing recent events node", html.contains("id=\"events\""));
         assertTrue("Missing snapshot summary node", html.contains("id=\"snapshot-summary\""));
@@ -62,6 +70,14 @@ public class HarnessValidationContractTest {
         assertTrue("Expected capability projection renderer", mainTs.contains("renderCapabilitySummary"));
         assertTrue("Expected boundary smoke flow helper", mainTs.contains("runBoundarySmokeFlow"));
         assertTrue("Expected recent events rendering helper", mainTs.contains("renderRecentEvents"));
+        assertTrue(
+                "Expected parity inspector reminder for Android snapshot-based rebasing",
+                mainTs.contains("Android lockscreen/notification position rebases from real snapshot")
+        );
+        assertTrue(
+                "Expected parity inspector reminder for iOS playbackRate fidelity",
+                mainTs.contains("iOS now-playing playbackRate mirrors play/pause")
+        );
         assertTrue("Expected smoke marker prefix", smokeAutomation.contains("LEGATO_SMOKE_REPORT"));
         assertTrue("Expected smoke report emission", mainTs.contains("buildSmokeMarkerLine"));
     }
