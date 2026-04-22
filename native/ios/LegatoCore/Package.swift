@@ -9,7 +9,10 @@ let package = Package(
     products: [
         .library(
             name: "LegatoCore",
-            targets: ["LegatoCore"]
+            targets: [
+                "LegatoCore",
+                "LegatoCoreSessionRuntimeiOS"
+            ]
         )
     ],
     targets: [
@@ -17,10 +20,23 @@ let package = Package(
             name: "LegatoCore",
             path: "Sources/LegatoCore"
         ),
+        .target(
+            name: "LegatoCoreSessionRuntimeiOS",
+            dependencies: ["LegatoCore"],
+            path: "Sources/LegatoCoreSessionRuntimeiOS"
+        ),
         .testTarget(
             name: "LegatoCoreTests",
             dependencies: ["LegatoCore"],
             path: "Tests/LegatoCoreTests"
+        ),
+        .testTarget(
+            name: "LegatoCoreSessionRuntimeiOSTests",
+            dependencies: [
+                "LegatoCore",
+                "LegatoCoreSessionRuntimeiOS"
+            ],
+            path: "Tests/LegatoCoreSessionRuntimeiOSTests"
         )
     ]
 )

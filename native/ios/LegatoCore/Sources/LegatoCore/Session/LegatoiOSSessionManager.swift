@@ -7,8 +7,9 @@ public final class LegatoiOSSessionManager {
     private let runtime: LegatoiOSSessionRuntime
     private var listeners: [UUID: SignalListener] = [:]
 
-    public init(runtime: LegatoiOSSessionRuntime = LegatoiOSAVAudioSessionRuntime()) {
-        self.runtime = runtime
+    public init(runtime: LegatoiOSSessionRuntime? = nil) {
+        let resolvedRuntime = runtime ?? LegatoiOSSessionRuntimeFactory.makeDefault()
+        self.runtime = resolvedRuntime
         self.runtime.onSignal = { [weak self] signal in
             self?.publish(signal)
         }
