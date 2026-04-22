@@ -243,6 +243,39 @@ class LegatoAndroidPlayerEngineInterruptionPolicyTest {
     }
 
     @Test
+    fun `runtime progress item transition rebases stale callback progress to new active item snapshot`() = runBlocking {
+        val playbackRuntime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val engine = buildEngine(playbackRuntime, sessionRuntime)
+
+        engine.setup()
+        engine.load(
+            tracks = listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3", durationMs = 100_000L),
+                LegatoAndroidTrack(id = "track-2", url = "https://example.com/2.mp3", durationMs = 200_000L),
+            ),
+        )
+        engine.play()
+
+        playbackRuntime.emitProgress(
+            currentIndex = 1,
+            positionMs = 100_000L,
+            durationMs = 100_000L,
+            bufferedPositionMs = 100_000L,
+            runtimePositionMs = 0L,
+            runtimeDurationMs = null,
+            runtimeBufferedPositionMs = 0L,
+        )
+
+        val snapshot = engine.getSnapshot()
+        assertEquals(1, snapshot.currentIndex)
+        assertEquals("track-2", snapshot.currentTrack?.id)
+        assertEquals(0L, snapshot.positionMs)
+        assertEquals(200_000L, snapshot.durationMs)
+        assertEquals(0L, snapshot.bufferedPositionMs)
+    }
+
+    @Test
     fun `user paused with active track remains playback active for service projection`() = runBlocking {
         val playbackRuntime = RecordingPlaybackRuntime()
         val sessionRuntime = RecordingSessionRuntime()
@@ -357,8 +390,23 @@ private class RecordingPlaybackRuntime : LegatoAndroidPlaybackRuntime {
         listener?.onFatalError(error)
     }
 
-    fun emitProgress(currentIndex: Int? = snapshot.currentIndex, positionMs: Long, durationMs: Long?, bufferedPositionMs: Long?) {
-        snapshot = snapshot.copy(currentIndex = currentIndex)
+    fun emitProgress(
+        currentIndex: Int? = snapshot.currentIndex,
+        positionMs: Long,
+        durationMs: Long?,
+        bufferedPositionMs: Long?,
+        runtimePositionMs: Long = positionMs,
+        runtimeDurationMs: Long? = durationMs,
+        runtimeBufferedPositionMs: Long? = bufferedPositionMs,
+    ) {
+        snapshot = snapshot.copy(
+            currentIndex = currentIndex,
+            progress = snapshot.progress.copy(
+                positionMs = runtimePositionMs,
+                durationMs = runtimeDurationMs,
+                bufferedPositionMs = runtimeBufferedPositionMs,
+            ),
+        )
         listener?.onProgress(
             io.legato.core.runtime.LegatoAndroidRuntimeProgress(
                 positionMs = positionMs,

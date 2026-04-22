@@ -12,6 +12,7 @@ import MediaPlayer
 public protocol LegatoiOSNowPlayingRuntime {
     func updateMetadata(_ metadata: LegatoiOSNowPlayingMetadata?)
     func updateProgress(_ progress: LegatoiOSProgressUpdate)
+    func updatePlaybackState(_ state: LegatoiOSPlaybackState)
     func clear()
 }
 
@@ -49,18 +50,33 @@ public final class LegatoiOSURLSessionArtworkLoader: LegatoiOSArtworkLoader {
 
 public enum LegatoiOSNowPlayingInfoKey {
     public static let trackIdentifier = "legato.track.id"
+
+    #if canImport(MediaPlayer) && os(iOS)
+    public static let title = MPMediaItemPropertyTitle
+    public static let artist = MPMediaItemPropertyArtist
+    public static let album = MPMediaItemPropertyAlbumTitle
+    public static let duration = MPMediaItemPropertyPlaybackDuration
+    public static let elapsedTime = MPNowPlayingInfoPropertyElapsedPlaybackTime
+    public static let playbackRate = MPNowPlayingInfoPropertyPlaybackRate
+    public static let defaultPlaybackRate = MPNowPlayingInfoPropertyDefaultPlaybackRate
+    public static let artwork = MPMediaItemPropertyArtwork
+    #else
     public static let title = "title"
     public static let artist = "artist"
     public static let album = "albumTitle"
     public static let duration = "playbackDuration"
     public static let elapsedTime = "elapsedPlaybackTime"
+    public static let playbackRate = "playbackRate"
+    public static let defaultPlaybackRate = "defaultPlaybackRate"
     public static let artwork = "artwork"
+    #endif
 }
 
 public final class LegatoiOSMediaPlayerNowPlayingRuntime: LegatoiOSNowPlayingRuntime {
     private let infoCenter: LegatoiOSNowPlayingInfoCenter
     private let artworkLoader: LegatoiOSArtworkLoader
     private let artworkDispatch: (@escaping () -> Void) -> Void
+    private var projectedNowPlayingInfo: [String: Any]
     internal private(set) var activeArtworkToken: UUID?
 
     public init(
@@ -71,6 +87,7 @@ public final class LegatoiOSMediaPlayerNowPlayingRuntime: LegatoiOSNowPlayingRun
         self.infoCenter = infoCenter
         self.artworkLoader = artworkLoader
         self.artworkDispatch = artworkDispatch
+        projectedNowPlayingInfo = infoCenter.nowPlayingInfo ?? [:]
     }
 
     public func updateMetadata(_ metadata: LegatoiOSNowPlayingMetadata?) {
@@ -83,7 +100,7 @@ public final class LegatoiOSMediaPlayerNowPlayingRuntime: LegatoiOSNowPlayingRun
         let token = UUID()
         activeArtworkToken = token
 
-        var info = infoCenter.nowPlayingInfo ?? [:]
+        var info = projectedNowPlayingInfo
         info[LegatoiOSNowPlayingInfoKey.trackIdentifier] = metadata.trackId
         info[LegatoiOSNowPlayingInfoKey.title] = metadata.title
         info[LegatoiOSNowPlayingInfoKey.artist] = metadata.artist
@@ -95,10 +112,12 @@ public final class LegatoiOSMediaPlayerNowPlayingRuntime: LegatoiOSNowPlayingRun
             info.removeValue(forKey: LegatoiOSNowPlayingInfoKey.duration)
         }
 
+        info[LegatoiOSNowPlayingInfoKey.defaultPlaybackRate] = Self.defaultPlaybackRate
+
         // Remove any previous artwork so stale images don't persist across track changes
         info.removeValue(forKey: LegatoiOSNowPlayingInfoKey.artwork)
 
-        infoCenter.nowPlayingInfo = info
+        publish(info)
 
         if let artworkUrlString = metadata.artwork, let artworkUrl = URL(string: artworkUrlString) {
             artworkLoader.loadArtworkData(from: artworkUrl) { [weak self] result in
@@ -110,18 +129,27 @@ public final class LegatoiOSMediaPlayerNowPlayingRuntime: LegatoiOSNowPlayingRun
     }
 
     public func updateProgress(_ progress: LegatoiOSProgressUpdate) {
-        var info = infoCenter.nowPlayingInfo ?? [:]
+        var info = projectedNowPlayingInfo
         info[LegatoiOSNowPlayingInfoKey.elapsedTime] = Self.seconds(fromMs: progress.positionMs)
+        info[LegatoiOSNowPlayingInfoKey.defaultPlaybackRate] = Self.defaultPlaybackRate
 
         if let durationMs = progress.durationMs {
             info[LegatoiOSNowPlayingInfoKey.duration] = Self.seconds(fromMs: durationMs)
         }
 
-        infoCenter.nowPlayingInfo = info
+        publish(info)
+    }
+
+    public func updatePlaybackState(_ state: LegatoiOSPlaybackState) {
+        var info = projectedNowPlayingInfo
+        info[LegatoiOSNowPlayingInfoKey.defaultPlaybackRate] = Self.defaultPlaybackRate
+        info[LegatoiOSNowPlayingInfoKey.playbackRate] = state == .playing ? Self.defaultPlaybackRate : 0.0
+        publish(info)
     }
 
     public func clear() {
         activeArtworkToken = nil
+        projectedNowPlayingInfo.removeAll()
         infoCenter.nowPlayingInfo = nil
     }
 
@@ -135,12 +163,17 @@ public final class LegatoiOSMediaPlayerNowPlayingRuntime: LegatoiOSNowPlayingRun
             guard let artwork = Self.createMediaItemArtwork(from: data) else {
                 return
             }
-            var info = infoCenter.nowPlayingInfo ?? [:]
+            var info = projectedNowPlayingInfo
             info[LegatoiOSNowPlayingInfoKey.artwork] = artwork
-            infoCenter.nowPlayingInfo = info
+            publish(info)
         case .failure:
             break
         }
+    }
+
+    private func publish(_ info: [String: Any]) {
+        projectedNowPlayingInfo = info
+        infoCenter.nowPlayingInfo = info
     }
 
     private static func createMediaItemArtwork(from data: Data) -> Any? {
@@ -168,6 +201,8 @@ public final class LegatoiOSMediaPlayerNowPlayingRuntime: LegatoiOSNowPlayingRun
     private static func seconds(fromMs value: Int64) -> Double {
         Double(max(0, value)) / 1_000.0
     }
+
+    private static let defaultPlaybackRate: Double = 1.0
 }
 
 public final class LegatoiOSNoopNowPlayingRuntime: LegatoiOSNowPlayingRuntime {
@@ -178,6 +213,10 @@ public final class LegatoiOSNoopNowPlayingRuntime: LegatoiOSNowPlayingRuntime {
     }
 
     public func updateProgress(_ progress: LegatoiOSProgressUpdate) {
+        // Intentionally no-op.
+    }
+
+    public func updatePlaybackState(_ state: LegatoiOSPlaybackState) {
         // Intentionally no-op.
     }
 

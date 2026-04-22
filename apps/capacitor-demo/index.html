@@ -312,7 +312,8 @@ errors=none</pre>
             <li>Remote seek parity: lock-screen/notification seek must match seekTo() and keep snapshot position aligned.</li>
             <li>Boundary behavior parity: previous at first track restarts to 0, next at last track transitions to ended + playbackEnded event.</li>
             <li>Capability projection parity: canSkipNext/canSkipPrevious/canSeek summary must align with queue index + ended/empty states.</li>
-            <li>Progress parity: while playing, lock-screen/notification progress advances; after pause it stays frozen at pause point.</li>
+            <li>Android lockscreen/notification position from real snapshot: on resume/seek, projected position should rebase near snapshot target (no transient 0 reset).</li>
+            <li>iOS now-playing playbackRate fidelity: expect playbackRate=1.0 while playing and playbackRate=0.0 when paused/stopped/non-playing.</li>
             <li>Now-playing metadata parity: verify title/artist/album/artwork/duration are visible in lock screen / media notification.</li>
             <li>Artwork replacement/stale guard: run <code>Run artwork race</code>, then verify lock-screen/notification artwork matches the final active track (no stale previous image).</li>
             <li>Artwork fallback clear: during the race flow, track 3 has no artwork; verify lock-screen/notification clears artwork before switching back to an artwork track.</li>

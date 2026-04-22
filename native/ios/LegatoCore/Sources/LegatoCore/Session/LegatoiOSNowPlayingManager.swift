@@ -15,6 +15,10 @@ public final class LegatoiOSNowPlayingManager {
         runtime.updateProgress(progress)
     }
 
+    public func updatePlaybackState(_ state: LegatoiOSPlaybackState) {
+        runtime.updatePlaybackState(state)
+    }
+
     public func clear() {
         runtime.clear()
     }

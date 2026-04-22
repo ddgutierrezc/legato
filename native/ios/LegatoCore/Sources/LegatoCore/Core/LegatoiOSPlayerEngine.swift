@@ -233,11 +233,41 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
             return
         }
 
+        if let movedIndex = queueManager.moveToNext() {
+            do {
+                try performRuntimeOperation {
+                    try playbackRuntime.selectIndex(movedIndex)
+                    try playbackRuntime.play()
+                }
+            } catch {
+                return
+            }
+
+            let runtimeSnapshot = normalizedAutoAdvanceRuntimeSnapshot(
+                playbackRuntime.snapshot(),
+                expectedIndex: movedIndex
+            )
+            let track = queueManager.getCurrentTrack()
+            applyRuntimeSnapshot(
+                runtimeSnapshot,
+                currentTrackOverride: track,
+                currentIndexFallback: movedIndex,
+                queueOverride: queueManager.getQueueSnapshot()
+            )
+
+            let updatedSnapshot = snapshotStore.getPlaybackSnapshot()
+            publishQueueAndTrack(updatedSnapshot)
+            publishMetadata(track)
+            publishProgress(updatedSnapshot)
+            return
+        }
+
         applyRuntimeSnapshot(snapshot)
         transition(event: .trackEnded)
 
         let endedSnapshot = snapshotStore.getPlaybackSnapshot()
         publishProgress(endedSnapshot)
+        nowPlayingManager.clear()
         eventEmitter.emit(name: .playbackEnded, payload: .playbackEnded(snapshot: endedSnapshot))
     }
 
@@ -289,6 +319,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
         eventEmitter.emit(name: .playbackStateChanged, payload: .playbackStateChanged(state: state))
         sessionManager.updatePlaybackState(state)
         remoteCommandManager.updatePlaybackState(state)
+        nowPlayingManager.updatePlaybackState(state)
     }
 
     private func publishProgress(_ snapshot: LegatoiOSPlaybackSnapshot) {
@@ -460,6 +491,27 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
         }
     }
 
+    private func normalizedAutoAdvanceRuntimeSnapshot(
+        _ runtimeSnapshot: LegatoiOSRuntimeSnapshot,
+        expectedIndex: Int
+    ) -> LegatoiOSRuntimeSnapshot {
+        guard runtimeSnapshot.stateHint == .ended,
+              (runtimeSnapshot.currentIndex ?? expectedIndex) == expectedIndex
+        else {
+            return runtimeSnapshot
+        }
+
+        return LegatoiOSRuntimeSnapshot(
+            stateHint: .playing,
+            currentIndex: runtimeSnapshot.currentIndex,
+            progress: LegatoiOSRuntimeProgress(
+                positionMs: 0,
+                durationMs: runtimeSnapshot.progress.durationMs,
+                bufferedPositionMs: 0
+            )
+        )
+    }
+
     private func normalizedPositionMs(
         _ positionMs: Int64,
         durationMs: Int64?,
@@ -626,6 +678,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
         remoteCommandManager.updateTransportCapabilities(
             LegatoiOSTransportCapabilitiesProjector.fromSnapshot(endedSnapshot)
         )
+        nowPlayingManager.clear()
         eventEmitter.emit(name: .playbackEnded, payload: .playbackEnded(snapshot: endedSnapshot))
     }
 }

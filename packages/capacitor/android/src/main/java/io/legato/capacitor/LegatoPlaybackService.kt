@@ -42,6 +42,7 @@ class LegatoPlaybackService : Service() {
     private var activeArtworkRequestToken: ArtworkRequestToken? = null
     private var activeArtworkJob: Job? = null
     private var mediaSession: MediaSession? = null
+    private var lastMediaSessionProjection: MediaSessionPlaybackProjection? = null
     private val artworkRequestTokenFactory: ArtworkRequestTokenFactory = ArtworkRequestTokenFactory()
     private val artworkLoader: LegatoPlaybackArtworkLoader = DefaultLegatoPlaybackArtworkLoader
     private val artworkDiagnostics: LegatoPlaybackArtworkDiagnostics = AndroidLogcatArtworkDiagnostics
@@ -153,8 +154,12 @@ class LegatoPlaybackService : Service() {
     }
 
     private fun onNowPlayingMetadataChanged(metadata: LegatoAndroidNowPlayingMetadata?) {
+        val previousTrackId = currentNowPlayingMetadata?.trackId
         currentNowPlayingMetadata = metadata
         currentArtworkBitmap = null
+        if (previousTrackId != metadata?.trackId) {
+            syncMediaSessionPlaybackState(currentPlaybackState)
+        }
         publishNowPlayingSurfaces()
         refreshArtworkFor(metadata)
     }
@@ -329,33 +334,23 @@ class LegatoPlaybackService : Service() {
     }
 
     private fun syncMediaSessionPlaybackState(state: LegatoAndroidPlaybackState) {
-        val capabilities = LegatoAndroidTransportCapabilitiesProjector.fromSnapshot(coordinator.core.playerEngine.getSnapshot())
+        val snapshot = coordinator.core.playerEngine.getSnapshot()
+        val capabilities = LegatoAndroidTransportCapabilitiesProjector.fromSnapshot(snapshot)
+        val projectedState = projectMediaSessionPlaybackState(
+            state = state,
+            snapshotPositionMs = snapshot.positionMs,
+            activeTrackId = currentNowPlayingMetadata?.trackId ?: snapshot.currentTrack?.id,
+            previousProjection = lastMediaSessionProjection,
+        )
         val playbackState = PlaybackState.Builder()
             .setActions(LegatoPlaybackNotificationTransport.playbackStateActionsFor(state, capabilities))
             .setState(
-                when (state) {
-                    LegatoAndroidPlaybackState.PLAYING,
-                    LegatoAndroidPlaybackState.BUFFERING,
-                    -> PlaybackState.STATE_PLAYING
-
-                    LegatoAndroidPlaybackState.PAUSED,
-                    LegatoAndroidPlaybackState.READY,
-                    -> PlaybackState.STATE_PAUSED
-
-                    LegatoAndroidPlaybackState.LOADING -> PlaybackState.STATE_BUFFERING
-                    LegatoAndroidPlaybackState.ENDED,
-                    LegatoAndroidPlaybackState.IDLE,
-                    LegatoAndroidPlaybackState.ERROR,
-                    -> PlaybackState.STATE_STOPPED
-                },
-                0L,
-                if (state == LegatoAndroidPlaybackState.PLAYING || state == LegatoAndroidPlaybackState.BUFFERING) {
-                    1f
-                } else {
-                    0f
-                },
+                projectedState.playbackStateCode,
+                projectedState.positionMs,
+                projectedState.playbackSpeed,
             )
             .build()
+        lastMediaSessionProjection = projectedState
         mediaSession?.setPlaybackState(playbackState)
     }
 
@@ -420,6 +415,95 @@ class LegatoPlaybackService : Service() {
 
 internal fun <C, R> resolveOnCreateDependency(contextProvider: () -> C, resolver: (C) -> R): R {
     return resolver(contextProvider())
+}
+
+internal data class MediaSessionPlaybackProjection(
+    val playbackStateCode: Int,
+    val positionMs: Long,
+    val playbackSpeed: Float,
+    val activeTrackId: String?,
+)
+
+internal fun projectMediaSessionPlaybackState(
+    state: LegatoAndroidPlaybackState,
+    snapshotPositionMs: Long,
+    activeTrackId: String?,
+    previousProjection: MediaSessionPlaybackProjection?,
+): MediaSessionPlaybackProjection {
+    val playbackStateCode = when (state) {
+        LegatoAndroidPlaybackState.PLAYING -> PlaybackState.STATE_PLAYING
+
+        LegatoAndroidPlaybackState.BUFFERING,
+        LegatoAndroidPlaybackState.LOADING,
+        -> PlaybackState.STATE_BUFFERING
+
+        LegatoAndroidPlaybackState.PAUSED,
+        LegatoAndroidPlaybackState.READY,
+        -> PlaybackState.STATE_PAUSED
+
+        LegatoAndroidPlaybackState.ENDED,
+        LegatoAndroidPlaybackState.IDLE,
+        LegatoAndroidPlaybackState.ERROR,
+        -> PlaybackState.STATE_STOPPED
+    }
+    val playbackSpeed = if (state == LegatoAndroidPlaybackState.PLAYING) {
+        1f
+    } else {
+        0f
+    }
+    val projectedPositionMs = when {
+        shouldResetProjectionForTrackTransition(state, activeTrackId, previousProjection) -> 0L
+        shouldClampProjectionRewind(state, activeTrackId, snapshotPositionMs, previousProjection) -> {
+            previousProjection?.positionMs ?: snapshotPositionMs
+        }
+
+        else -> snapshotPositionMs
+    }
+
+    return MediaSessionPlaybackProjection(
+        playbackStateCode = playbackStateCode,
+        positionMs = projectedPositionMs,
+        playbackSpeed = playbackSpeed,
+        activeTrackId = activeTrackId,
+    )
+}
+
+private const val MAX_MEDIA_SESSION_REWIND_JITTER_MS: Long = 1_500L
+
+internal fun shouldResetProjectionForTrackTransition(
+    state: LegatoAndroidPlaybackState,
+    activeTrackId: String?,
+    previousProjection: MediaSessionPlaybackProjection?,
+): Boolean {
+    if (state != LegatoAndroidPlaybackState.BUFFERING && state != LegatoAndroidPlaybackState.LOADING) {
+        return false
+    }
+
+    val previousTrackId = previousProjection?.activeTrackId ?: return false
+    return activeTrackId != null && activeTrackId != previousTrackId
+}
+
+internal fun shouldClampProjectionRewind(
+    state: LegatoAndroidPlaybackState,
+    activeTrackId: String?,
+    snapshotPositionMs: Long,
+    previousProjection: MediaSessionPlaybackProjection?,
+): Boolean {
+    if (state != LegatoAndroidPlaybackState.PLAYING && state != LegatoAndroidPlaybackState.BUFFERING) {
+        return false
+    }
+
+    val previous = previousProjection ?: return false
+    if (activeTrackId == null || previous.activeTrackId != activeTrackId) {
+        return false
+    }
+
+    if (snapshotPositionMs >= previous.positionMs) {
+        return false
+    }
+
+    val rewindDelta = previous.positionMs - snapshotPositionMs
+    return rewindDelta <= MAX_MEDIA_SESSION_REWIND_JITTER_MS
 }
 
 internal data class ArtworkRequestToken(

@@ -26,12 +26,19 @@ public final class LegatoiOSAVAudioSessionRuntime: NSObject, LegatoiOSSessionRun
     private var interruptionObserver: NSObjectProtocol?
     private var routeChangeObserver: NSObjectProtocol?
 
+    public override init() {
+        self.audioSession = .sharedInstance()
+        self.notificationCenter = .default
+        super.init()
+    }
+
     public init(
         audioSession: AVAudioSession = .sharedInstance(),
         notificationCenter: NotificationCenter = .default
     ) {
         self.audioSession = audioSession
         self.notificationCenter = notificationCenter
+        super.init()
     }
 
     public func configureSession() {
