@@ -1,11 +1,18 @@
 import { Capacitor } from '@capacitor/core';
 import { Legato, createLegatoSync, type PlaybackSnapshot, type Track } from '@legato/capacitor';
 import {
+  buildSmokeReportV1,
   createInitialSmokeVerdict,
   reduceSmokeVerdict,
   summarizeSmokeVerdict,
+  type SmokeReportV1,
   type SmokeFlow,
 } from './smoke-verdict.js';
+import {
+  buildAutomationSnapshot,
+  buildSmokeMarkerLine,
+  deriveAutomationStatus,
+} from './smoke-automation.js';
 
 type LegatoSyncController = ReturnType<typeof createLegatoSync>;
 
@@ -15,6 +22,7 @@ const boundarySmokeButton = document.querySelector<HTMLButtonElement>('#run-boun
 const artworkRaceButton = document.querySelector<HTMLButtonElement>('#run-artwork-race');
 const copyLogButton = document.querySelector<HTMLButtonElement>('#copy-log');
 const copyEventsButton = document.querySelector<HTMLButtonElement>('#copy-events');
+const copySmokeReportButton = document.querySelector<HTMLButtonElement>('#copy-smoke-report');
 const setupButton = document.querySelector<HTMLButtonElement>('#action-setup');
 const syncStartButton = document.querySelector<HTMLButtonElement>('#action-sync-start');
 const syncStopButton = document.querySelector<HTMLButtonElement>('#action-sync-stop');
@@ -37,6 +45,9 @@ const snapshotSummaryNode = document.querySelector<HTMLPreElement>('#snapshot-su
 const capabilitySummaryNode = document.querySelector<HTMLPreElement>('#capability-summary');
 const paritySummaryNode = document.querySelector<HTMLPreElement>('#parity-summary');
 const snapshotJsonNode = document.querySelector<HTMLTextAreaElement>('#snapshot-json');
+const automationStatusNode = document.querySelector<HTMLDivElement>('#automation-status');
+const smokeReportJsonNode = document.querySelector<HTMLTextAreaElement>('#smoke-report-json');
+const automationSnapshotNode = document.querySelector<HTMLPreElement>('#automation-snapshot');
 
 if (
   !smokeButton
@@ -45,6 +56,7 @@ if (
   || !artworkRaceButton
   || !copyLogButton
   || !copyEventsButton
+  || !copySmokeReportButton
   || !setupButton
   || !syncStartButton
   || !syncStopButton
@@ -67,6 +79,9 @@ if (
   || !capabilitySummaryNode
   || !paritySummaryNode
   || !snapshotJsonNode
+  || !automationStatusNode
+  || !smokeReportJsonNode
+  || !automationSnapshotNode
 ) {
   throw new Error('Demo UI nodes are missing');
 }
@@ -87,6 +102,7 @@ let latestSnapshot: PlaybackSnapshot | null = null;
 let recentEvents: string[] = [];
 let recentProgressSamples: Array<{ state: string; positionMs: number }> = [];
 let smokeVerdict = createInitialSmokeVerdict();
+let latestSmokeReport: SmokeReportV1 | null = null;
 let activeSmokeFlow: SmokeFlow | null = null;
 const observedSyncEvents = new Set<string>();
 
@@ -415,6 +431,22 @@ const renderSmokeVerdict = (): void => {
   });
 };
 
+const renderAutomationPanel = (): void => {
+  const status = deriveAutomationStatus(latestSmokeReport);
+  automationStatusNode.dataset.status = status;
+  automationStatusNode.textContent = `Automation status: ${status.toUpperCase()}`;
+
+  smokeReportJsonNode.value = latestSmokeReport
+    ? JSON.stringify(latestSmokeReport, null, 2)
+    : '';
+
+  automationSnapshotNode.textContent = buildAutomationSnapshot({
+    report: latestSmokeReport,
+    fallbackSnapshotSummary: smokeVerdict.snapshotSummary,
+    fallbackRecentEvents: recentEvents,
+  });
+};
+
 const startSmokeVerdict = (flow: SmokeFlow): void => {
   activeSmokeFlow = flow;
   smokeVerdict = reduceSmokeVerdict(smokeVerdict, { type: 'start', flow });
@@ -422,15 +454,35 @@ const startSmokeVerdict = (flow: SmokeFlow): void => {
 };
 
 const completeSmokeVerdict = (): void => {
+  const flow = activeSmokeFlow;
   smokeVerdict = reduceSmokeVerdict(smokeVerdict, { type: 'complete' });
   activeSmokeFlow = null;
   renderSmokeVerdict();
+
+  if (flow === 'smoke') {
+    latestSmokeReport = buildSmokeReportV1({
+      verdict: smokeVerdict,
+      recentEvents,
+    });
+    log(buildSmokeMarkerLine(latestSmokeReport));
+    renderAutomationPanel();
+  }
 };
 
 const failSmokeVerdict = (errorSummary: string): void => {
+  const flow = activeSmokeFlow;
   smokeVerdict = reduceSmokeVerdict(smokeVerdict, { type: 'error', message: errorSummary });
   activeSmokeFlow = null;
   renderSmokeVerdict();
+
+  if (flow === 'smoke') {
+    latestSmokeReport = buildSmokeReportV1({
+      verdict: smokeVerdict,
+      recentEvents,
+    });
+    log(buildSmokeMarkerLine(latestSmokeReport));
+    renderAutomationPanel();
+  }
 };
 
 const addRecentEvent = (message: string): void => {
@@ -587,7 +639,9 @@ const snapshotAction = async (): Promise<void> => {
 const clearFlows = (): void => {
   logNode.value = '';
   recentEvents = [];
+  latestSmokeReport = null;
   renderRecentEvents();
+  renderAutomationPanel();
 };
 
 const runSmokeFlow = async (): Promise<void> => {
@@ -751,6 +805,14 @@ copyEventsButton.addEventListener('click', () => {
   void copyText(eventsNode.value, 'No recent events to copy yet.', 'Copied recent events to clipboard.');
 });
 
+copySmokeReportButton.addEventListener('click', () => {
+  void copyText(
+    smokeReportJsonNode.value,
+    'No smoke report generated yet. Run smoke flow first.',
+    'Copied smoke report JSON to clipboard.',
+  );
+});
+
 if (!isNative) {
   nativeActionButtons.forEach((button) => {
     button.disabled = true;
@@ -765,3 +827,4 @@ if (latestSnapshot == null) {
 }
 
 renderSmokeVerdict();
+renderAutomationPanel();

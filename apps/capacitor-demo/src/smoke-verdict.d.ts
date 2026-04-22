@@ -16,6 +16,16 @@ export type SmokeVerdict = {
   errorSummary: string | null;
 };
 
+export type SmokeReportV1 = {
+  schemaVersion: 1;
+  flow: 'smoke';
+  status: 'PASS' | 'FAIL';
+  checks: SmokeVerdictCheck[];
+  snapshotSummary: string;
+  recentEvents: string[];
+  errors: string[];
+};
+
 export type SmokeVerdictAction =
   | { type: 'start'; flow: SmokeFlow }
   | { type: 'snapshot'; snapshot: unknown }
@@ -23,5 +33,9 @@ export type SmokeVerdictAction =
   | { type: 'complete' };
 
 export function createInitialSmokeVerdict(): SmokeVerdict;
+export function createSmokeChecks(flow: SmokeFlow | null, snapshot: unknown): SmokeVerdictCheck[];
+export function createSmokeSnapshotSummary(snapshot: unknown): string;
+export function deriveSmokeStatusFromChecks(checks: SmokeVerdictCheck[], errorSummary?: string | null): 'PASS' | 'FAIL';
+export function buildSmokeReportV1(input: { verdict: SmokeVerdict; recentEvents?: string[] }): SmokeReportV1;
 export function reduceSmokeVerdict(state: SmokeVerdict, action: SmokeVerdictAction): SmokeVerdict;
 export function summarizeSmokeVerdict(verdict: SmokeVerdict): string;

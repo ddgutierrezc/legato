@@ -1,0 +1,2 @@
+04-22 17:05:00.000 12345 12345 I Capacitor/Console: File: https://localhost/assets/index-abc123.js - Line 110 - Msg: [17:05:00] setup() ok
+04-22 17:05:00.100 12345 12345 I Capacitor/Console: File: https://localhost/assets/index-abc123.js - Line 111 - Msg: [17:05:00] LEGATO_SMOKE_REPORT {"schemaVersion":1,"flow":"smoke","status":"PASS","checks":[]

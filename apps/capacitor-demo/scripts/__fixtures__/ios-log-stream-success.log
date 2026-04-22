@@ -1,0 +1,4 @@
+2026-04-22 19:00:00.000 Df legato-capacitor-demo[90123:456789] [js] [19:00:00] setup() ok
+2026-04-22 19:00:00.200 Df legato-capacitor-demo[90123:456789] [js] [19:00:00] LEGATO_SMOKE_REPORT {"schemaVersion":1,"flow":"smoke","status":"FAIL","checks":[{"label":"playback reached paused snapshot","ok":false,"detail":"missing snapshot"}],"snapshotSummary":"Awaiting snapshot","recentEvents":["[18:59:59] smoke started"],"errors":["missing snapshot"]}
+2026-04-22 19:00:00.900 Df legato-capacitor-demo[90123:456789] [js] [19:00:00] run smoke flow finished
+2026-04-22 19:00:01.100 Df legato-capacitor-demo[90123:456789] [js] [19:00:01] LEGATO_SMOKE_REPORT {"schemaVersion":1,"flow":"smoke","status":"PASS","checks":[{"label":"playback reached paused snapshot","ok":true,"detail":"state=paused"}],"snapshotSummary":"state=paused | track=Demo Track 1 | position=1600ms","recentEvents":["[19:00:00] setup finished","[19:00:01] play finished"],"errors":[]}
