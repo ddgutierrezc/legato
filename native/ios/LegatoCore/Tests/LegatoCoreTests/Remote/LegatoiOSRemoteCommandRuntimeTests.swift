@@ -9,11 +9,11 @@ final class LegatoiOSRemoteCommandRuntimeTests: XCTestCase {
 
         runtime.bind { received.append($0) }
 
-        center.playCommand.trigger()
-        center.pauseCommand.trigger()
-        center.nextTrackCommand.trigger()
-        center.previousTrackCommand.trigger()
-        center.changePlaybackPositionCommand.trigger(positionTimeSeconds: 42.5)
+        center.play.trigger()
+        center.pause.trigger()
+        center.next.trigger()
+        center.previous.trigger()
+        center.position.trigger(positionTimeSeconds: 42.5)
 
         XCTAssertEqual(received.count, 5)
         if case .play = received[0] {} else { XCTFail("Expected play command") }
@@ -35,9 +35,9 @@ final class LegatoiOSRemoteCommandRuntimeTests: XCTestCase {
         runtime.bind { _ in }
         runtime.updateTransportCapabilities(.init(canSkipNext: false, canSkipPrevious: true, canSeek: false))
 
-        XCTAssertFalse(center.nextTrackCommand.isEnabled)
-        XCTAssertTrue(center.previousTrackCommand.isEnabled)
-        XCTAssertFalse(center.changePlaybackPositionCommand.isEnabled)
+        XCTAssertFalse(center.next.isEnabled)
+        XCTAssertTrue(center.previous.isEnabled)
+        XCTAssertFalse(center.position.isEnabled)
     }
 
     func testUnbindRemovesRegisteredHandlers() {
@@ -47,20 +47,26 @@ final class LegatoiOSRemoteCommandRuntimeTests: XCTestCase {
         runtime.bind { _ in }
         runtime.unbind()
 
-        XCTAssertEqual(center.playCommand.removeTargetCount, 1)
-        XCTAssertEqual(center.pauseCommand.removeTargetCount, 1)
-        XCTAssertEqual(center.nextTrackCommand.removeTargetCount, 1)
-        XCTAssertEqual(center.previousTrackCommand.removeTargetCount, 1)
-        XCTAssertEqual(center.changePlaybackPositionCommand.removeTargetCount, 1)
+        XCTAssertEqual(center.play.removeTargetCount, 1)
+        XCTAssertEqual(center.pause.removeTargetCount, 1)
+        XCTAssertEqual(center.next.removeTargetCount, 1)
+        XCTAssertEqual(center.previous.removeTargetCount, 1)
+        XCTAssertEqual(center.position.removeTargetCount, 1)
     }
 }
 
 private final class FakeRemoteCommandCenter: LegatoiOSRemoteCommandCenter {
-    let playCommand = FakeButtonCommand()
-    let pauseCommand = FakeButtonCommand()
-    let nextTrackCommand = FakeButtonCommand()
-    let previousTrackCommand = FakeButtonCommand()
-    let changePlaybackPositionCommand = FakePositionCommand()
+    let play = FakeButtonCommand()
+    let pause = FakeButtonCommand()
+    let next = FakeButtonCommand()
+    let previous = FakeButtonCommand()
+    let position = FakePositionCommand()
+
+    var playCommand: any LegatoiOSRemoteCommandHandler { play }
+    var pauseCommand: any LegatoiOSRemoteCommandHandler { pause }
+    var nextTrackCommand: any LegatoiOSRemoteCommandHandler { next }
+    var previousTrackCommand: any LegatoiOSRemoteCommandHandler { previous }
+    var changePlaybackPositionCommand: any LegatoiOSChangePlaybackPositionCommandHandler { position }
 }
 
 private final class FakeButtonCommand: LegatoiOSRemoteCommandHandler {

@@ -19,6 +19,8 @@ public struct LegatoiOSCoreDependencies {
         trackMapper: LegatoiOSTrackMapper = LegatoiOSTrackMapper(),
         errorMapper: LegatoiOSErrorMapper = LegatoiOSErrorMapper(),
         stateMachine: LegatoiOSStateMachine = LegatoiOSStateMachine(),
+        // Session runtime resolution is centralized in LegatoiOSSessionManager defaults.
+        // This keeps plugin-facing composition unchanged while remaining host-safe.
         sessionManager: LegatoiOSSessionManager = LegatoiOSSessionManager(),
         nowPlayingManager: LegatoiOSNowPlayingManager = LegatoiOSNowPlayingManager(),
         remoteCommandManager: LegatoiOSRemoteCommandManager = LegatoiOSRemoteCommandManager(),
@@ -35,6 +37,7 @@ public struct LegatoiOSCoreDependencies {
         self.remoteCommandManager = remoteCommandManager
         self.playbackRuntime = playbackRuntime
     }
+
 }
 
 public struct LegatoiOSCoreComponents {
