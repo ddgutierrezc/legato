@@ -11,7 +11,7 @@ test('generateManagedSnippets emits Maven + exact SwiftPM identity', () => {
   const contract = {
     android: {
       repositoryUrl: 'https://repo1.maven.org/maven2',
-      group: 'io.legato',
+      group: 'dev.dgutierrez',
       artifact: 'legato-android-core',
       version: '0.1.0',
     },
@@ -27,7 +27,7 @@ test('generateManagedSnippets emits Maven + exact SwiftPM identity', () => {
   const snippets = generateManagedSnippets(contract);
 
   assert.match(snippets.android, /https:\/\/repo1\.maven\.org\/maven2/);
-  assert.match(snippets.android, /io\.legato:legato-android-core:0\.1\.0/);
+  assert.match(snippets.android, /dev\.dgutierrez:legato-android-core:0\.1\.0/);
   assert.match(snippets.android, /Adapter Android dependency must stay artifact-only/i);
   assert.doesNotMatch(snippets.android, /Foundation-only metadata.*deferred/i);
   assert.match(snippets.swift, /\n\s*\.package\(url: "https:\/\/github\.com\/legato\/legato-ios-core\.git", exact: "0\.1\.0"\)/);
@@ -41,7 +41,7 @@ test('validateContract rejects local path/package refs', () => {
   const invalidContract = {
     android: {
       repositoryUrl: '../native/android/core',
-      group: 'io.legato',
+      group: 'dev.dgutierrez',
       artifact: 'legato-android-core',
       version: '0.1.0',
     },
@@ -57,6 +57,29 @@ test('validateContract rejects local path/package refs', () => {
   assert.throws(
     () => validateContract(invalidContract),
     /must be HTTPS URLs.*local path/i,
+  );
+});
+
+test('validateContract rejects non-migrated Android publication namespace', () => {
+  const invalidContract = {
+    android: {
+      repositoryUrl: 'https://repo1.maven.org/maven2',
+      group: 'io.legato',
+      artifact: 'legato-android-core',
+      version: '0.1.0',
+    },
+    ios: {
+      packageUrl: 'https://github.com/legato/legato-ios-core.git',
+      packageName: 'LegatoCore',
+      product: 'LegatoCore',
+      version: '0.1.0',
+      versionPolicy: 'exact',
+    },
+  };
+
+  assert.throws(
+    () => validateContract(invalidContract),
+    /android\.group must be "dev\.dgutierrez"/i,
   );
 });
 

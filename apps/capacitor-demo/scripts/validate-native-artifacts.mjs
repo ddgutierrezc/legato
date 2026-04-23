@@ -6,7 +6,6 @@ const FAIL = 'FAIL';
 const LOCAL_PROJECT_DEPENDENCY_PATTERN = /implementation\s+project\(':native:android:core'\)/;
 const ARTIFACT_COORDINATE_PATTERN = /implementation\s+legatoNativeArtifactContract\.coordinate/;
 const HOST_MANUAL_NATIVE_CORE_INCLUDE_PATTERN = /include\s+':native:android:core'/;
-const UNRESOLVED_COORDINATE_PATTERN = /Could not find\s+io\.legato:legato-android-core:[^\s]+/i;
 const IOS_LOCAL_PATH_DEPENDENCY_PATTERN = /\.package\(path:\s*"[^"]*LegatoCore[^"]*"\)/;
 const IOS_EXACT_REMOTE_DEPENDENCY_PATTERN = /\.package\(url:\s*"https:\/\/github\.com\/legato\/legato-ios-core\.git",\s*exact:\s*"[^"]+"\)/;
 const IOS_SPM_PRODUCT_MISMATCH_PATTERN = /product\s+'[^']+'\s+required\s+by\s+package.*not\s+found/i;
@@ -25,8 +24,35 @@ function parseCapacitorConfigPackageClassList(configJson) {
   }
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function parseExpectedAndroidCoordinate({ nativeArtifactsContractJson, pluginBuildGradle }) {
+  if (nativeArtifactsContractJson) {
+    const parsedContract = JSON.parse(nativeArtifactsContractJson);
+    const group = parsedContract?.android?.group;
+    const artifact = parsedContract?.android?.artifact;
+    const version = parsedContract?.android?.version;
+    if (typeof group === 'string' && typeof artifact === 'string' && typeof version === 'string') {
+      return `${group}:${artifact}:${version}`;
+    }
+  }
+
+  const coordinateMatch = pluginBuildGradle.match(/coordinate:\s*'([^']+)'/);
+  return coordinateMatch ? coordinateMatch[1] : null;
+}
+
+function makeUnresolvedCoordinatePattern(coordinate) {
+  if (!coordinate) {
+    return null;
+  }
+  return new RegExp(`Could not find\\s+${escapeRegExp(coordinate)}(?:\\.|\\s|$)`, 'i');
+}
+
 export const validateNativeArtifacts = ({
   pluginBuildGradle,
+  nativeArtifactsContractJson = '',
   androidSettingsGradle = '',
   capAppSpmPackageSwift = '',
   pluginPackageSwift = '',
@@ -36,6 +62,19 @@ export const validateNativeArtifacts = ({
   iosResolutionLog = '',
 }) => {
   const failures = [];
+  let expectedAndroidCoordinate;
+
+  try {
+    expectedAndroidCoordinate = parseExpectedAndroidCoordinate({
+      nativeArtifactsContractJson,
+      pluginBuildGradle,
+    });
+  } catch {
+    failures.push('Failed to parse native-artifacts.json for expected Android publication coordinates.');
+    expectedAndroidCoordinate = null;
+  }
+
+  const unresolvedCoordinatePattern = makeUnresolvedCoordinatePattern(expectedAndroidCoordinate);
 
   if (LOCAL_PROJECT_DEPENDENCY_PATTERN.test(pluginBuildGradle)) {
     failures.push("Local-project regression detected in plugin dependency graph: remove project(':native:android:core') and keep artifact coordinates only.");
@@ -49,7 +88,7 @@ export const validateNativeArtifacts = ({
     failures.push('Android host regression detected in android/settings.gradle: remove manual `include \'native:android:core\'` wiring and rely on plugin artifact dependencies only.');
   }
 
-  const unresolvedMatch = androidResolutionLog.match(UNRESOLVED_COORDINATE_PATTERN);
+  const unresolvedMatch = unresolvedCoordinatePattern ? androidResolutionLog.match(unresolvedCoordinatePattern) : null;
   if (unresolvedMatch) {
     failures.push(`Android artifact resolution failed: ${unresolvedMatch[0]}`);
   }
@@ -132,6 +171,7 @@ export const formatNativeArtifactValidation = (result) => {
 const parseArgs = (argv) => {
   const options = {
     pluginGradlePath: undefined,
+    nativeArtifactsContractPath: undefined,
     androidSettingsPath: undefined,
     capAppSpmPath: undefined,
     pluginSwiftPackagePath: undefined,
@@ -151,6 +191,12 @@ const parseArgs = (argv) => {
 
     if (arg === '--android-resolution-log' && argv[i + 1]) {
       options.androidResolutionLogPath = argv[i + 1];
+      i += 1;
+      continue;
+    }
+
+    if (arg === '--native-artifacts-contract' && argv[i + 1]) {
+      options.nativeArtifactsContractPath = argv[i + 1];
       i += 1;
       continue;
     }
@@ -199,6 +245,7 @@ const isEntrypoint = process.argv[1] && import.meta.url === new URL(`file://${pr
 if (isEntrypoint) {
   const {
     pluginGradlePath,
+    nativeArtifactsContractPath,
     androidSettingsPath,
     capAppSpmPath,
     pluginSwiftPackagePath,
@@ -209,12 +256,15 @@ if (isEntrypoint) {
   } = parseArgs(process.argv.slice(2));
 
   if (!pluginGradlePath) {
-    process.stdout.write('Overall: FAIL\nandroid-artifacts: FAIL\nios-artifacts: FAIL\nFailures:\n- Usage: node scripts/validate-native-artifacts.mjs --plugin-gradle <path> [--android-settings <path>] [--capapp-spm-package <path>] [--plugin-swift-package <path>] [--plugin-swift-source <path>] [--capacitor-config <path>] [--android-resolution-log <path>] [--ios-resolution-log <path>]\n');
+    process.stdout.write('Overall: FAIL\nandroid-artifacts: FAIL\nios-artifacts: FAIL\nFailures:\n- Usage: node scripts/validate-native-artifacts.mjs --plugin-gradle <path> [--native-artifacts-contract <path>] [--android-settings <path>] [--capapp-spm-package <path>] [--plugin-swift-package <path>] [--plugin-swift-source <path>] [--capacitor-config <path>] [--android-resolution-log <path>] [--ios-resolution-log <path>]\n');
     process.exit(1);
   }
 
   try {
     const pluginBuildGradle = await readFile(pluginGradlePath, 'utf8');
+    const nativeArtifactsContractJson = nativeArtifactsContractPath
+      ? await readFile(nativeArtifactsContractPath, 'utf8')
+      : '';
     const androidResolutionLog = androidResolutionLogPath
       ? await readFile(androidResolutionLogPath, 'utf8')
       : '';
@@ -239,6 +289,7 @@ if (isEntrypoint) {
 
     const result = validateNativeArtifacts({
       pluginBuildGradle,
+      nativeArtifactsContractJson,
       androidSettingsGradle,
       capAppSpmPackageSwift,
       pluginPackageSwift,

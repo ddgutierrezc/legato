@@ -21,10 +21,28 @@ dependencies {
 // NATIVE_ARTIFACTS:BEGIN
 ext.legatoNativeArtifactContract = [
     repositoryUrl: 'https://repo1.maven.org/maven2',
-    coordinate: 'io.legato:legato-android-core:0.1.0'
+    coordinate: 'dev.dgutierrez:legato-android-core:0.1.0'
 ]
 // Adapter Android dependency must stay artifact-only.
 // NATIVE_ARTIFACTS:END
+`;
+
+const nativeArtifactsContract = `
+{
+  "android": {
+    "repositoryUrl": "https://repo1.maven.org/maven2",
+    "group": "dev.dgutierrez",
+    "artifact": "legato-android-core",
+    "version": "0.1.0"
+  },
+  "ios": {
+    "packageUrl": "https://github.com/legato/legato-ios-core.git",
+    "packageName": "LegatoCore",
+    "product": "LegatoCore",
+    "version": "0.1.0",
+    "versionPolicy": "exact"
+  }
+}
 `;
 
 const buildGradleLocalProject = `
@@ -102,9 +120,9 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {}
 const unresolvedLog = `
 Execution failed for task ':legato-capacitor:compileDebugKotlin'.
 > Could not resolve all files for configuration ':legato-capacitor:debugCompileClasspath'.
-   > Could not find io.legato:legato-android-core:0.1.0.
+   > Could not find dev.dgutierrez:legato-android-core:0.1.0.
      Searched in the following locations:
-       - https://repo1.maven.org/maven2/io/legato/legato-android-core/0.1.0/legato-android-core-0.1.0.pom
+       - https://repo1.maven.org/maven2/dev/dgutierrez/legato-android-core/0.1.0/legato-android-core-0.1.0.pom
 `;
 
 const iosResolverMismatchLog = `
@@ -172,13 +190,14 @@ test('validator fails when Gradle output reports unresolved Android artifact coo
     pluginPackageSwift: packageSwiftArtifactOnly,
     capacitorConfigJson: capacitorConfigWithPluginClass,
     pluginSwiftSource: pluginSwiftDiscoverableShape,
+    nativeArtifactsContractJson: nativeArtifactsContract,
     androidResolutionLog: unresolvedLog,
   });
 
   assert.equal(result.status, 'FAIL');
   assert.equal(result.exitCode, 1);
   assert.equal(result.failures.length > 0, true);
-  assert.match(result.failures[0], /Could not find io\.legato:legato-android-core:0\.1\.0/i);
+  assert.match(result.failures[0], /Could not find dev\.dgutierrez:legato-android-core:0\.1\.0/i);
 });
 
 test('formatter prints stable summary structure', () => {
@@ -189,6 +208,7 @@ test('formatter prints stable summary structure', () => {
     pluginPackageSwift: packageSwiftArtifactOnly,
     capacitorConfigJson: capacitorConfigWithPluginClass,
     pluginSwiftSource: pluginSwiftDiscoverableShape,
+    nativeArtifactsContractJson: nativeArtifactsContract,
     androidResolutionLog: unresolvedLog,
   });
 
@@ -196,7 +216,7 @@ test('formatter prints stable summary structure', () => {
   assert.match(summary, /Overall: FAIL/i);
   assert.match(summary, /android-artifacts: FAIL/i);
   assert.match(summary, /ios-artifacts: FAIL/i);
-  assert.match(summary, /Could not find io\.legato:legato-android-core:0\.1\.0/i);
+  assert.match(summary, /Could not find dev\.dgutierrez:legato-android-core:0\.1\.0/i);
 });
 
 test('CLI exits non-zero with actionable output when local-project regression is detected', async () => {

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PACKAGE_ROOT = path.resolve(__dirname, '..');
+const EXPECTED_ANDROID_PUBLICATION_GROUP = 'dev.dgutierrez';
 
 function assertString(value, fieldName) {
   if (typeof value !== 'string' || value.trim() === '') {
@@ -38,6 +39,10 @@ export function validateContract(contract) {
   assertString(android.group, 'android.group');
   assertString(android.artifact, 'android.artifact');
   assertString(android.version, 'android.version');
+
+  if (android.group !== EXPECTED_ANDROID_PUBLICATION_GROUP) {
+    throw new Error(`native-artifacts.json: android.group must be "${EXPECTED_ANDROID_PUBLICATION_GROUP}" for publication-pipeline-v1`);
+  }
 
   assertString(ios.packageUrl, 'ios.packageUrl');
   assertString(ios.packageName, 'ios.packageName');

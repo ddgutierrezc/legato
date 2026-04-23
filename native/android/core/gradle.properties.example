@@ -1,0 +1,11 @@
+# Copy this file to `gradle.properties` (local only) and provide real values.
+# Do NOT commit secrets.
+
+# Maven Central Portal credentials
+mavenCentralUsername=
+mavenCentralPassword=
+
+# In-memory ASCII-armored GPG private key (single-line, base64-safe)
+signingInMemoryKey=
+signingInMemoryKeyId=
+signingInMemoryKeyPassword=

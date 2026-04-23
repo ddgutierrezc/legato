@@ -1,20 +1,45 @@
+import groovy.json.JsonSlurper
+import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
+
 plugins {
-    id 'com.android.library'
-    id 'org.jetbrains.kotlin.android'
-    id 'maven-publish'
+    id 'com.android.library' version '8.13.0'
+    id 'org.jetbrains.kotlin.android' version '2.0.21'
+    id 'com.vanniktech.maven.publish' version '0.34.0'
 }
 
-group = 'io.legato'
-version = '0.1.0'
+def nativeArtifactsContractFile = file('../../../packages/capacitor/native-artifacts.json')
+if (!nativeArtifactsContractFile.exists()) {
+    throw new GradleException("Missing native artifacts contract at ${nativeArtifactsContractFile}")
+}
 
-def legatoAndroidArtifactId = 'legato-android-core'
+def nativeArtifactsContract = new JsonSlurper().parse(nativeArtifactsContractFile)
+def androidContract = nativeArtifactsContract?.android
+
+def contractGroup = androidContract?.group
+def contractArtifact = androidContract?.artifact
+def contractVersion = androidContract?.version
+
+if (!(contractGroup instanceof String) || contractGroup.trim().isEmpty()) {
+    throw new GradleException('native-artifacts.json android.group must be a non-empty string')
+}
+if (!(contractArtifact instanceof String) || contractArtifact.trim().isEmpty()) {
+    throw new GradleException('native-artifacts.json android.artifact must be a non-empty string')
+}
+if (!(contractVersion instanceof String) || contractVersion.trim().isEmpty()) {
+    throw new GradleException('native-artifacts.json android.version must be a non-empty string')
+}
+
+group = contractGroup.trim()
+version = contractVersion.trim()
+
+def legatoAndroidArtifactId = contractArtifact.trim()
 
 android {
     namespace 'io.legato.core'
-    compileSdk 34
+    compileSdk = 34
 
     defaultConfig {
-        minSdk 24
+        minSdk = 24
     }
 
     compileOptions {
@@ -26,12 +51,6 @@ android {
         jvmTarget = '17'
     }
 
-    publishing {
-        singleVariant('release') {
-            withSourcesJar()
-            withJavadocJar()
-        }
-    }
 }
 
 dependencies {
@@ -42,34 +61,41 @@ dependencies {
     testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1'
 }
 
-afterEvaluate {
-    publishing {
-        publications {
-            release(MavenPublication) {
-                from components.release
-                groupId = project.group
-                artifactId = legatoAndroidArtifactId
-                version = project.version
+mavenPublishing {
+    configure(new AndroidSingleVariantLibrary('release', true, true))
+    publishToMavenCentral()
+    signAllPublications()
+    coordinates(project.group.toString(), legatoAndroidArtifactId, project.version.toString())
 
-                pom {
-                    name = 'Legato Android Core'
-                    description = 'Android native playback core for Legato Capacitor integration.'
-                    url = 'https://github.com/legato/legato'
+    pom {
+        name = 'Legato Android Core'
+        description = 'Android native playback core for Legato Capacitor integration.'
+        url = 'https://github.com/legato/legato'
 
-                    licenses {
-                        license {
-                            name = 'MIT License'
-                            url = 'https://opensource.org/license/mit/'
-                        }
-                    }
-
-                    scm {
-                        url = 'https://github.com/legato/legato'
-                        connection = 'scm:git:https://github.com/legato/legato.git'
-                        developerConnection = 'scm:git:ssh://git@github.com/legato/legato.git'
-                    }
-                }
+        licenses {
+            license {
+                name = 'MIT License'
+                url = 'https://opensource.org/license/mit/'
             }
         }
+
+        developers {
+            developer {
+                id = 'dgutierrez'
+                name = 'Daniel Gutierrez'
+            }
+        }
+
+        scm {
+            url = 'https://github.com/legato/legato'
+            connection = 'scm:git:https://github.com/legato/legato.git'
+            developerConnection = 'scm:git:ssh://git@github.com/legato/legato.git'
+        }
+    }
+}
+
+tasks.register('printPublicationCoordinate') {
+    doLast {
+        println("publication-coordinate=${project.group}:${legatoAndroidArtifactId}:${project.version}")
     }
 }
