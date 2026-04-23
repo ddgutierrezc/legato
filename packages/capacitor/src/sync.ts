@@ -1,15 +1,14 @@
 import type { PluginListenerHandle } from '@capacitor/core';
 import type {
-  LegatoApi,
-  LegatoEventApi,
+  AudioPlayerApi,
   LegatoEventName,
   LegatoEventPayloadMap,
   PlaybackSnapshot,
 } from './definitions';
-import { LEGATO_EVENTS } from './events';
+import { AUDIO_PLAYER_EVENTS } from './events';
 import { Legato } from './plugin';
 
-type SyncClient = LegatoApi & LegatoEventApi;
+type SyncClient = AudioPlayerApi;
 
 export interface LegatoSyncOptions {
   client?: SyncClient;
@@ -22,6 +21,12 @@ export interface LegatoSyncController {
   resync(): Promise<PlaybackSnapshot>;
   getCurrent(): PlaybackSnapshot | null;
   stop(): Promise<void>;
+}
+
+export type AudioPlayerSyncClient = AudioPlayerApi;
+
+export interface AudioPlayerSyncOptions extends LegatoSyncOptions {
+  client?: AudioPlayerSyncClient;
 }
 
 export function createLegatoSync(options: LegatoSyncOptions = {}): LegatoSyncController {
@@ -80,7 +85,7 @@ export function createLegatoSync(options: LegatoSyncOptions = {}): LegatoSyncCon
 
   const subscribe = async () => {
     await Promise.all(
-      LEGATO_EVENTS.map(async (eventName) => {
+      AUDIO_PLAYER_EVENTS.map(async (eventName) => {
         const handle = await client.addListener(eventName, (payload) => {
           options.onEvent?.(eventName, payload as LegatoEventPayloadMap[LegatoEventName]);
           applyEventToSnapshot(eventName, payload as LegatoEventPayloadMap[LegatoEventName]);
@@ -107,4 +112,8 @@ export function createLegatoSync(options: LegatoSyncOptions = {}): LegatoSyncCon
       await Promise.all(handles.splice(0).map((handle) => handle.remove()));
     },
   };
+}
+
+export function createAudioPlayerSync(options: AudioPlayerSyncOptions = {}): LegatoSyncController {
+  return createLegatoSync(options);
 }

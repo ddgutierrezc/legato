@@ -260,6 +260,17 @@ No smoke run yet.</pre>
         </section>
 
         <section class="card stack">
+          <h2>Guided manual validation cases</h2>
+          <p>Each flow resets baseline, performs setup automatically, then waits for one remote action and writes a pass/fail trail.</p>
+          <div class="actions">
+            <button id="run-case-remote-pause" class="native-action" type="button">Case: remote pause parity</button>
+            <button id="run-case-remote-play" class="native-action" type="button">Case: remote play resume parity</button>
+            <button id="run-case-remote-skip" class="native-action" type="button">Case: remote next/previous parity</button>
+            <button id="run-case-remote-seek" class="native-action" type="button">Case: remote seek parity</button>
+          </div>
+        </section>
+
+        <section class="card stack">
           <h2>Automation report (SmokeReport v1)</h2>
           <div class="actions">
             <button id="copy-smoke-report" type="button">Copy smoke report JSON</button>
@@ -328,9 +339,9 @@ checks=none yet</pre>
         <section class="card stack">
           <h2>Remote transport v2 validation checklist</h2>
           <ul>
-            <li>Background play/pause parity: with playback running, background app and toggle lock-screen/notification play↔pause; verify state changes match manual play()/pause().</li>
-            <li>Remote next/previous parity: on lock-screen/notification and manual buttons, next/previous must match queue transitions from skipToNext()/skipToPrevious().</li>
-            <li>Remote seek parity: lock-screen/notification seek must match seekTo() and keep snapshot position aligned.</li>
+            <li>Background play/pause parity: run guided buttons <code>Case: remote pause parity</code> and <code>Case: remote play resume parity</code>, then verify pass/fail trail in logs/checks.</li>
+            <li>Remote next/previous parity: run <code>Case: remote next/previous parity</code>; next and previous must round-trip queue index as prompted.</li>
+            <li>Remote seek parity: run <code>Case: remote seek parity</code>; remote seek must produce a visible snapshot position jump.</li>
             <li>Boundary behavior parity: previous at first track restarts to 0, next at last track transitions to ended + playbackEnded event.</li>
             <li>Capability projection parity: canSkipNext/canSkipPrevious/canSeek summary must align with queue index + ended/empty states.</li>
             <li>Android lockscreen/notification position from real snapshot: on resume/seek, projected position should rebase near snapshot target (no transient 0 reset).</li>

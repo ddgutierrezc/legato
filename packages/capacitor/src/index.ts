@@ -1,6 +1,10 @@
 export type * from './definitions';
 export { Legato, audioPlayer, mediaSession } from './plugin';
 export {
+  AUDIO_PLAYER_EVENTS,
+  MEDIA_SESSION_EVENTS,
+  addAudioPlayerListener,
+  addMediaSessionListener,
   LEGATO_EVENTS,
   addLegatoListener,
   onPlaybackActiveTrackChanged,
@@ -15,4 +19,4 @@ export {
   onRemotePrevious,
   onRemoteSeek,
 } from './events';
-export { createLegatoSync } from './sync';
+export { createAudioPlayerSync, createLegatoSync } from './sync';
