@@ -216,7 +216,7 @@ const summarizeSnapshot = (snapshot: PlaybackSnapshot): string => {
     `duration=${formatMs(snapshot.duration)}`,
     `buffered=${formatMs(snapshot.bufferedPosition ?? null)}`,
     `queue=${queueLength}`,
-    `error=${snapshot.error ? JSON.stringify(snapshot.error) : 'none'}`,
+    `error=${snapshot.state === 'error' ? 'state=error (details in logs)' : 'none'}`,
   ].join(' | ');
 };
 
