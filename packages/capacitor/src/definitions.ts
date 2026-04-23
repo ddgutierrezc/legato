@@ -29,6 +29,18 @@ export type AudioPlayerEventPayloadMap = ContractPlayerEventPayloadMap;
 export type MediaSessionEventPayloadMap = ContractMediaSessionEventPayloadMap;
 export type LegatoEventPayloadMap = ContractLegatoEventPayloadMap;
 
+export type AudioPlayerListener<E extends AudioPlayerEventName> = (
+  payload: AudioPlayerEventPayloadMap[E],
+) => void;
+
+export type MediaSessionListener<E extends MediaSessionEventName> = (
+  payload: MediaSessionEventPayloadMap[E],
+) => void;
+
+export type LegatoListener<E extends LegatoEventName> = (
+  payload: LegatoEventPayloadMap[E],
+) => void;
+
 export interface AddOptions {
   tracks: Track[];
   startIndex?: number;
@@ -67,7 +79,7 @@ export interface AudioPlayerApi {
   getSnapshot(): Promise<PlaybackSnapshot>;
   addListener<E extends AudioPlayerEventName>(
     eventName: E,
-    listener: (payload: AudioPlayerEventPayloadMap[E]) => void,
+    listener: AudioPlayerListener<E>,
   ): Promise<PluginListenerHandle>;
   removeAllListeners(): Promise<void>;
 }
@@ -76,7 +88,7 @@ export interface MediaSessionApi {
   setup(): Promise<void>;
   addListener<E extends MediaSessionEventName>(
     eventName: E,
-    listener: (payload: MediaSessionEventPayloadMap[E]) => void,
+    listener: MediaSessionListener<E>,
   ): Promise<PluginListenerHandle>;
   removeAllListeners(): Promise<void>;
 }
@@ -86,7 +98,7 @@ export type LegatoApi = AudioPlayerApi & MediaSessionApi;
 export interface LegatoEventApi {
   addListener<E extends LegatoEventName>(
     eventName: E,
-    listener: (payload: LegatoEventPayloadMap[E]) => void,
+    listener: LegatoListener<E>,
   ): Promise<PluginListenerHandle>;
   removeAllListeners(): Promise<void>;
 }
