@@ -2,8 +2,10 @@ import { registerPlugin } from '@capacitor/core';
 import type { Plugin } from '@capacitor/core';
 import type {
   AddOptions,
+  AudioPlayerApi,
   LegatoApi,
   LegatoEventApi,
+  MediaSessionApi,
   PlaybackSnapshot,
   PlaybackState,
   QueueSnapshot,
@@ -63,7 +65,7 @@ interface LegatoCapacitorPlugin extends Plugin {
 
 export const LegatoCapacitor = registerPlugin<LegatoCapacitorPlugin>('Legato');
 
-export const Legato: LegatoApi & LegatoEventApi = {
+const sharedDelegate = {
   async setup() {
     await LegatoCapacitor.setup();
   },
@@ -131,4 +133,37 @@ export const Legato: LegatoApi & LegatoEventApi = {
   removeAllListeners() {
     return LegatoCapacitor.removeAllListeners();
   },
+};
+
+export const audioPlayer: AudioPlayerApi = {
+  setup: sharedDelegate.setup,
+  add: sharedDelegate.add,
+  remove: sharedDelegate.remove,
+  reset: sharedDelegate.reset,
+  play: sharedDelegate.play,
+  pause: sharedDelegate.pause,
+  stop: sharedDelegate.stop,
+  seekTo: sharedDelegate.seekTo,
+  skipTo: sharedDelegate.skipTo,
+  skipToNext: sharedDelegate.skipToNext,
+  skipToPrevious: sharedDelegate.skipToPrevious,
+  getState: sharedDelegate.getState,
+  getPosition: sharedDelegate.getPosition,
+  getDuration: sharedDelegate.getDuration,
+  getCurrentTrack: sharedDelegate.getCurrentTrack,
+  getQueue: sharedDelegate.getQueue,
+  getSnapshot: sharedDelegate.getSnapshot,
+  addListener: sharedDelegate.addListener,
+  removeAllListeners: sharedDelegate.removeAllListeners,
+};
+
+export const mediaSession: MediaSessionApi = {
+  setup: sharedDelegate.setup,
+  addListener: sharedDelegate.addListener,
+  removeAllListeners: sharedDelegate.removeAllListeners,
+};
+
+export const Legato: LegatoApi & LegatoEventApi = {
+  ...audioPlayer,
+  ...mediaSession,
 };

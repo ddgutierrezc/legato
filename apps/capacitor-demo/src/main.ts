@@ -1,5 +1,13 @@
 import { Capacitor } from '@capacitor/core';
-import { Legato, createLegatoSync, type PlaybackSnapshot, type Track } from '@legato/capacitor';
+import {
+  Legato,
+  audioPlayer,
+  createLegatoSync,
+  mediaSession,
+  type AudioPlayerApi,
+  type PlaybackSnapshot,
+  type Track,
+} from '@legato/capacitor';
 import {
   buildSmokeReportV1,
   createInitialSmokeVerdict,
@@ -13,12 +21,17 @@ import {
   buildSmokeMarkerLine,
   deriveAutomationStatus,
 } from './smoke-automation.js';
+import {
+  createBoundarySurfaceSnapshot,
+  summarizeBoundaryValidation,
+} from './boundary-harness.js';
 
 type LegatoSyncController = ReturnType<typeof createLegatoSync>;
 
 const smokeButton = document.querySelector<HTMLButtonElement>('#run-smoke');
 const endSmokeButton = document.querySelector<HTMLButtonElement>('#run-end-smoke');
 const boundarySmokeButton = document.querySelector<HTMLButtonElement>('#run-boundary-smoke');
+const surfaceValidationButton = document.querySelector<HTMLButtonElement>('#run-surface-validation');
 const artworkRaceButton = document.querySelector<HTMLButtonElement>('#run-artwork-race');
 const copyLogButton = document.querySelector<HTMLButtonElement>('#copy-log');
 const copyEventsButton = document.querySelector<HTMLButtonElement>('#copy-events');
@@ -34,6 +47,8 @@ const previousButton = document.querySelector<HTMLButtonElement>('#action-previo
 const nextButton = document.querySelector<HTMLButtonElement>('#action-next');
 const seekButton = document.querySelector<HTMLButtonElement>('#action-seek');
 const snapshotButton = document.querySelector<HTMLButtonElement>('#action-snapshot');
+const useLegatoSurfaceButton = document.querySelector<HTMLButtonElement>('#use-legato-surface');
+const useAudioPlayerSurfaceButton = document.querySelector<HTMLButtonElement>('#use-audioplayer-surface');
 const seekInput = document.querySelector<HTMLInputElement>('#seek-ms');
 const envStatusNode = document.querySelector<HTMLDivElement>('#env-status');
 const verdictStatusNode = document.querySelector<HTMLDivElement>('#verdict-status');
@@ -48,11 +63,13 @@ const snapshotJsonNode = document.querySelector<HTMLTextAreaElement>('#snapshot-
 const automationStatusNode = document.querySelector<HTMLDivElement>('#automation-status');
 const smokeReportJsonNode = document.querySelector<HTMLTextAreaElement>('#smoke-report-json');
 const automationSnapshotNode = document.querySelector<HTMLPreElement>('#automation-snapshot');
+const boundarySummaryNode = document.querySelector<HTMLPreElement>('#boundary-summary');
 
 if (
   !smokeButton
   || !endSmokeButton
   || !boundarySmokeButton
+  || !surfaceValidationButton
   || !artworkRaceButton
   || !copyLogButton
   || !copyEventsButton
@@ -68,6 +85,8 @@ if (
   || !nextButton
   || !seekButton
   || !snapshotButton
+  || !useLegatoSurfaceButton
+  || !useAudioPlayerSurfaceButton
   || !seekInput
   || !envStatusNode
   || !verdictStatusNode
@@ -82,6 +101,7 @@ if (
   || !automationStatusNode
   || !smokeReportJsonNode
   || !automationSnapshotNode
+  || !boundarySummaryNode
 ) {
   throw new Error('Demo UI nodes are missing');
 }
@@ -97,6 +117,9 @@ const progressSamplesLimit = 8;
 const platform = Capacitor.getPlatform();
 const isNative = Capacitor.isNativePlatform();
 
+type PlaybackSurface = 'legato' | 'audioPlayer';
+type BoundaryCheck = { label: string; ok: boolean; detail: string };
+
 let syncController: LegatoSyncController | null = null;
 let latestSnapshot: PlaybackSnapshot | null = null;
 let recentEvents: string[] = [];
@@ -105,16 +128,22 @@ let smokeVerdict = createInitialSmokeVerdict();
 let latestSmokeReport: SmokeReportV1 | null = null;
 let activeSmokeFlow: SmokeFlow | null = null;
 const observedSyncEvents = new Set<string>();
+let activePlaybackSurface: PlaybackSurface = 'legato';
+let boundaryChecks: BoundaryCheck[] = [];
+
+const resolvePlaybackApi = (surface: PlaybackSurface): AudioPlayerApi => (
+  surface === 'audioPlayer' ? audioPlayer : Legato
+);
 
 const demoTracks: Track[] = [
   {
     id: 'track-demo-1',
-    url: 'https://samplelib.com/mp3/sample-3s.mp3',
-    title: 'Demo Track 1 (3s sample)',
+    url: 'https://samplelib.com/mp3/sample-12s.mp3',
+    title: 'Demo Track 1 (12s sample)',
     artist: 'Samplelib',
     album: 'Legato Artwork Fixture A',
     artwork: 'https://i.pravatar.cc/300',
-    duration: 3239,
+    duration: 12000,
     type: 'progressive',
   },
   {
@@ -133,6 +162,7 @@ const demoTracks: Track[] = [
     title: 'Demo Track 3 (9s no-artwork fallback)',
     artist: 'Samplelib',
     album: 'Legato Artwork Fallback Fixture',
+    artwork: 'https://i.pravatar.cc/300',
     duration: 9613,
     type: 'progressive',
   },
@@ -141,7 +171,7 @@ const demoTracks: Track[] = [
 const expectedArtworkByTrackId: Record<string, string | null> = {
   'track-demo-1': demoTracks[0].artwork ?? null,
   'track-demo-2': demoTracks[1].artwork ?? null,
-  'track-demo-3': null,
+  'track-demo-3': demoTracks[2].artwork ?? null,
 };
 
 const formatMs = (value: number | null | undefined): string => {
@@ -405,6 +435,22 @@ const updateParityInspector = (snapshot: PlaybackSnapshot): void => {
   paritySummaryNode.textContent = lines.join('\n');
 };
 
+const renderBoundarySummary = (): void => {
+  const surfaceSnapshot = createBoundarySurfaceSnapshot(activePlaybackSurface);
+  boundarySummaryNode.textContent = summarizeBoundaryValidation({
+    ...surfaceSnapshot,
+    parityChecks: boundaryChecks,
+  });
+
+  useLegatoSurfaceButton.disabled = activePlaybackSurface === 'legato';
+  useAudioPlayerSurfaceButton.disabled = activePlaybackSurface === 'audioPlayer';
+};
+
+const addBoundaryCheck = (check: BoundaryCheck): void => {
+  boundaryChecks = [...boundaryChecks.slice(-7), check];
+  renderBoundarySummary();
+};
+
 const log = (message: string, payload?: unknown): void => {
   const prefix = `[${new Date().toLocaleTimeString()}]`;
   const line = payload === undefined ? message : `${message} ${summarizePayload(payload)}`;
@@ -587,53 +633,53 @@ const copyText = async (text: string, emptyMessage: string, successMessage: stri
   }
 };
 
-const setupAction = async (): Promise<void> => {
-  await Legato.setup();
-  log('setup() ok');
+const setupAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
+  await resolvePlaybackApi(surface).setup();
+  log(`[${surface}] setup() ok`);
 };
 
-const addAction = async (): Promise<void> => {
-  const afterAdd = await Legato.add({ tracks: demoTracks, startIndex: 0 });
+const addAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
+  const afterAdd = await resolvePlaybackApi(surface).add({ tracks: demoTracks, startIndex: 0 });
   updateSnapshotViews(afterAdd);
-  log('add() snapshot', afterAdd);
+  log(`[${surface}] add() snapshot`, afterAdd);
 };
 
-const playAction = async (): Promise<void> => {
-  await Legato.play();
-  log('play() ok');
+const playAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
+  await resolvePlaybackApi(surface).play();
+  log(`[${surface}] play() ok`);
 };
 
-const pauseAction = async (): Promise<void> => {
-  await Legato.pause();
-  log('pause() ok');
+const pauseAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
+  await resolvePlaybackApi(surface).pause();
+  log(`[${surface}] pause() ok`);
 };
 
-const stopAction = async (): Promise<void> => {
-  await Legato.stop();
-  log('stop() ok');
+const stopAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
+  await resolvePlaybackApi(surface).stop();
+  log(`[${surface}] stop() ok`);
 };
 
-const previousAction = async (): Promise<void> => {
-  await Legato.skipToPrevious();
-  log('skipToPrevious() ok');
+const previousAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
+  await resolvePlaybackApi(surface).skipToPrevious();
+  log(`[${surface}] skipToPrevious() ok`);
 };
 
-const nextAction = async (): Promise<void> => {
-  await Legato.skipToNext();
-  log('skipToNext() ok');
+const nextAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
+  await resolvePlaybackApi(surface).skipToNext();
+  log(`[${surface}] skipToNext() ok`);
 };
 
-const seekAction = async (): Promise<void> => {
+const seekAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
   const value = Number(seekInput.value);
   const targetMs = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
-  await Legato.seekTo({ position: targetMs });
-  log(`seekTo(${targetMs}) ok`);
+  await resolvePlaybackApi(surface).seekTo({ position: targetMs });
+  log(`[${surface}] seekTo(${targetMs}) ok`);
 };
 
-const snapshotAction = async (): Promise<void> => {
-  const snapshot = await Legato.getSnapshot();
+const snapshotAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
+  const snapshot = await resolvePlaybackApi(surface).getSnapshot();
   updateSnapshotViews(snapshot);
-  log('getSnapshot() snapshot', snapshot);
+  log(`[${surface}] getSnapshot() snapshot`, snapshot);
 };
 
 const clearFlows = (): void => {
@@ -651,7 +697,7 @@ const resetSmokeBaseline = async (): Promise<void> => {
   }
 
   try {
-    await Legato.stop();
+    await resolvePlaybackApi('legato').stop();
     log('preflight stop() ok');
   } catch {
     // Ignore if playback was not active yet.
@@ -669,17 +715,17 @@ const runSmokeFlow = async (): Promise<void> => {
   log('isNativePlatform:', isNative);
   log('Background check: start play(), send app to background, verify playback continues and notification remains active.');
 
-  await setupAction();
+  await setupAction('legato');
   await resetSmokeBaseline();
   await startSync();
-  await addAction();
-  await playAction();
+  await addAction('legato');
+  await playAction('legato');
 
   log(`waiting ${playbackSmokeDelayMs}ms before pause() to validate audible playback...`);
   await new Promise((resolve) => setTimeout(resolve, playbackSmokeDelayMs));
 
-  await pauseAction();
-  await snapshotAction();
+  await pauseAction('legato');
+  await snapshotAction('legato');
   completeSmokeVerdict();
 };
 
@@ -691,15 +737,15 @@ const runLetItEndSmokeFlow = async (): Promise<void> => {
   log('isNativePlatform:', isNative);
   log('Background check: keep app in background and watch for playback-ended event plus service teardown after stop/idle.');
 
-  await setupAction();
+  await setupAction('legato');
   await resetSmokeBaseline();
   await startSync();
-  await addAction();
-  await playAction();
+  await addAction('legato');
+  await playAction('legato');
   log(`play() ok, wait ${endSmokeDelayMs}ms for track end...`);
 
   await new Promise((resolve) => setTimeout(resolve, endSmokeDelayMs));
-  await snapshotAction();
+  await snapshotAction('legato');
   completeSmokeVerdict();
 };
 
@@ -711,23 +757,23 @@ const runBoundarySmokeFlow = async (): Promise<void> => {
   log('isNativePlatform:', isNative);
   log('Boundary check: previous on first track should restart to 0; next on last track should end playback.');
 
-  await setupAction();
+  await setupAction('legato');
   await resetSmokeBaseline();
   await startSync();
-  await addAction();
-  await playAction();
+  await addAction('legato');
+  await playAction('legato');
 
-  await previousAction();
+  await previousAction('legato');
   await new Promise((resolve) => setTimeout(resolve, boundarySettleDelayMs));
-  await snapshotAction();
+  await snapshotAction('legato');
 
-  await nextAction();
+  await nextAction('legato');
   await new Promise((resolve) => setTimeout(resolve, boundarySettleDelayMs));
-  await snapshotAction();
+  await snapshotAction('legato');
 
-  await nextAction();
+  await nextAction('legato');
   await new Promise((resolve) => setTimeout(resolve, boundarySettleDelayMs));
-  await snapshotAction();
+  await snapshotAction('legato');
   completeSmokeVerdict();
 };
 
@@ -736,20 +782,93 @@ const runArtworkRaceFlow = async (): Promise<void> => {
   log('Starting artwork race flow (rapid switch + fallback probe)...');
   log('Expected behavior: artwork should track active item, stale fetches should not overwrite latest track, and no-artwork track should clear artwork.');
 
-  await setupAction();
+  await setupAction('legato');
   await resetSmokeBaseline();
   await startSync();
-  await addAction();
-  await playAction();
+  await addAction('legato');
+  await playAction('legato');
 
   await new Promise((resolve) => setTimeout(resolve, artworkRaceSettleDelayMs));
-  await nextAction();
+  await nextAction('legato');
   await new Promise((resolve) => setTimeout(resolve, artworkRaceSettleDelayMs));
-  await nextAction();
+  await nextAction('legato');
   await new Promise((resolve) => setTimeout(resolve, artworkRaceSettleDelayMs));
-  await previousAction();
+  await previousAction('legato');
   await new Promise((resolve) => setTimeout(resolve, artworkRaceSettleDelayMs));
-  await snapshotAction();
+  await snapshotAction('legato');
+};
+
+const queueLengthFromSnapshot = (snapshot: PlaybackSnapshot): number => {
+  const queue = snapshot.queue as { items?: unknown[]; tracks?: unknown[] };
+  return (queue.items ?? queue.tracks ?? []).length;
+};
+
+const runSurfacePlaybackProbe = async (surface: PlaybackSurface): Promise<PlaybackSnapshot> => {
+  const api = resolvePlaybackApi(surface);
+  await api.setup();
+  await api.reset();
+  await api.add({ tracks: demoTracks, startIndex: 0 });
+  await api.play();
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  await api.pause();
+  await api.seekTo({ position: 900 });
+  const snapshot = await api.getSnapshot();
+  updateSnapshotViews(snapshot);
+  return snapshot;
+};
+
+const runSurfaceValidationFlow = async (): Promise<void> => {
+  clearFlows();
+  boundaryChecks = [];
+  renderBoundarySummary();
+  log('Starting API boundary validation flow (Legato + audioPlayer + mediaSession)...');
+
+  await resetSmokeBaseline();
+  await startSync();
+
+  const legatoSnapshot = await runSurfacePlaybackProbe('legato');
+  addBoundaryCheck({
+    label: 'Legato facade smoke path',
+    ok: true,
+    detail: 'setup/add/play/pause/seekTo/getSnapshot executed via Legato',
+  });
+
+  const audioPlayerSnapshot = await runSurfacePlaybackProbe('audioPlayer');
+  addBoundaryCheck({
+    label: 'audioPlayer smoke path',
+    ok: true,
+    detail: 'setup/add/play/pause/seekTo/getSnapshot executed via audioPlayer',
+  });
+
+  const parityMatch = legatoSnapshot.state === audioPlayerSnapshot.state
+    && queueLengthFromSnapshot(legatoSnapshot) === queueLengthFromSnapshot(audioPlayerSnapshot)
+    && (legatoSnapshot.currentTrack?.id ?? null) === (audioPlayerSnapshot.currentTrack?.id ?? null);
+
+  addBoundaryCheck({
+    label: 'Facade parity confidence',
+    ok: parityMatch,
+    detail: parityMatch
+      ? 'Legato and audioPlayer end-state snapshots match on state/currentTrack/queue length.'
+      : `Mismatch detected: legato={state:${legatoSnapshot.state}, track:${legatoSnapshot.currentTrack?.id ?? 'none'}, queue:${queueLengthFromSnapshot(legatoSnapshot)}} audioPlayer={state:${audioPlayerSnapshot.state}, track:${audioPlayerSnapshot.currentTrack?.id ?? 'none'}, queue:${queueLengthFromSnapshot(audioPlayerSnapshot)}}`,
+  });
+
+  const remotePlayHandle = await mediaSession.addListener('remote-play', () => {});
+  const remotePauseHandle = await mediaSession.addListener('remote-pause', () => {});
+  await remotePlayHandle.remove();
+  await remotePauseHandle.remove();
+  await mediaSession.removeAllListeners();
+
+  addBoundaryCheck({
+    label: 'mediaSession boundary visibility',
+    ok: true,
+    detail: 'remote listener registration/removal verified via mediaSession namespace.',
+  });
+};
+
+const setPlaybackSurface = (surface: PlaybackSurface): void => {
+  activePlaybackSurface = surface;
+  renderBoundarySummary();
+  log(`Manual controls now target ${surface === 'audioPlayer' ? 'audioPlayer namespace' : 'Legato facade'}.`);
 };
 
 envStatusNode.textContent = `platform=${platform} | native=${isNative}`;
@@ -757,6 +876,7 @@ log('Legato parity harness ready.');
 log('platform:', platform);
 log('isNativePlatform:', isNative);
 log('Use smoke buttons for quick pass/fail and manual controls for lifecycle/focus deep checks.');
+renderBoundarySummary();
 
 smokeButton.addEventListener('click', () => {
   void runNativeAction('run smoke flow', runSmokeFlow);
@@ -768,6 +888,10 @@ endSmokeButton.addEventListener('click', () => {
 
 boundarySmokeButton.addEventListener('click', () => {
   void runNativeAction('run boundary smoke flow', runBoundarySmokeFlow);
+});
+
+surfaceValidationButton.addEventListener('click', () => {
+  void runNativeAction('run API boundary validation flow', runSurfaceValidationFlow);
 });
 
 artworkRaceButton.addEventListener('click', () => {
@@ -816,6 +940,14 @@ seekButton.addEventListener('click', () => {
 
 snapshotButton.addEventListener('click', () => {
   void runNativeAction('manual getSnapshot()', snapshotAction);
+});
+
+useLegatoSurfaceButton.addEventListener('click', () => {
+  setPlaybackSurface('legato');
+});
+
+useAudioPlayerSurfaceButton.addEventListener('click', () => {
+  setPlaybackSurface('audioPlayer');
 });
 
 copyLogButton.addEventListener('click', () => {

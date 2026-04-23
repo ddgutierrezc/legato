@@ -2,16 +2,36 @@
 
 Modern Capacitor binding MVP for Legato.
 
-## API surface (v0)
+## API surface (v1 boundary split, additive)
 
-Commands/queries exposed:
+`@legato/capacitor` now exposes three public entry points over the same Capacitor plugin instance:
+
+- `audioPlayer` (playback/queue/seek/read-model commands + playback events)
+- `mediaSession` (remote/session-facing event surface)
+- `Legato` (legacy compatibility facade composed as `AudioPlayerApi & MediaSessionApi`)
+
+Playback commands/queries (available on `audioPlayer` and legacy `Legato`):
 
 - `setup`, `add`, `remove`, `reset`
 - `play`, `pause`, `stop`, `seekTo`
 - `skipTo`, `skipToNext`, `skipToPrevious`
 - `getState`, `getPosition`, `getDuration`, `getCurrentTrack`, `getQueue`, `getSnapshot`
 
+`mediaSession` is intentionally listener-first in v1 and currently exposes:
+
+- `setup`
+- `addListener('remote-*', ...)`
+- `removeAllListeners`
+
+This split is additive: existing `Legato` consumers remain source-compatible while new code can adopt namespaced boundaries.
+
 It also exports typed event helpers aligned with `@legato/contract`, and `createLegatoSync()` for lightweight snapshot/event resync.
+
+### Migration guidance
+
+- Existing apps: no code change required; keep using `Legato`.
+- New integrations: prefer `audioPlayer` for playback operations and `mediaSession` for remote/session listeners.
+- Mixed migration is supported: both namespaced exports and `Legato` route to the same underlying plugin/state.
 
 ## MVP limitations
 

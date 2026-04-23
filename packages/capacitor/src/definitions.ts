@@ -1,9 +1,14 @@
 import type { PluginListenerHandle } from '@capacitor/core';
 import type {
-  LegatoError,
   LegatoEventName as ContractLegatoEventName,
+  LegatoEventPayloadMap as ContractLegatoEventPayloadMap,
+  LegatoError,
+  MediaSessionEventName as ContractMediaSessionEventName,
+  MediaSessionEventPayloadMap as ContractMediaSessionEventPayloadMap,
   PlaybackSnapshot,
   PlaybackState,
+  PlayerEventName as ContractPlayerEventName,
+  PlayerEventPayloadMap as ContractPlayerEventPayloadMap,
   QueueSnapshot,
   Track,
 } from '@legato/contract';
@@ -16,7 +21,13 @@ export type {
   Track,
 };
 
+export type AudioPlayerEventName = ContractPlayerEventName;
+export type MediaSessionEventName = ContractMediaSessionEventName;
 export type LegatoEventName = ContractLegatoEventName;
+
+export type AudioPlayerEventPayloadMap = ContractPlayerEventPayloadMap;
+export type MediaSessionEventPayloadMap = ContractMediaSessionEventPayloadMap;
+export type LegatoEventPayloadMap = ContractLegatoEventPayloadMap;
 
 export interface AddOptions {
   tracks: Track[];
@@ -36,25 +47,7 @@ export interface SkipToOptions {
   index: number;
 }
 
-export interface LegatoEventPayloadMap {
-  'playback-state-changed': { state: PlaybackState };
-  'playback-active-track-changed': { track: Track | null; index: number | null };
-  'playback-queue-changed': { queue: QueueSnapshot };
-  'playback-progress': {
-    position: number;
-    duration: number | null;
-    bufferedPosition: number | null;
-  };
-  'playback-ended': { snapshot: PlaybackSnapshot };
-  'playback-error': { error: LegatoError };
-  'remote-play': Record<string, never>;
-  'remote-pause': Record<string, never>;
-  'remote-next': Record<string, never>;
-  'remote-previous': Record<string, never>;
-  'remote-seek': { position: number };
-}
-
-export interface LegatoApi {
+export interface AudioPlayerApi {
   setup(): Promise<void>;
   add(options: AddOptions): Promise<PlaybackSnapshot>;
   remove(options: RemoveOptions): Promise<PlaybackSnapshot>;
@@ -72,7 +65,23 @@ export interface LegatoApi {
   getCurrentTrack(): Promise<Track | null>;
   getQueue(): Promise<QueueSnapshot>;
   getSnapshot(): Promise<PlaybackSnapshot>;
+  addListener<E extends AudioPlayerEventName>(
+    eventName: E,
+    listener: (payload: AudioPlayerEventPayloadMap[E]) => void,
+  ): Promise<PluginListenerHandle>;
+  removeAllListeners(): Promise<void>;
 }
+
+export interface MediaSessionApi {
+  setup(): Promise<void>;
+  addListener<E extends MediaSessionEventName>(
+    eventName: E,
+    listener: (payload: MediaSessionEventPayloadMap[E]) => void,
+  ): Promise<PluginListenerHandle>;
+  removeAllListeners(): Promise<void>;
+}
+
+export type LegatoApi = AudioPlayerApi & MediaSessionApi;
 
 export interface LegatoEventApi {
   addListener<E extends LegatoEventName>(
