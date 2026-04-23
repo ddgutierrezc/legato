@@ -128,6 +128,17 @@
         font-size: 0.82rem;
       }
 
+      #boundary-summary {
+        margin: 0;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        min-height: 120px;
+        white-space: pre-wrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+        font-size: 0.82rem;
+      }
+
       #capability-summary {
         margin: 0;
         padding: 0.65rem 0.75rem;
@@ -235,6 +246,7 @@
             <button id="run-smoke" class="native-action" type="button">Run smoke flow (setup/add/play/pause/snapshot)</button>
             <button id="run-end-smoke" class="native-action" type="button">Run let-it-end smoke</button>
             <button id="run-boundary-smoke" class="native-action" type="button">Run boundary smoke (previous/next/end)</button>
+            <button id="run-surface-validation" class="native-action" type="button">Run API boundary validation (Legato/audioPlayer/mediaSession)</button>
             <button id="run-artwork-race" class="native-action" type="button">Run artwork race (rapid switch + fallback)</button>
             <button id="copy-log" type="button">Copy raw log</button>
             <button id="copy-events" type="button">Copy recent events</button>
@@ -263,6 +275,15 @@ errors=none</pre>
         <section class="card stack">
           <h2>Manual native controls</h2>
           <p>Use these when validating background/lifecycle behavior step-by-step.</p>
+          <div class="actions">
+            <button id="use-legato-surface" type="button">Manual target: Legato facade</button>
+            <button id="use-audioplayer-surface" type="button">Manual target: audioPlayer namespace</button>
+          </div>
+          <pre id="boundary-summary">activeSurface=legato
+playbackTarget=Legato facade
+playbackCommands=setup, add, play, pause, stop, seekTo, getSnapshot
+mediaSessionCommands=addListener(remote-*), removeAllListeners
+checks=none yet</pre>
           <div class="action-grid">
             <button id="action-setup" class="native-action" type="button">setup()</button>
             <button id="action-sync-start" class="native-action" type="button">sync.start()</button>

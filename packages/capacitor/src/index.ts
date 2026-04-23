@@ -1,5 +1,5 @@
 export type * from './definitions';
-export { Legato } from './plugin';
+export { Legato, audioPlayer, mediaSession } from './plugin';
 export {
   LEGATO_EVENTS,
   addLegatoListener,

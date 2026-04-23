@@ -59,14 +59,23 @@ public class HarnessValidationContractTest {
     }
 
     @Test
-    public void mainTs_usesDirectAudioUrlsAndExposesBoundaryAndCapabilitySignals() throws Exception {
+    public void mainTs_usesCurrentDirectFixturesAndExposesBoundaryAndCapabilitySignals() throws Exception {
         String mainTs = readRepoFile("apps/capacitor-demo/src/main.ts");
         String smokeAutomation = readRepoFile("apps/capacitor-demo/src/smoke-automation.js");
 
         assertTrue("Smoke defaults should avoid redirect URLs", !mainTs.contains("soundhelix.com") && !mainTs.contains("redirect"));
-        assertTrue("Expected direct samplelib URL for smoke fixture", mainTs.contains("https://samplelib.com/mp3/sample-3s.mp3"));
-        assertTrue("Expected skip-to-next handler", mainTs.contains("Legato.skipToNext()"));
-        assertTrue("Expected skip-to-previous handler", mainTs.contains("Legato.skipToPrevious()"));
+        assertTrue("Expected direct samplelib URL for fixture track 1", mainTs.contains("https://samplelib.com/mp3/sample-12s.mp3"));
+        assertTrue("Expected direct samplelib URL for fixture track 2", mainTs.contains("https://samplelib.com/mp3/sample-15s.mp3"));
+        assertTrue("Expected direct samplelib URL for fixture track 3", mainTs.contains("https://samplelib.com/mp3/sample-9s.mp3"));
+        assertTrue("Expected fixture duration for track 1", mainTs.contains("duration: 12000"));
+        assertTrue("Expected fixture duration for track 2", mainTs.contains("duration: 19200"));
+        assertTrue("Expected fixture duration for track 3", mainTs.contains("duration: 9613"));
+        assertTrue("Expected artwork fixture mapping block", mainTs.contains("const expectedArtworkByTrackId"));
+        assertTrue("Expected artwork mapping for track 1", mainTs.contains("'track-demo-1': demoTracks[0].artwork ?? null"));
+        assertTrue("Expected artwork mapping for track 2", mainTs.contains("'track-demo-2': demoTracks[1].artwork ?? null"));
+        assertTrue("Expected artwork mapping for track 3", mainTs.contains("'track-demo-3': demoTracks[2].artwork ?? null"));
+        assertTrue("Expected skip-to-next handler", mainTs.contains("resolvePlaybackApi(surface).skipToNext()"));
+        assertTrue("Expected skip-to-previous handler", mainTs.contains("resolvePlaybackApi(surface).skipToPrevious()"));
         assertTrue("Expected capability projection renderer", mainTs.contains("renderCapabilitySummary"));
         assertTrue("Expected boundary smoke flow helper", mainTs.contains("runBoundarySmokeFlow"));
         assertTrue("Expected recent events rendering helper", mainTs.contains("renderRecentEvents"));
