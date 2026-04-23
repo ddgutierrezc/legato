@@ -1,7 +1,7 @@
 {
   "android": {
     "repositoryUrl": "https://repo1.maven.org/maven2",
-    "group": "io.legato",
+    "group": "dev.dgutierrez",
     "artifact": "legato-android-core",
     "version": "0.1.0"
   },

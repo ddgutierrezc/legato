@@ -91,6 +91,7 @@ export const formatNativeReleaseGateSummary = (result) => {
 const parseArgs = (argv) => {
   const options = {
     pluginGradlePath: undefined,
+    nativeArtifactsContractPath: undefined,
     androidSettingsPath: undefined,
     capAppSpmPath: undefined,
     pluginSwiftPackagePath: undefined,
@@ -103,6 +104,11 @@ const parseArgs = (argv) => {
     const arg = argv[i];
     if (arg === '--plugin-gradle' && argv[i + 1]) {
       options.pluginGradlePath = argv[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--native-artifacts-contract' && argv[i + 1]) {
+      options.nativeArtifactsContractPath = argv[i + 1];
       i += 1;
       continue;
     }
@@ -146,12 +152,15 @@ if (isEntrypoint) {
   const options = parseArgs(process.argv.slice(2));
 
   if (!options.pluginGradlePath || !options.evidenceManifestPath) {
-    process.stdout.write('Overall: FAIL\nnative-artifacts: FAIL\nsmoke: FAIL\nrelease-evidence: FAIL\nFailures:\n- Usage: node scripts/validate-native-release-gate.mjs --plugin-gradle <path> --evidence-manifest <path> [--android-settings <path>] [--capapp-spm-package <path>] [--plugin-swift-package <path>] [--plugin-swift-source <path>] [--capacitor-config <path>]\n');
+    process.stdout.write('Overall: FAIL\nnative-artifacts: FAIL\nsmoke: FAIL\nrelease-evidence: FAIL\nFailures:\n- Usage: node scripts/validate-native-release-gate.mjs --plugin-gradle <path> --evidence-manifest <path> [--native-artifacts-contract <path>] [--android-settings <path>] [--capapp-spm-package <path>] [--plugin-swift-package <path>] [--plugin-swift-source <path>] [--capacitor-config <path>]\n');
     process.exit(1);
   }
 
   try {
     const pluginBuildGradle = await readFile(options.pluginGradlePath, 'utf8');
+    const nativeArtifactsContractJson = options.nativeArtifactsContractPath
+      ? await readFile(options.nativeArtifactsContractPath, 'utf8')
+      : '';
     const androidSettingsGradle = options.androidSettingsPath ? await readFile(options.androidSettingsPath, 'utf8') : '';
     const capAppSpmPackageSwift = options.capAppSpmPath ? await readFile(options.capAppSpmPath, 'utf8') : '';
     const pluginPackageSwift = options.pluginSwiftPackagePath ? await readFile(options.pluginSwiftPackagePath, 'utf8') : '';
@@ -188,6 +197,7 @@ if (isEntrypoint) {
     const result = validateNativeReleaseGate({
       nativeValidationInput: {
         pluginBuildGradle,
+        nativeArtifactsContractJson,
         androidSettingsGradle,
         capAppSpmPackageSwift,
         pluginPackageSwift,
