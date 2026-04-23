@@ -26,6 +26,11 @@ test('package scripts expose smoke validator entrypoints for android, ios, and c
   assert.match(scripts['validate:smoke:android'], /validate-smoke-report\.mjs/);
   assert.match(scripts['validate:smoke:ios'], /validate-smoke-report\.mjs/);
   assert.match(scripts['validate:smoke:all'], /validate-smoke-report\.mjs/);
+
+  assert.equal(typeof scripts['capture:release:native-artifacts'], 'string');
+  assert.equal(typeof scripts['validate:release:native-artifacts'], 'string');
+  assert.match(scripts['capture:release:native-artifacts'], /capture-native-release-evidence\.mjs/);
+  assert.match(scripts['validate:release:native-artifacts'], /validate-native-release-gate\.mjs/);
 });
 
 test('README documents smoke-only automation scope and preserves manual-harness-first guidance', async () => {
@@ -37,6 +42,10 @@ test('README documents smoke-only automation scope and preserves manual-harness-
   assert.match(readme, /validate:smoke:android/i);
   assert.match(readme, /validate:smoke:ios/i);
   assert.match(readme, /validate:smoke:all/i);
+  assert.match(readme, /npm run build/i);
+  assert.match(readme, /npm run cap:sync/i);
+  assert.match(readme, /capture:release:native-artifacts/i);
+  assert.match(readme, /validate:release:native-artifacts/i);
 });
 
 test('smoke validation template is scoped to smoke flow and keeps manual-control regression checklist', async () => {

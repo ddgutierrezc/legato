@@ -171,16 +171,11 @@ What this does **not** give us yet:
 
 ### Android
 
-`packages/capacitor/android/build.gradle` depends on:
+`@legato/capacitor` Android now resolves native core through artifact coordinates declared by the plugin package.
 
-- `project(':native:android:core')`
+`apps/capacitor-demo/android/settings.gradle` should keep only Capacitor-managed includes (`:app`, `:capacitor-cordova-android-plugins`) plus `apply from: 'capacitor.settings.gradle'`.
 
-Capacitor-generated Android projects do not include that Gradle module by default. This demo host now wires it manually in `apps/capacitor-demo/android/settings.gradle`:
-
-- `include ':native:android:core'`
-- `project(':native:android:core').projectDir = new File('../../../native/android/core')`
-
-After creating the Android host, run `npm run cap:sync` (once `dist/` is buildable) so Capacitor regenerates `capacitor.settings.gradle` / `app/capacitor.build.gradle` with the local `@legato/capacitor` plugin include.
+Do **not** re-add `include ':native:android:core'` host wiring. If this line appears again, native artifact gate validation must fail.
 
 ### iOS
 
@@ -189,6 +184,7 @@ After creating the Android host, run `npm run cap:sync` (once `dist/` is buildab
 The host iOS app should rely on Capacitor-generated `CapApp-SPM` integration (which includes local `@legato/capacitor`).
 The plugin package product name expected by generated SPM integration is `CapacitorLegato`, and `LegatoCore` resolves transitively from that plugin package.
 The host target should not keep a duplicate manual local package reference or direct `LegatoCore` linkage.
+Never hand-edit `ios/App/CapApp-SPM/Package.swift`; refresh via `npm run cap:sync` instead.
 
 See `ios/README.md` for the minimal iOS package-integration checklist before first iOS smoke.
 
@@ -203,6 +199,36 @@ See `ios/README.md` for the minimal iOS package-integration checklist before fir
 7. Capture either:
    - successful `setup/add/play/pause/getSnapshot` smoke logs, or
    - concrete compile/runtime error for next iteration.
+
+## Native artifact foundation v1 release gate
+
+Run from `apps/capacitor-demo`:
+
+```bash
+# 1) Refresh host assets before any native resolver/smoke checks
+npm run build
+npm run cap:sync
+
+# 2) Capture dependency-resolution evidence
+npm run collect:native:android-resolution
+npm run collect:native:ios-resolution
+
+# 3) Capture smoke evidence artifacts
+npm run collect:smoke:android
+npm run collect:smoke:ios
+
+# 4) Bundle release evidence into manifest + copied artifacts
+npm run capture:release:native-artifacts
+
+# 5) Run single PASS/FAIL release gate
+npm run validate:release:native-artifacts
+```
+
+Gate notes:
+
+- `validate:release:native-artifacts` runs adapter/host native artifact checks and smoke validation from captured evidence.
+- Any local-path regression (`project(':native:android:core')`, `.package(path: ...LegatoCore...)`, or manual host wiring) is a hard FAIL.
+- Missing evidence files (`android-dependency-resolution.log`, `ios-spm-resolution.log`, smoke reports) is a hard FAIL.
 
 ## Helper scripts in this demo
 

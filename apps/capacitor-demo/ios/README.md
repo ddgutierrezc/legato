@@ -15,6 +15,7 @@ npx cap add ios
 ## Wiring model (current)
 
 This host should rely on Capacitor CLI-generated SPM integration only (`App/CapApp-SPM/Package.swift`).
+Never hand-edit `App/CapApp-SPM/Package.swift`; regenerate it with `npm run cap:sync`.
 
 Before the first real iOS smoke attempt, do this in Xcode:
 

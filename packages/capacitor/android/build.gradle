@@ -21,8 +21,25 @@ android {
     }
 }
 
+// NATIVE_ARTIFACTS:BEGIN
+ext.legatoNativeArtifactContract = [
+    repositoryUrl: 'https://repo1.maven.org/maven2',
+    coordinate: 'io.legato:legato-android-core:0.1.0'
+]
+// Adapter Android dependency must stay artifact-only.
+// Do not replace with project(':native:android:core').
+// NATIVE_ARTIFACTS:END
+
+repositories {
+    maven {
+        url = uri(legatoNativeArtifactContract.repositoryUrl)
+    }
+    mavenCentral()
+}
+
 dependencies {
-    implementation project(':native:android:core')
+    // Artifact-only contract: consume Android core through Maven coordinates.
+    implementation legatoNativeArtifactContract.coordinate
     // Capacitor sync includes :capacitor-android as a local Gradle project in the host app.
     implementation project(':capacitor-android')
     // Explicitly pinned for now to keep coroutine behavior stable in this monorepo.

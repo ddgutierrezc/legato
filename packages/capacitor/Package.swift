@@ -1,6 +1,19 @@
 // swift-tools-version: 5.9
 import PackageDescription
 
+// NATIVE_ARTIFACTS:BEGIN
+let legatoNativeArtifactContract = (
+    packageUrl: "https://github.com/legato/legato-ios-core.git",
+    packageName: "LegatoCore",
+    product: "LegatoCore",
+    versionPolicy: "exact",
+    version: "0.1.0"
+)
+// iOS adapter switch-over is active: remote Swift package + exact pinning.
+let legatoCorePackageDependency: Package.Dependency =
+    .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.0")
+// NATIVE_ARTIFACTS:END
+
 let package = Package(
     name: "LegatoCapacitor",
     platforms: [
@@ -14,7 +27,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "8.0.0"),
-        .package(path: "../../../../../native/ios/LegatoCore")
+        legatoCorePackageDependency
     ],
     targets: [
         .target(

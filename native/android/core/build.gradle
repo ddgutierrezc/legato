@@ -1,7 +1,13 @@
 plugins {
     id 'com.android.library'
     id 'org.jetbrains.kotlin.android'
+    id 'maven-publish'
 }
+
+group = 'io.legato'
+version = '0.1.0'
+
+def legatoAndroidArtifactId = 'legato-android-core'
 
 android {
     namespace 'io.legato.core'
@@ -19,6 +25,13 @@ android {
     kotlinOptions {
         jvmTarget = '17'
     }
+
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
 }
 
 dependencies {
@@ -27,4 +40,36 @@ dependencies {
 
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1'
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = project.group
+                artifactId = legatoAndroidArtifactId
+                version = project.version
+
+                pom {
+                    name = 'Legato Android Core'
+                    description = 'Android native playback core for Legato Capacitor integration.'
+                    url = 'https://github.com/legato/legato'
+
+                    licenses {
+                        license {
+                            name = 'MIT License'
+                            url = 'https://opensource.org/license/mit/'
+                        }
+                    }
+
+                    scm {
+                        url = 'https://github.com/legato/legato'
+                        connection = 'scm:git:https://github.com/legato/legato.git'
+                        developerConnection = 'scm:git:ssh://git@github.com/legato/legato.git'
+                    }
+                }
+            }
+        }
+    }
 }
