@@ -1,0 +1,79 @@
+# Native Artifact Foundation V1 — Release Checklist
+
+This checklist is the release blocker for change `native-artifact-distribution-foundation-v1`.
+
+## Preconditions
+
+Run from `apps/capacitor-demo`:
+
+1. `npm run build`
+2. `npm run cap:sync`
+
+## Evidence Capture Commands
+
+1. Android dependency resolution log
+
+```bash
+npm run collect:native:android-resolution
+```
+
+Expected artifact: `apps/capacitor-demo/artifacts/android-dependency-resolution.log`
+
+2. iOS SwiftPM resolver log
+
+```bash
+npm run collect:native:ios-resolution
+```
+
+Expected artifact: `apps/capacitor-demo/artifacts/ios-spm-resolution.log`
+
+3. Smoke reports (Android + iOS)
+
+```bash
+npm run collect:smoke:android
+npm run collect:smoke:ios
+```
+
+Expected artifacts:
+
+- `apps/capacitor-demo/artifacts/android-smoke-report.json`
+- `apps/capacitor-demo/artifacts/ios-smoke-report.json`
+
+4. Bundle evidence manifest
+
+```bash
+npm run capture:release:native-artifacts
+```
+
+Expected artifact folder:
+
+- `apps/capacitor-demo/artifacts/release-native-artifact-foundation-v1/`
+  - `manifest.json`
+  - `android-dependency-resolution.log`
+  - `ios-spm-resolution.log`
+  - `android-smoke-report.json`
+  - `ios-smoke-report.json`
+
+5. Execute single release gate
+
+```bash
+npm run validate:release:native-artifacts
+```
+
+Expected terminal summary:
+
+- `Overall: PASS`
+- `native-artifacts: PASS`
+- `smoke: PASS`
+- `release-evidence: PASS`
+
+## Acceptance Criteria Mapping
+
+| Spec Acceptance Criterion | Gate Evidence |
+|---|---|
+| 1. Android plugin graph contains no `project(':native:android:core')` | `validate:release:native-artifacts` fails if plugin Gradle or host settings reintroduce local project wiring |
+| 2. iOS plugin Package.swift has no `.package(path: ...)` for LegatoCore | Native gate checks plugin `Package.swift` for remote exact URL dependency and blocks local path wiring |
+| 3. Capacitor demo host has no manual native core include requirement | Native gate checks `apps/capacitor-demo/android/settings.gradle` and `CapApp-SPM/Package.swift` for manual wiring regressions |
+| 4. CapApp-SPM remains generated and resolves dependencies | Native gate checks generated ownership marker and uses captured `ios-spm-resolution.log` as required evidence |
+| 5. Smoke playback passes after artifact resolution | Captured smoke reports must validate as PASS for both platforms |
+| 6. Any resolver/local-path regression fails gate | Gate exits non-zero with actionable failures on unresolved artifacts, identity mismatches, or local-path regressions |
