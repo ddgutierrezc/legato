@@ -475,10 +475,6 @@ internal fun shouldResetProjectionForTrackTransition(
     activeTrackId: String?,
     previousProjection: MediaSessionPlaybackProjection?,
 ): Boolean {
-    if (state != LegatoAndroidPlaybackState.BUFFERING && state != LegatoAndroidPlaybackState.LOADING) {
-        return false
-    }
-
     val previousTrackId = previousProjection?.activeTrackId ?: return false
     return activeTrackId != null && activeTrackId != previousTrackId
 }
