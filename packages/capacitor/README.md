@@ -33,6 +33,47 @@ It also exports typed event helpers aligned with `@legato/contract`, and `create
 - New integrations: prefer `audioPlayer` for playback operations and `mediaSession` for remote/session listeners.
 - Mixed migration is supported: both namespaced exports and `Legato` route to the same underlying plugin/state.
 
+### Legacy → namespaced migration map (preferred path)
+
+| Legacy helper/API | Preferred namespaced API | Posture |
+|---|---|---|
+| `Legato.addListener('playback-*', ...)` | `addAudioPlayerListener('playback-*', ...)` | Preferred for new code |
+| `Legato.addListener('remote-*', ...)` | `addMediaSessionListener('remote-*', ...)` | Preferred for new code |
+| `createLegatoSync(...)` | `createAudioPlayerSync(...)` | Preferred for new code |
+| `LEGATO_EVENTS` | `AUDIO_PLAYER_EVENTS` + `MEDIA_SESSION_EVENTS` | Preferred for explicit boundaries |
+| `Legato` facade calls (`Legato.play()`, etc.) | `audioPlayer` / `mediaSession` namespaces | Compatibility-only for existing flows |
+
+Compatibility-only (legacy Legato facade): `Legato`, `createLegatoSync`, `LEGATO_EVENTS`, and `addLegatoListener` remain supported and unchanged.
+
+```ts
+import {
+  addAudioPlayerListener,
+  addMediaSessionListener,
+  createAudioPlayerSync,
+} from '@legato/capacitor';
+
+const sync = createAudioPlayerSync({
+  onSnapshot(snapshot) {
+    console.log('snapshot', snapshot.state);
+  },
+});
+
+await sync.start();
+
+const playbackHandle = await addAudioPlayerListener('playback-state-changed', (payload) => {
+  console.log('playback state', payload.state);
+});
+
+const remoteHandle = await addMediaSessionListener('remote-play', () => {
+  console.log('remote play');
+});
+
+// ...later
+await playbackHandle.remove();
+await remoteHandle.remove();
+await sync.stop();
+```
+
 ## MVP limitations
 
 - Native runtime playback wiring (ExoPlayer/AVPlayer) is still pending in core.

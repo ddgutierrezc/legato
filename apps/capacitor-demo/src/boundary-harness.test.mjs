@@ -11,6 +11,8 @@ test('createBoundarySurfaceSnapshot reports playback controls for Legato facade'
 
   assert.equal(snapshot.activeSurface, 'legato');
   assert.equal(snapshot.playbackTarget, 'Legato facade');
+  assert.equal(snapshot.preferredSurface, 'audioPlayer + mediaSession');
+  assert.equal(snapshot.compatSurface, 'Legato facade (compatibility-only)');
   assert.deepEqual(snapshot.playbackCommands, ['setup', 'add', 'play', 'pause', 'stop', 'seekTo', 'getSnapshot']);
   assert.deepEqual(snapshot.mediaSessionCommands, ['addListener(remote-*)', 'removeAllListeners']);
 });
@@ -20,12 +22,16 @@ test('createBoundarySurfaceSnapshot reports playback controls for audioPlayer na
 
   assert.equal(snapshot.activeSurface, 'audioPlayer');
   assert.equal(snapshot.playbackTarget, 'audioPlayer namespace');
+  assert.equal(snapshot.preferredSurface, 'audioPlayer + mediaSession');
+  assert.equal(snapshot.compatSurface, 'Legato facade (compatibility-only)');
 });
 
 test('summarizeBoundaryValidation renders copy-friendly multi-line status', () => {
   const summary = summarizeBoundaryValidation({
     activeSurface: 'audioPlayer',
     playbackTarget: 'audioPlayer namespace',
+    preferredSurface: 'audioPlayer + mediaSession',
+    compatSurface: 'Legato facade (compatibility-only)',
     playbackCommands: ['setup', 'add', 'play'],
     mediaSessionCommands: ['addListener(remote-*)'],
     parityChecks: [
@@ -37,6 +43,8 @@ test('summarizeBoundaryValidation renders copy-friendly multi-line status', () =
 
   assert.match(summary, /activeSurface=audioPlayer/);
   assert.match(summary, /playbackTarget=audioPlayer namespace/);
+  assert.match(summary, /preferredSurface=audioPlayer \+ mediaSession/);
+  assert.match(summary, /compatSurface=Legato facade \(compatibility-only\)/);
   assert.match(summary, /playbackCommands=setup, add, play/);
   assert.match(summary, /mediaSessionCommands=addListener\(remote-\*\)/);
   assert.match(summary, /✅ Legato facade smoke path/);
@@ -47,6 +55,8 @@ test('summarizeBoundaryValidation marks failed checks clearly', () => {
   const summary = summarizeBoundaryValidation({
     activeSurface: 'legato',
     playbackTarget: 'Legato facade',
+    preferredSurface: 'audioPlayer + mediaSession',
+    compatSurface: 'Legato facade (compatibility-only)',
     playbackCommands: ['setup'],
     mediaSessionCommands: ['addListener(remote-*)'],
     parityChecks: [

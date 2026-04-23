@@ -102,6 +102,121 @@ public class HarnessValidationContractTest {
         assertTrue("README should include cap sync reminder", readme.contains("npm run cap:sync"));
     }
 
+    @Test
+    public void capacitorReadme_documentsNamespacedPreferredMigrationMap() throws Exception {
+        String capacitorReadme = readRepoFile("packages/capacitor/README.md");
+
+        assertTrue(
+                "Capacitor README should include explicit legacy-to-namespaced migration heading",
+                capacitorReadme.contains("Legacy → namespaced migration map (preferred path)")
+        );
+        assertTrue(
+                "Capacitor README should include preferred listener helper",
+                capacitorReadme.contains("addAudioPlayerListener")
+        );
+        assertTrue(
+                "Capacitor README should include preferred media session helper",
+                capacitorReadme.contains("addMediaSessionListener")
+        );
+        assertTrue(
+                "Capacitor README should include preferred playback sync helper",
+                capacitorReadme.contains("createAudioPlayerSync")
+        );
+        assertTrue(
+                "Capacitor README should keep compatibility-only posture for legacy helpers",
+                capacitorReadme.contains("Compatibility-only (legacy Legato facade)")
+        );
+    }
+
+    @Test
+    public void demoHarness_copyAndImports_highlightNamespacedFirstSurfaces() throws Exception {
+        String demoReadme = readRepoFile("apps/capacitor-demo/README.md");
+        String mainTs = readRepoFile("apps/capacitor-demo/src/main.ts");
+        String boundaryHarness = readRepoFile("apps/capacitor-demo/src/boundary-harness.js");
+        String boundaryHarnessTest = readRepoFile("apps/capacitor-demo/src/boundary-harness.test.mjs");
+
+        assertTrue(
+                "Demo README should call out namespaced-first smoke objective",
+                demoReadme.contains("Smoke objective (namespaced-first, compatibility-aware)")
+        );
+        assertTrue(
+                "Demo README should keep native host refresh commands",
+                demoReadme.contains("npm run build") && demoReadme.contains("npm run cap:sync")
+        );
+
+        assertTrue("main.ts should import createAudioPlayerSync", mainTs.contains("createAudioPlayerSync"));
+        assertTrue("main.ts should import addAudioPlayerListener", mainTs.contains("addAudioPlayerListener"));
+        assertTrue("main.ts should import addMediaSessionListener", mainTs.contains("addMediaSessionListener"));
+        assertTrue("main.ts should use createAudioPlayerSync for preferred sync path", mainTs.contains("syncController = createAudioPlayerSync({"));
+        assertTrue("main.ts should use addAudioPlayerListener helper", mainTs.contains("addAudioPlayerListener(eventName, (payload) => {"));
+        assertTrue("main.ts should use addMediaSessionListener helper", mainTs.contains("addMediaSessionListener('remote-play', () => {})"));
+
+        assertTrue(
+                "Boundary summary should flag preferred namespaced surfaces",
+                boundaryHarness.contains("`preferredSurface=${payload.preferredSurface}`")
+        );
+        assertTrue(
+                "Boundary summary should label legacy facade as compatibility-only",
+                boundaryHarness.contains("`compatSurface=${payload.compatSurface}`")
+        );
+        assertTrue(
+                "boundary-harness test should lock preferred copy",
+                boundaryHarnessTest.contains("preferredSurface: 'audioPlayer + mediaSession'")
+        );
+    }
+
+    @Test
+    public void capacitorEvents_exposesNamespacedConstantsAndListenerAliases() throws Exception {
+        String eventsTs = readRepoFile("packages/capacitor/src/events.ts");
+
+        assertTrue("Expected audio player event constant alias", eventsTs.contains("export const AUDIO_PLAYER_EVENTS = PLAYER_EVENT_NAMES;"));
+        assertTrue("Expected media session event constant alias", eventsTs.contains("export const MEDIA_SESSION_EVENTS = MEDIA_SESSION_EVENT_NAMES;"));
+        assertTrue("Expected addAudioPlayerListener helper", eventsTs.contains("export const addAudioPlayerListener = audioPlayer.addListener.bind(audioPlayer);"));
+        assertTrue("Expected addMediaSessionListener helper", eventsTs.contains("export const addMediaSessionListener = mediaSession.addListener.bind(mediaSession);"));
+    }
+
+    @Test
+    public void capacitorEvents_preservesLegacyCombinedConstantAndListenerHelper() throws Exception {
+        String eventsTs = readRepoFile("packages/capacitor/src/events.ts");
+
+        assertTrue("Expected legacy combined event constant to remain", eventsTs.contains("export const LEGATO_EVENTS = LEGATO_EVENT_NAMES;"));
+        assertTrue("Expected addLegatoListener to remain", eventsTs.contains("export function addLegatoListener<E extends LegatoEventName>("));
+    }
+
+    @Test
+    public void capacitorSync_exposesAudioPlayerScopedAliasesAndDelegatesToLegacySync() throws Exception {
+        String syncTs = readRepoFile("packages/capacitor/src/sync.ts");
+
+        assertTrue("Expected AudioPlayerSyncClient alias", syncTs.contains("export type AudioPlayerSyncClient = AudioPlayerApi;"));
+        assertTrue("Expected AudioPlayerSyncOptions interface", syncTs.contains("export interface AudioPlayerSyncOptions extends LegatoSyncOptions"));
+        assertTrue("Expected audio player sync factory", syncTs.contains("export function createAudioPlayerSync("));
+        assertTrue("Expected audio player sync to delegate to legacy sync", syncTs.contains("return createLegatoSync(options);"));
+    }
+
+    @Test
+    public void capacitorSync_preservesLegacyFactoryAndPlaybackOnlySubscriptionSource() throws Exception {
+        String syncTs = readRepoFile("packages/capacitor/src/sync.ts");
+
+        assertTrue("Expected createLegatoSync factory to remain", syncTs.contains("export function createLegatoSync(options: LegatoSyncOptions = {}): LegatoSyncController {"));
+        assertTrue("Expected playback-only subscription source", syncTs.contains("AUDIO_PLAYER_EVENTS.map(async (eventName) => {"));
+    }
+
+    @Test
+    public void capacitorIndex_reexportsPreferredNamespacedHelpersBeforeCompatibilityAliases() throws Exception {
+        String indexTs = readRepoFile("packages/capacitor/src/index.ts");
+
+        int preferredIndex = indexTs.indexOf("AUDIO_PLAYER_EVENTS");
+        int compatibilityIndex = indexTs.indexOf("LEGATO_EVENTS");
+
+        assertTrue("Expected preferred namespaced events export", preferredIndex >= 0);
+        assertTrue("Expected compatibility LEGATO_EVENTS export", compatibilityIndex >= 0);
+        assertTrue("Expected preferred namespaced exports before compatibility export", preferredIndex < compatibilityIndex);
+        assertTrue("Expected addAudioPlayerListener export", indexTs.contains("addAudioPlayerListener"));
+        assertTrue("Expected addMediaSessionListener export", indexTs.contains("addMediaSessionListener"));
+        assertTrue("Expected createAudioPlayerSync export", indexTs.contains("createAudioPlayerSync"));
+        assertTrue("Expected createLegatoSync export", indexTs.contains("createLegatoSync"));
+    }
+
     private static String readRepoFile(String relativePath) throws IOException {
         Path repoRoot = locateRepoRoot();
         Path target = repoRoot.resolve(relativePath);

@@ -1,11 +1,21 @@
-import { LEGATO_EVENT_NAMES } from '@legato/contract';
+import {
+  LEGATO_EVENT_NAMES,
+  MEDIA_SESSION_EVENT_NAMES,
+  PLAYER_EVENT_NAMES,
+} from '@legato/contract';
 import type {
   LegatoEventName,
   LegatoEventPayloadMap,
 } from './definitions';
-import { Legato } from './plugin';
+import { Legato, audioPlayer, mediaSession } from './plugin';
+
+export const AUDIO_PLAYER_EVENTS = PLAYER_EVENT_NAMES;
+export const MEDIA_SESSION_EVENTS = MEDIA_SESSION_EVENT_NAMES;
 
 export const LEGATO_EVENTS = LEGATO_EVENT_NAMES;
+
+export const addAudioPlayerListener = audioPlayer.addListener.bind(audioPlayer);
+export const addMediaSessionListener = mediaSession.addListener.bind(mediaSession);
 
 export function addLegatoListener<E extends LegatoEventName>(
   eventName: E,

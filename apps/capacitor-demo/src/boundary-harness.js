@@ -10,6 +10,8 @@ export const createBoundarySurfaceSnapshot = (activeSurface) => {
   return {
     activeSurface: normalizedSurface,
     playbackTarget: normalizedSurface === 'audioPlayer' ? 'audioPlayer namespace' : 'Legato facade',
+    preferredSurface: 'audioPlayer + mediaSession',
+    compatSurface: 'Legato facade (compatibility-only)',
     playbackCommands: [...PLAYBACK_COMMANDS],
     mediaSessionCommands: [...MEDIA_SESSION_COMMANDS],
   };
@@ -23,6 +25,8 @@ export const createBoundarySurfaceSnapshot = (activeSurface) => {
  * @param {{
  *   activeSurface: 'legato' | 'audioPlayer';
  *   playbackTarget: string;
+ *   preferredSurface: string;
+ *   compatSurface: string;
  *   playbackCommands: string[];
  *   mediaSessionCommands: string[];
  *   parityChecks: BoundaryCheck[];
@@ -32,6 +36,8 @@ export const summarizeBoundaryValidation = (payload) => {
   const lines = [
     `activeSurface=${payload.activeSurface}`,
     `playbackTarget=${payload.playbackTarget}`,
+    `preferredSurface=${payload.preferredSurface}`,
+    `compatSurface=${payload.compatSurface}`,
     `playbackCommands=${payload.playbackCommands.join(', ')}`,
     `mediaSessionCommands=${payload.mediaSessionCommands.join(', ')}`,
   ];

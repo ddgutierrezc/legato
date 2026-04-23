@@ -8,13 +8,13 @@ Minimal host app to stage the **first real manual smoke path** for `@legato/capa
 
 Validated in Android Capacitor host execution:
 
-- `Legato.setup()`
-- `Legato.add()`
-- `Legato.play()`
-- `Legato.pause()`
+- `audioPlayer.setup()` (preferred) and `Legato.setup()` (compatibility)
+- `audioPlayer.add()` (preferred) and `Legato.add()` (compatibility)
+- `audioPlayer.play()` (preferred) and `Legato.play()` (compatibility)
+- `audioPlayer.pause()` (preferred) and `Legato.pause()` (compatibility)
 - `Legato.getSnapshot()`
 - Snapshot serialization for `queue`, `currentTrack`, and `currentIndex`
-- `createLegatoSync()` helper behavior for minimal resync path
+- `createAudioPlayerSync()` (preferred) and `createLegatoSync()` (compatibility)
 
 Not validated by this milestone:
 
@@ -23,16 +23,16 @@ Not validated by this milestone:
 - Real transport reliability guarantees across devices/OS versions
 - iOS host parity
 
-## Smoke objective (current)
+## Smoke objective (namespaced-first, compatibility-aware)
 
 Validate native bridge + snapshot/event plumbing for the minimal flow in `src/main.ts`:
 
-- `Legato.setup()`
-- `createLegatoSync()`
-- `Legato.add()`
-- `Legato.play()`
-- `Legato.pause()`
-- `Legato.getSnapshot()`
+- `audioPlayer.setup()` (preferred)
+- `createAudioPlayerSync()` (preferred)
+- `addAudioPlayerListener('playback-*', ...)` (preferred)
+- `addMediaSessionListener('remote-*', ...)` (preferred)
+- `audioPlayer.add()` / `audioPlayer.play()` / `audioPlayer.pause()` / `audioPlayer.getSnapshot()`
+- Compatibility validation: equivalent `Legato.*` flow remains available and unchanged
 
 This is a **native smoke** (Android/iOS host), not a browser-only check.
 
@@ -89,14 +89,14 @@ npm run cap:sync
 
 Manual parity checklist to close milestone validation:
 
-1. Start `Run smoke flow` (or manual setup/sync/add/play), then background the app.
-2. Trigger lock-screen/media-notification **pause**, return to app, tap `getSnapshot()`, and verify paused state + frozen progress.
-3. Trigger lock-screen/media-notification **play**, return to app, tap `getSnapshot()`, and verify playing state + advancing progress.
-4. Verify now-playing surfaces show title/artist/album/artwork/duration from fixture metadata.
-5. Trigger remote/manual `skipToNext`/`skipToPrevious` and verify queue transitions match canonical engine behavior.
-6. Trigger remote/manual seek and verify snapshot position updates consistently.
+1. Run guided button `Case: remote pause parity` (it auto-baselines and waits for remote pause).
+2. Run guided button `Case: remote play resume parity` (it auto-baselines paused state and waits for remote play).
+3. Run guided button `Case: remote next/previous parity` and complete both prompts.
+4. Run guided button `Case: remote seek parity` and seek to a clearly different position when prompted.
+5. Verify now-playing surfaces show title/artist/album/artwork/duration from fixture metadata.
+6. Run `Run API boundary validation` to keep Legato/audioPlayer/mediaSession boundary coverage current.
 7. Validate capability projection summary: mid-queue enables next/previous, first track disables previous, ended disables all (`canSkipNext=false`, `canSkipPrevious=false`, `canSeek=false`).
-8. Verify now-playing surfaces show title/artist/album/artwork/duration from fixture metadata.
+8. Run `Run artwork race` and confirm no stale artwork survives rapid track switches/fallback.
 9. (Android lifecycle carry-over) `stop()` + idle tears down foreground service/notification.
 
 ## Quick smoke checklist (manual, lightweight)

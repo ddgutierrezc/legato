@@ -1,8 +1,10 @@
 import { Capacitor } from '@capacitor/core';
 import {
   Legato,
+  addAudioPlayerListener,
+  addMediaSessionListener,
   audioPlayer,
-  createLegatoSync,
+  createAudioPlayerSync,
   mediaSession,
   type AudioPlayerApi,
   type PlaybackSnapshot,
@@ -26,13 +28,17 @@ import {
   summarizeBoundaryValidation,
 } from './boundary-harness.js';
 
-type LegatoSyncController = ReturnType<typeof createLegatoSync>;
+type LegatoSyncController = ReturnType<typeof createAudioPlayerSync>;
 
 const smokeButton = document.querySelector<HTMLButtonElement>('#run-smoke');
 const endSmokeButton = document.querySelector<HTMLButtonElement>('#run-end-smoke');
 const boundarySmokeButton = document.querySelector<HTMLButtonElement>('#run-boundary-smoke');
 const surfaceValidationButton = document.querySelector<HTMLButtonElement>('#run-surface-validation');
 const artworkRaceButton = document.querySelector<HTMLButtonElement>('#run-artwork-race');
+const remotePauseCaseButton = document.querySelector<HTMLButtonElement>('#run-case-remote-pause');
+const remotePlayCaseButton = document.querySelector<HTMLButtonElement>('#run-case-remote-play');
+const remoteSkipCaseButton = document.querySelector<HTMLButtonElement>('#run-case-remote-skip');
+const remoteSeekCaseButton = document.querySelector<HTMLButtonElement>('#run-case-remote-seek');
 const copyLogButton = document.querySelector<HTMLButtonElement>('#copy-log');
 const copyEventsButton = document.querySelector<HTMLButtonElement>('#copy-events');
 const copySmokeReportButton = document.querySelector<HTMLButtonElement>('#copy-smoke-report');
@@ -71,6 +77,10 @@ if (
   || !boundarySmokeButton
   || !surfaceValidationButton
   || !artworkRaceButton
+  || !remotePauseCaseButton
+  || !remotePlayCaseButton
+  || !remoteSkipCaseButton
+  || !remoteSeekCaseButton
   || !copyLogButton
   || !copyEventsButton
   || !copySmokeReportButton
@@ -111,6 +121,9 @@ const playbackSmokeDelayMs = 1500;
 const endSmokeDelayMs = 6500;
 const boundarySettleDelayMs = 300;
 const artworkRaceSettleDelayMs = 180;
+const guidedCaseTimeoutMs = 15000;
+const guidedCasePollMs = 220;
+const guidedCaseSettleMs = 600;
 const recentEventsLimit = 24;
 const progressSamplesLimit = 8;
 
@@ -119,6 +132,7 @@ const isNative = Capacitor.isNativePlatform();
 
 type PlaybackSurface = 'legato' | 'audioPlayer';
 type BoundaryCheck = { label: string; ok: boolean; detail: string };
+type SyncEventRecord = { name: string; summary: string; timestamp: number };
 
 let syncController: LegatoSyncController | null = null;
 let latestSnapshot: PlaybackSnapshot | null = null;
@@ -130,6 +144,7 @@ let activeSmokeFlow: SmokeFlow | null = null;
 const observedSyncEvents = new Set<string>();
 let activePlaybackSurface: PlaybackSurface = 'legato';
 let boundaryChecks: BoundaryCheck[] = [];
+let syncEventHistory: SyncEventRecord[] = [];
 
 const resolvePlaybackApi = (surface: PlaybackSurface): AudioPlayerApi => (
   surface === 'audioPlayer' ? audioPlayer : Legato
@@ -583,7 +598,7 @@ const startSync = async (): Promise<void> => {
     return;
   }
 
-  syncController = createLegatoSync({
+  syncController = createAudioPlayerSync({
     onSnapshot: (snapshot) => {
       updateSnapshotViews(snapshot);
       log('sync snapshot', snapshot);
@@ -591,6 +606,14 @@ const startSync = async (): Promise<void> => {
     onEvent: (eventName, payload) => {
       observedSyncEvents.add(eventName);
       const details = summarizePayload(payload);
+      syncEventHistory = [
+        ...syncEventHistory.slice(-95),
+        {
+          name: eventName,
+          summary: details,
+          timestamp: Date.now(),
+        },
+      ];
       log(`event:${eventName}`, payload);
       addRecentEvent(`event:${eventName}${details ? ` | ${details}` : ''}`);
 
@@ -603,6 +626,14 @@ const startSync = async (): Promise<void> => {
   const initial = await syncController.start();
   updateSnapshotViews(initial);
   log('sync.start() initial snapshot', initial);
+};
+
+const verifyNamespacedAudioPlayerListenerHelper = async (): Promise<void> => {
+  const eventName = 'playback-progress';
+  const helperHandle = await addAudioPlayerListener(eventName, (payload) => {
+    void payload;
+  });
+  await helperHandle.remove();
 };
 
 const stopSync = async (): Promise<void> => {
@@ -685,6 +716,7 @@ const snapshotAction = async (surface: PlaybackSurface = activePlaybackSurface):
 const clearFlows = (): void => {
   logNode.value = '';
   recentEvents = [];
+  syncEventHistory = [];
   latestSmokeReport = null;
   observedSyncEvents.clear();
   renderRecentEvents();
@@ -707,6 +739,72 @@ const resetSmokeBaseline = async (): Promise<void> => {
   recentProgressSamples = [];
 };
 
+const sleep = async (durationMs: number): Promise<void> => {
+  await new Promise((resolve) => setTimeout(resolve, durationMs));
+};
+
+const waitForCondition = async (predicate: () => boolean, timeoutMs: number): Promise<boolean> => {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    if (predicate()) {
+      return true;
+    }
+    await sleep(guidedCasePollMs);
+  }
+
+  return predicate();
+};
+
+const caseCheck = (label: string, ok: boolean, detail: string): void => {
+  addBoundaryCheck({ label, ok, detail });
+  log(`[guided-case] ${ok ? 'PASS' : 'FAIL'} | ${label} | ${detail}`);
+};
+
+const remoteEventSeenSince = (eventName: string | RegExp, startedAt: number): boolean => (
+  syncEventHistory.some((entry) => {
+    if (entry.timestamp < startedAt) {
+      return false;
+    }
+    return typeof eventName === 'string'
+      ? entry.name === eventName
+      : eventName.test(entry.name);
+  })
+);
+
+const setupGuidedRemoteCaseBaseline = async (
+  caseName: string,
+  prePause = false,
+): Promise<PlaybackSnapshot> => {
+  clearFlows();
+  boundaryChecks = [];
+  renderBoundarySummary();
+
+  log(`[guided-case] start | ${caseName}`);
+  log('[guided-case] baseline reset: stop previous playback, start sync, add fixture queue, begin playback.');
+
+  await setupAction('legato');
+  await resetSmokeBaseline();
+  await startSync();
+  await addAction('legato');
+  await playAction('legato');
+  await sleep(guidedCaseSettleMs);
+
+  if (prePause) {
+    await pauseAction('legato');
+    await sleep(Math.round(guidedCaseSettleMs / 2));
+  }
+
+  await snapshotAction('legato');
+
+  if (!latestSnapshot) {
+    throw new Error(`Unable to capture baseline snapshot for ${caseName}`);
+  }
+
+  log(`[guided-case] baseline ready | ${summarizeSnapshot(latestSnapshot)}`);
+  return latestSnapshot;
+};
+
 const runSmokeFlow = async (): Promise<void> => {
   startSmokeVerdict('smoke');
   clearFlows();
@@ -718,6 +816,7 @@ const runSmokeFlow = async (): Promise<void> => {
   await setupAction('legato');
   await resetSmokeBaseline();
   await startSync();
+  await verifyNamespacedAudioPlayerListenerHelper();
   await addAction('legato');
   await playAction('legato');
 
@@ -852,8 +951,8 @@ const runSurfaceValidationFlow = async (): Promise<void> => {
       : `Mismatch detected: legato={state:${legatoSnapshot.state}, track:${legatoSnapshot.currentTrack?.id ?? 'none'}, queue:${queueLengthFromSnapshot(legatoSnapshot)}} audioPlayer={state:${audioPlayerSnapshot.state}, track:${audioPlayerSnapshot.currentTrack?.id ?? 'none'}, queue:${queueLengthFromSnapshot(audioPlayerSnapshot)}}`,
   });
 
-  const remotePlayHandle = await mediaSession.addListener('remote-play', () => {});
-  const remotePauseHandle = await mediaSession.addListener('remote-pause', () => {});
+  const remotePlayHandle = await addMediaSessionListener('remote-play', () => {});
+  const remotePauseHandle = await addMediaSessionListener('remote-pause', () => {});
   await remotePlayHandle.remove();
   await remotePauseHandle.remove();
   await mediaSession.removeAllListeners();
@@ -863,6 +962,230 @@ const runSurfaceValidationFlow = async (): Promise<void> => {
     ok: true,
     detail: 'remote listener registration/removal verified via mediaSession namespace.',
   });
+};
+
+const runRemotePauseCaseFlow = async (): Promise<void> => {
+  const baseline = await setupGuidedRemoteCaseBaseline('remote pause parity');
+  const baselinePosition = typeof baseline.position === 'number' ? baseline.position : null;
+  const startedAt = Date.now();
+
+  log('[guided-case] action required: background app and press PAUSE from lock-screen/notification/remote control within 15s.');
+  const observed = await waitForCondition(
+    () => latestSnapshot?.state === 'paused' || remoteEventSeenSince(/remote-?pause/i, startedAt),
+    guidedCaseTimeoutMs,
+  );
+
+  if (observed) {
+    await sleep(guidedCaseSettleMs);
+  }
+  await snapshotAction('legato');
+
+  const paused = latestSnapshot?.state === 'paused';
+  const remotePauseEventSeen = remoteEventSeenSince(/remote-?pause/i, startedAt);
+  const afterPosition = typeof latestSnapshot?.position === 'number' ? latestSnapshot.position : null;
+  const delta = baselinePosition !== null && afterPosition !== null
+    ? afterPosition - baselinePosition
+    : null;
+
+  caseCheck(
+    'Remote pause command observed',
+    remotePauseEventSeen || paused,
+    remotePauseEventSeen
+      ? 'remote-pause event observed in sync stream.'
+      : paused
+        ? 'Snapshot reached paused state even without explicit remote-pause event name.'
+        : 'No remote-pause signal observed before timeout.',
+  );
+  caseCheck('Playback state is paused', paused, `snapshot.state=${latestSnapshot?.state ?? 'unknown'}`);
+  caseCheck(
+    'Progress froze after pause',
+    paused && delta !== null ? Math.abs(delta) <= 320 : false,
+    delta === null
+      ? 'Unable to compare baseline/after positions.'
+      : `position delta=${delta >= 0 ? '+' : ''}${delta}ms (expect near 0 when paused).`,
+  );
+
+  log('[guided-case] end | remote pause parity');
+};
+
+const runRemotePlayCaseFlow = async (): Promise<void> => {
+  const baseline = await setupGuidedRemoteCaseBaseline('remote play resume parity', true);
+  const baselinePosition = typeof baseline.position === 'number' ? baseline.position : null;
+  const startedAt = Date.now();
+
+  log('[guided-case] action required: keep app backgrounded and press PLAY from lock-screen/notification/remote control within 15s.');
+  const observed = await waitForCondition(
+    () => latestSnapshot?.state === 'playing' || remoteEventSeenSince(/remote-?play/i, startedAt),
+    guidedCaseTimeoutMs,
+  );
+
+  if (observed) {
+    await sleep(guidedCaseSettleMs);
+  }
+  await snapshotAction('legato');
+
+  const remotePlayEventSeen = remoteEventSeenSince(/remote-?play/i, startedAt);
+  const playing = latestSnapshot?.state === 'playing';
+  const firstAfterPosition = typeof latestSnapshot?.position === 'number' ? latestSnapshot.position : null;
+
+  await sleep(1000);
+  await snapshotAction('legato');
+  const secondAfterPosition = typeof latestSnapshot?.position === 'number' ? latestSnapshot.position : null;
+  const resumedDelta = firstAfterPosition !== null && secondAfterPosition !== null
+    ? secondAfterPosition - firstAfterPosition
+    : null;
+  const baselineToNowDelta = baselinePosition !== null && secondAfterPosition !== null
+    ? secondAfterPosition - baselinePosition
+    : null;
+
+  caseCheck(
+    'Remote play command observed',
+    remotePlayEventSeen || playing,
+    remotePlayEventSeen
+      ? 'remote-play event observed in sync stream.'
+      : playing
+        ? 'Snapshot moved to playing state even without explicit remote-play event name.'
+        : 'No remote-play signal observed before timeout.',
+  );
+  caseCheck('Playback state returned to playing', playing, `snapshot.state=${latestSnapshot?.state ?? 'unknown'}`);
+  caseCheck(
+    'Progress advanced after remote play',
+    playing && resumedDelta !== null ? resumedDelta >= 320 : false,
+    resumedDelta === null
+      ? 'Unable to compare progress samples after remote play.'
+      : `latest delta=${resumedDelta >= 0 ? '+' : ''}${resumedDelta}ms over ~1s, baseline delta=${baselineToNowDelta ?? 'n/a'}ms.`,
+  );
+
+  log('[guided-case] end | remote play resume parity');
+};
+
+const runRemoteSkipCaseFlow = async (): Promise<void> => {
+  const baseline = await setupGuidedRemoteCaseBaseline('remote next/previous parity');
+  const baselineIndex = typeof baseline.currentIndex === 'number' ? baseline.currentIndex : null;
+
+  if (baselineIndex === null) {
+    caseCheck('Baseline index available', false, 'currentIndex missing in baseline snapshot.');
+    return;
+  }
+
+  const nextStartedAt = Date.now();
+  log('[guided-case] action required: press NEXT from lock-screen/notification/remote control within 15s.');
+  const nextObserved = await waitForCondition(
+    () => (
+      (typeof latestSnapshot?.currentIndex === 'number' && latestSnapshot.currentIndex > baselineIndex)
+      || remoteEventSeenSince(/remote-?(next|skip.*next)/i, nextStartedAt)
+    ),
+    guidedCaseTimeoutMs,
+  );
+
+  if (nextObserved) {
+    await sleep(guidedCaseSettleMs);
+  }
+  await snapshotAction('legato');
+
+  const indexAfterNext = typeof latestSnapshot?.currentIndex === 'number' ? latestSnapshot.currentIndex : null;
+  const remoteNextSeen = remoteEventSeenSince(/remote-?(next|skip.*next)/i, nextStartedAt);
+  const nextAdvanced = indexAfterNext !== null && indexAfterNext > baselineIndex;
+
+  caseCheck(
+    'Remote next command observed',
+    remoteNextSeen || nextAdvanced,
+    remoteNextSeen
+      ? 'remote-next/skip-to-next event observed.'
+      : nextAdvanced
+        ? `track index moved ${baselineIndex} -> ${indexAfterNext}.`
+        : 'No next transition observed before timeout.',
+  );
+  caseCheck(
+    'Queue index advanced on next',
+    nextAdvanced,
+    `baseline=${baselineIndex}, afterNext=${indexAfterNext ?? 'null'}`,
+  );
+
+  const previousStartedAt = Date.now();
+  log('[guided-case] action required: now press PREVIOUS from lock-screen/notification/remote control within 15s.');
+  const previousObserved = await waitForCondition(
+    () => (
+      (typeof latestSnapshot?.currentIndex === 'number' && latestSnapshot.currentIndex === baselineIndex)
+      || remoteEventSeenSince(/remote-?(previous|skip.*previous)/i, previousStartedAt)
+    ),
+    guidedCaseTimeoutMs,
+  );
+
+  if (previousObserved) {
+    await sleep(guidedCaseSettleMs);
+  }
+  await snapshotAction('legato');
+
+  const indexAfterPrevious = typeof latestSnapshot?.currentIndex === 'number' ? latestSnapshot.currentIndex : null;
+  const remotePreviousSeen = remoteEventSeenSince(/remote-?(previous|skip.*previous)/i, previousStartedAt);
+  const previousAligned = indexAfterPrevious === baselineIndex;
+
+  caseCheck(
+    'Remote previous command observed',
+    remotePreviousSeen || previousAligned,
+    remotePreviousSeen
+      ? 'remote-previous/skip-to-previous event observed.'
+      : previousAligned
+        ? `track index returned to baseline (${baselineIndex}).`
+        : 'No previous transition observed before timeout.',
+  );
+  caseCheck(
+    'Queue index returned to baseline after previous',
+    previousAligned,
+    `baseline=${baselineIndex}, afterPrevious=${indexAfterPrevious ?? 'null'}`,
+  );
+
+  log('[guided-case] end | remote next/previous parity');
+};
+
+const runRemoteSeekCaseFlow = async (): Promise<void> => {
+  const baseline = await setupGuidedRemoteCaseBaseline('remote seek parity');
+  const baselinePosition = typeof baseline.position === 'number' ? baseline.position : null;
+
+  if (baselinePosition === null) {
+    caseCheck('Baseline position available', false, 'position missing in baseline snapshot.');
+    return;
+  }
+
+  const startedAt = Date.now();
+  log('[guided-case] action required: seek from lock-screen/notification/remote control to a visibly different position (e.g. 4s) within 15s.');
+  const observed = await waitForCondition(
+    () => (
+      (typeof latestSnapshot?.position === 'number' && Math.abs(latestSnapshot.position - baselinePosition) >= 1200)
+      || remoteEventSeenSince(/remote-?seek/i, startedAt)
+    ),
+    guidedCaseTimeoutMs,
+  );
+
+  if (observed) {
+    await sleep(guidedCaseSettleMs);
+  }
+  await snapshotAction('legato');
+
+  const remoteSeekSeen = remoteEventSeenSince(/remote-?seek/i, startedAt);
+  const finalPosition = typeof latestSnapshot?.position === 'number' ? latestSnapshot.position : null;
+  const jumpDelta = finalPosition === null ? null : finalPosition - baselinePosition;
+  const seekJumped = jumpDelta !== null && Math.abs(jumpDelta) >= 1200;
+
+  caseCheck(
+    'Remote seek command observed',
+    remoteSeekSeen || seekJumped,
+    remoteSeekSeen
+      ? 'remote-seek event observed in sync stream.'
+      : seekJumped
+        ? `snapshot position jumped by ${jumpDelta >= 0 ? '+' : ''}${jumpDelta}ms.`
+        : 'No seek movement observed before timeout.',
+  );
+  caseCheck(
+    'Snapshot position moved after remote seek',
+    seekJumped,
+    jumpDelta === null
+      ? 'Unable to compare baseline/final positions.'
+      : `baseline=${baselinePosition}ms, final=${finalPosition}ms, delta=${jumpDelta >= 0 ? '+' : ''}${jumpDelta}ms.`,
+  );
+
+  log('[guided-case] end | remote seek parity');
 };
 
 const setPlaybackSurface = (surface: PlaybackSurface): void => {
@@ -875,7 +1198,7 @@ envStatusNode.textContent = `platform=${platform} | native=${isNative}`;
 log('Legato parity harness ready.');
 log('platform:', platform);
 log('isNativePlatform:', isNative);
-log('Use smoke buttons for quick pass/fail and manual controls for lifecycle/focus deep checks.');
+log('Use smoke buttons for quick pass/fail, guided cases for scripted remote checks, and manual controls for deep debugging.');
 renderBoundarySummary();
 
 smokeButton.addEventListener('click', () => {
@@ -896,6 +1219,22 @@ surfaceValidationButton.addEventListener('click', () => {
 
 artworkRaceButton.addEventListener('click', () => {
   void runNativeAction('run artwork race flow', runArtworkRaceFlow);
+});
+
+remotePauseCaseButton.addEventListener('click', () => {
+  void runNativeAction('run guided case: remote pause parity', runRemotePauseCaseFlow);
+});
+
+remotePlayCaseButton.addEventListener('click', () => {
+  void runNativeAction('run guided case: remote play resume parity', runRemotePlayCaseFlow);
+});
+
+remoteSkipCaseButton.addEventListener('click', () => {
+  void runNativeAction('run guided case: remote next/previous parity', runRemoteSkipCaseFlow);
+});
+
+remoteSeekCaseButton.addEventListener('click', () => {
+  void runNativeAction('run guided case: remote seek parity', runRemoteSeekCaseFlow);
 });
 
 setupButton.addEventListener('click', () => {
