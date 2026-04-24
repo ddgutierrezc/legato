@@ -1,6 +1,24 @@
 name: Release Android (v1)
 
 on:
+  workflow_call:
+    inputs:
+      target:
+        required: true
+        type: string
+      mode:
+        required: true
+        type: string
+      release_id:
+        required: true
+        type: string
+    outputs:
+      artifact_name:
+        description: Android evidence artifact for this release id
+        value: ${{ jobs.evidence.outputs.artifact_name }}
+      summary_json:
+        description: Android summary payload JSON
+        value: ${{ jobs.evidence.outputs.summary_json }}
   workflow_dispatch:
     inputs:
       target:
@@ -60,7 +78,7 @@ jobs:
       - name: Upload dispatch payload
         uses: actions/upload-artifact@v4
         with:
-          name: release-dispatch
+          name: release-dispatch-${{ inputs.release_id }}-android
           path: artifacts/release-ci/dispatch.json
 
   android-preflight:
@@ -102,7 +120,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: release-preflight
+          name: release-preflight-${{ inputs.release_id }}-android
           path: |
             apps/capacitor-demo/artifacts/release-ci/preflight.log
             apps/capacitor-demo/artifacts/release-ci-scope.log
@@ -151,7 +169,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: release-publish
+          name: release-publish-${{ inputs.release_id }}-android
           path: apps/capacitor-demo/artifacts/release-ci/publish.log
 
   android-verify:
@@ -189,7 +207,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: release-verify
+          name: release-verify-${{ inputs.release_id }}-android
           path: |
             apps/capacitor-demo/artifacts/release-ci/verify.log
             apps/capacitor-demo/artifacts/release-ci/verify-summary.json
@@ -198,6 +216,9 @@ jobs:
     name: Evidence and summary
     runs-on: ubuntu-latest
     if: always()
+    outputs:
+      artifact_name: ${{ steps.emit-outputs.outputs.artifact_name }}
+      summary_json: ${{ steps.emit-outputs.outputs.summary_json }}
     needs:
       - validate-dispatch
       - android-preflight
@@ -207,28 +228,28 @@ jobs:
       - name: Download dispatch artifact
         uses: actions/download-artifact@v4
         with:
-          name: release-dispatch
+          name: release-dispatch-${{ inputs.release_id }}-android
           path: artifacts/release-ci
 
       - name: Download preflight artifact
         if: ${{ needs.android-preflight.result != 'skipped' }}
         uses: actions/download-artifact@v4
         with:
-          name: release-preflight
+          name: release-preflight-${{ inputs.release_id }}-android
           path: artifacts/release-ci
 
       - name: Download publish artifact
         if: ${{ needs.android-publish.result != 'skipped' }}
         uses: actions/download-artifact@v4
         with:
-          name: release-publish
+          name: release-publish-${{ inputs.release_id }}-android
           path: artifacts/release-ci
 
       - name: Download verify artifact
         if: ${{ needs.android-verify.result != 'skipped' }}
         uses: actions/download-artifact@v4
         with:
-          name: release-verify
+          name: release-verify-${{ inputs.release_id }}-android
           path: artifacts/release-ci
 
       - name: Ensure expected evidence files exist
@@ -303,7 +324,7 @@ jobs:
       - name: Upload evidence bundle
         uses: actions/upload-artifact@v4
         with:
-          name: release-evidence-${{ inputs.release_id }}
+          name: release-evidence-${{ inputs.release_id }}-android
           path: |
             artifacts/release-ci/dispatch.json
             artifacts/release-ci/preflight.log
@@ -311,3 +332,15 @@ jobs:
             artifacts/release-ci/verify.log
             artifacts/release-ci/summary.json
             artifacts/release-ci/summary.md
+
+      - name: Emit reusable workflow outputs
+        id: emit-outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "artifact_name=release-evidence-${{ inputs.release_id }}-android" >> "$GITHUB_OUTPUT"
+          {
+            echo 'summary_json<<EOF'
+            cat artifacts/release-ci/summary.json
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"

@@ -160,3 +160,12 @@ test('release workflow publish path runs publish then verify and reports final s
     android_verify: 'success',
   });
 });
+
+test('release workflow supports reusable orchestration entry without removing manual dispatch', async () => {
+  const workflow = await readFile(workflowPath, 'utf8');
+
+  assert.match(workflow, /workflow_dispatch:/i);
+  assert.match(workflow, /workflow_call:/i);
+  assert.match(workflow, /release_id:/i);
+  assert.match(workflow, /name:\s*release-evidence-\$\{\{ inputs\.release_id \}\}-android/i);
+});

@@ -1,8 +1,10 @@
 # Publication Pipeline V1 — Validation & Audit Evidence
 
-This checklist documents required audit evidence for both v1 lanes:
-- Android CI run evidence (`.github/workflows/release-android.yml`)
+This checklist documents required audit evidence for the cross-platform v1 control plane:
+- Unified dispatch run evidence (`.github/workflows/release-control.yml`)
+- Android CI publish evidence (`.github/workflows/release-android.yml`)
 - iOS manual publication execution evidence (`preflight -> handoff -> verify -> closeout`)
+- npm policy lane evidence (`readiness/release-candidate/protected-publish`)
 
 ## Scope Reminder
 
@@ -14,18 +16,18 @@ This checklist documents required audit evidence for both v1 lanes:
 
 ## Required Audit Fields
 
-Record the following for each Android CI release run:
+Record the following for each release-control run:
 
 | Field | Source |
 |---|---|
 | `release_id` | `workflow_dispatch` input and `dispatch.json` |
-| `target` | `workflow_dispatch` input (`android`) |
-| `mode` | `workflow_dispatch` input (`preflight-only` or `publish`) |
+| `target` | selected target(s) from `targets` input |
+| `mode` | requested target mode(s) from `target_modes` |
 | Run URL | GitHub Actions run link |
 | Dispatcher | `github.actor` from run metadata |
 | Environment gate | `release` required for mode `publish` |
 | Approver (publish mode) | Protected environment approvals/audit log |
-| Stage outcomes | `validate-dispatch`, `android-preflight`, `android-publish`, `android-verify` |
+| Stage outcomes | `validate-dispatch`, `android-preflight`, `android-publish`, `android-verify`, selected lane results, final aggregate status |
 
 Record the following for each iOS execution run:
 
@@ -42,18 +44,21 @@ Record the following for each iOS execution run:
 | Remote check outcomes | `verify.json.checks.remoteTag`, `verify.json.checks.swiftPackageResolve` |
 | Final closeout proof | `closeout.json` |
 
-## Required Evidence Artifact Bundle
+## Required Control-Plane Evidence Artifact Bundle
 
-Artifact name pattern: `release-evidence-<release_id>`
+Artifact name pattern: `release-control-summary-<release_id>`
 
 Must include:
 
-- `dispatch.json`
-- `preflight.log`
-- `publish.log`
-- `verify.log`
+- `android-summary.json`
+- `ios-summary.json`
+- `npm-summary.json`
 - `summary.json`
 - `summary.md`
+
+Android lane evidence (`dispatch.json`, `preflight.log`, `publish.log`, `verify.log`) remains mandatory inside `release-evidence-<release_id>-android`.
+
+Android stage names remain canonical in audit narratives: `android-preflight`, `android-publish`, `android-verify`.
 
 ## Required iOS Evidence Chain
 

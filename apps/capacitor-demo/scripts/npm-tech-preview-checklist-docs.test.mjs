@@ -12,6 +12,8 @@ test('npm checklist defines go/no-go readiness gates', async () => {
 
   assert.match(checklist, /go\/no-go/i);
   assert.match(checklist, /validate:npm:readiness/i);
+  assert.match(checklist, /release-candidate/i);
+  assert.match(checklist, /protected-publish/i);
   assert.match(checklist, /blocking check/i);
 });
 

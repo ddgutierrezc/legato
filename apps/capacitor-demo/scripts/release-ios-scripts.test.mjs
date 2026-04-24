@@ -37,3 +37,16 @@ test('package scripts expose iOS handoff/verify/closeout execution commands', as
   assert.match(packageJson.scripts['release:ios:handoff'], /IOS_OPERATOR:\?/i);
   assert.match(packageJson.scripts['release:ios:handoff'], /IOS_PUBLISHED_AT:\?/i);
 });
+
+test('package scripts expose release-control and npm policy lane entrypoints', async () => {
+  const packageJsonRaw = await readFile(packageJsonPath, 'utf8');
+  const packageJson = JSON.parse(packageJsonRaw);
+
+  assert.equal(typeof packageJson.scripts?.['release:control:contract:check'], 'string');
+  assert.equal(typeof packageJson.scripts?.['release:control:summary:aggregate'], 'string');
+  assert.equal(typeof packageJson.scripts?.['release:npm:policy'], 'string');
+
+  assert.match(packageJson.scripts['release:control:contract:check'], /release-control-contract\.mjs/i);
+  assert.match(packageJson.scripts['release:control:summary:aggregate'], /aggregate-release-summary\.mjs/i);
+  assert.match(packageJson.scripts['release:npm:policy'], /run-npm-release-policy\.mjs/i);
+});

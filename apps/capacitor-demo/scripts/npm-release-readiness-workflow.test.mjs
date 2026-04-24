@@ -21,5 +21,6 @@ test('npm readiness workflow executes pack inspection and external consumer gate
 
   assert.match(workflow, /npm run validate:npm:readiness/i);
   assert.match(workflow, /npm run test:npm:readiness/i);
+  assert.doesNotMatch(workflow, /protected-publish/i);
   assert.match(workflow, /Upload readiness artifacts/i);
 });
