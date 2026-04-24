@@ -198,7 +198,7 @@ test('validator fails when Gradle output reports unresolved Android artifact coo
   assert.equal(result.status, 'FAIL');
   assert.equal(result.exitCode, 1);
   assert.equal(result.failures.length > 0, true);
-  assert.match(result.failures[0], /Could not find dev\.dgutierrez:legato-android-core:0\.1\.0/i);
+  assert.match(result.failures[0], /Could not find dev\.dgutierrez:legato-android-core:0\.1\.1/i);
 });
 
 test('formatter prints stable summary structure', () => {
@@ -217,7 +217,7 @@ test('formatter prints stable summary structure', () => {
   assert.match(summary, /Overall: FAIL/i);
   assert.match(summary, /android-artifacts: FAIL/i);
   assert.match(summary, /ios-artifacts: FAIL/i);
-  assert.match(summary, /Could not find dev\.dgutierrez:legato-android-core:0\.1\.0/i);
+  assert.match(summary, /Could not find dev\.dgutierrez:legato-android-core:0\.1\.1/i);
 });
 
 test('CLI exits non-zero with actionable output when local-project regression is detected', async () => {

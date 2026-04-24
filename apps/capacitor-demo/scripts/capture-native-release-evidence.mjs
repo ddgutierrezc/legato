@@ -1,5 +1,5 @@
 import { access, copyFile, mkdir, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 const PASS = 'PASS';
 const FAIL = 'FAIL';
@@ -63,12 +63,18 @@ export const captureNativeReleaseEvidence = async ({
   outputDir = 'artifacts/release-native-artifact-foundation-v1',
 } = {}) => {
   const defaults = resolveDefaultArtifacts();
+  const hasCustomEvidencePaths = [androidResolutionLogPath, iosResolutionLogPath, androidSmokeReportPath, iosSmokeReportPath]
+    .some((value) => typeof value === 'string' && value.trim() !== '');
+  const inferredExternalSummaryPath = hasCustomEvidencePaths && !externalSummaryPath
+    ? resolve(dirname(androidResolutionLogPath ?? iosResolutionLogPath ?? androidSmokeReportPath ?? iosSmokeReportPath), 'external-consumer-validation-v1/summary.json')
+    : undefined;
+
   const sources = {
     androidResolutionLog: androidResolutionLogPath ?? defaults.androidResolutionLog,
     iosResolutionLog: iosResolutionLogPath ?? defaults.iosResolutionLog,
     androidSmokeReport: androidSmokeReportPath ?? defaults.androidSmokeReport,
     iosSmokeReport: iosSmokeReportPath ?? defaults.iosSmokeReport,
-    externalConsumerSummary: externalSummaryPath ?? defaults.externalConsumerSummary,
+    externalConsumerSummary: externalSummaryPath ?? inferredExternalSummaryPath ?? defaults.externalConsumerSummary,
   };
 
   const outputNames = resolveOutputNames();
