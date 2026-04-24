@@ -110,23 +110,25 @@ iOS remains outside CI publication automation, but v1 requires a complete audita
 
 3. **Handoff evidence capture** (repo-owned)
    - Command:
-     - `IOS_RELEASE_ID=<id> IOS_RELEASE_TAG=vX.Y.Z IOS_EXTERNAL_TAG=vX.Y.Z IOS_OPERATOR=<operator> IOS_PUBLISHED_AT=<ISO8601> npm run release:ios:handoff`
+      - `IOS_RELEASE_ID=<id> IOS_RELEASE_TAG=vX.Y.Z IOS_EXTERNAL_REPO=<repo-url> IOS_EXTERNAL_TAG=vX.Y.Z IOS_PROOF_TYPE=<tag-release-url|commit-sha> IOS_PROOF_VALUE=<immutable-proof> IOS_OPERATOR=<operator> IOS_PUBLISHED_AT=<ISO8601> npm run release:ios:handoff`
    - Output: `artifacts/ios-publication-v1/<release_id>/handoff.json`
-   - Required fields: pinned version/tag, external repo ref, operator, timestamp, linked preflight artifact.
+    - Required fields: pinned version/tag, external repo ref, `proofType`, `proofValue`, operator, timestamp, linked preflight artifact.
+    - Placeholder values (`TBD`, `example`, `placeholder`, angle-bracket templates) are rejected.
 
 4. **Remote verification gate** (repo-owned, read-only)
    - Command:
      - `IOS_RELEASE_ID=<id> IOS_VERIFY_ATTEMPTS=6 IOS_VERIFY_BACKOFF_MS=120000 npm run release:ios:verify`
    - Output: `artifacts/ios-publication-v1/<release_id>/verify.json`
    - Checks:
-     - `git ls-remote --tags` confirms pinned tag propagation.
-     - scratch SwiftPM resolve confirms pinned package URL/version is installable.
+      - `git ls-remote --tags` confirms pinned tag propagation.
+      - scratch SwiftPM resolve confirms pinned package URL/version is installable.
+      - verify output must include `proofReference` and match immutable handoff proof fields.
    - Retry is bounded and idempotent; diagnostics are captured in `verify.json`.
 
 5. **Closeout gate** (repo-owned)
    - Command: `IOS_RELEASE_ID=<id> npm run release:ios:closeout`
    - Output: `artifacts/ios-publication-v1/<release_id>/closeout.json`
-   - Allowed only when `preflight + handoff + verify` are all PASS and version/release-id chain is consistent.
+    - Allowed only when `preflight + handoff + verify` are all PASS, version/release-id chain is consistent, and `verify.proofReference` matches `handoff` immutable proof.
 
 ### iOS artifacts (required evidence chain)
 

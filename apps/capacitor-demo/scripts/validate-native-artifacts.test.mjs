@@ -37,7 +37,7 @@ const nativeArtifactsContract = `
     "version": "0.1.1"
   },
   "ios": {
-    "packageUrl": "https://github.com/legato/legato-ios-core.git",
+    "packageUrl": "https://github.com/ddgutierrezc/legato-ios-core.git",
     "packageName": "LegatoCore",
     "product": "LegatoCore",
     "version": "0.1.1",
@@ -69,7 +69,50 @@ let package = Package(
     name: "LegatoCapacitor",
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "8.0.0"),
-        .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.1")
+        .package(url: "https://github.com/ddgutierrezc/legato-ios-core.git", exact: "0.1.1")
+    ],
+    targets: [
+        .target(
+            name: "LegatoPlugin",
+            dependencies: [
+                .product(name: "LegatoCore", package: "LegatoCore")
+            ]
+        )
+    ]
+)
+`;
+
+const nativeArtifactsContractNonDefaultOwner = `
+{
+  "android": {
+    "repositoryUrl": "https://repo1.maven.org/maven2",
+    "group": "dev.dgutierrez",
+    "artifact": "legato-android-core",
+    "version": "0.1.1"
+  },
+  "ios": {
+    "packageUrl": "https://github.com/acme/legato-ios-core.git",
+    "packageName": "LegatoCore",
+    "product": "LegatoCore",
+    "version": "0.1.1",
+    "versionPolicy": "exact"
+  }
+}
+`;
+
+const packageSwiftArtifactOnlyNonDefaultOwner = `
+let package = Package(
+    name: "LegatoCapacitor",
+    dependencies: [
+        .package(url: "https://github.com/acme/legato-ios-core.git", exact: "0.1.1")
+    ],
+    targets: [
+        .target(
+            name: "LegatoPlugin",
+            dependencies: [
+                .product(name: "LegatoCore", package: "LegatoCore")
+            ]
+        )
     ]
 )
 `;
@@ -156,6 +199,7 @@ test('validator passes when plugin build.gradle is artifact-only and no unresolv
     androidSettingsGradle: androidSettingsWithoutNativeCore,
     capAppSpmPackageSwift: capAppSpmGenerated,
     pluginPackageSwift: packageSwiftArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContract,
     capacitorConfigJson: capacitorConfigWithPluginClass,
     pluginSwiftSource: pluginSwiftDiscoverableShape,
     androidResolutionLog: '',
@@ -172,6 +216,7 @@ test('validator fails when plugin build.gradle reintroduces local project depend
     androidSettingsGradle: androidSettingsWithoutNativeCore,
     capAppSpmPackageSwift: capAppSpmGenerated,
     pluginPackageSwift: packageSwiftArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContract,
     capacitorConfigJson: capacitorConfigWithPluginClass,
     pluginSwiftSource: pluginSwiftDiscoverableShape,
     androidResolutionLog: '',
@@ -243,6 +288,7 @@ test('validator fails when iOS Package.swift uses local path dependency', () => 
     androidSettingsGradle: androidSettingsWithoutNativeCore,
     capAppSpmPackageSwift: capAppSpmGenerated,
     pluginPackageSwift: packageSwiftLocalPath,
+    nativeArtifactsContractJson: nativeArtifactsContract,
     capacitorConfigJson: capacitorConfigWithPluginClass,
     pluginSwiftSource: pluginSwiftDiscoverableShape,
   });
@@ -258,6 +304,7 @@ test('validator fails when SwiftPM resolver reports product/package identity mis
     androidSettingsGradle: androidSettingsWithoutNativeCore,
     capAppSpmPackageSwift: capAppSpmGenerated,
     pluginPackageSwift: packageSwiftArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContract,
     capacitorConfigJson: capacitorConfigWithPluginClass,
     pluginSwiftSource: pluginSwiftDiscoverableShape,
     iosResolutionLog: iosResolverMismatchLog,
@@ -274,6 +321,7 @@ test('validator fails when Android host settings reintroduce manual native-core 
     androidSettingsGradle: androidSettingsWithManualNativeCore,
     capAppSpmPackageSwift: capAppSpmGenerated,
     pluginPackageSwift: packageSwiftArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContract,
     capacitorConfigJson: capacitorConfigWithPluginClass,
     pluginSwiftSource: pluginSwiftDiscoverableShape,
   });
@@ -290,6 +338,7 @@ test('validator fails when CapApp-SPM package adds manual LegatoCore local path 
     androidSettingsGradle: androidSettingsWithoutNativeCore,
     capAppSpmPackageSwift: capAppSpmWithManualLegatoCore,
     pluginPackageSwift: packageSwiftArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContract,
     capacitorConfigJson: capacitorConfigWithPluginClass,
     pluginSwiftSource: pluginSwiftDiscoverableShape,
   });
@@ -306,6 +355,7 @@ test('validator fails when CapApp-SPM generated ownership marker is missing', ()
     androidSettingsGradle: androidSettingsWithoutNativeCore,
     capAppSpmPackageSwift: capAppSpmWithoutGeneratedMarker,
     pluginPackageSwift: packageSwiftArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContract,
     capacitorConfigJson: capacitorConfigWithPluginClass,
     pluginSwiftSource: pluginSwiftDiscoverableShape,
   });
@@ -313,6 +363,36 @@ test('validator fails when CapApp-SPM generated ownership marker is missing', ()
   assert.equal(result.status, 'FAIL');
   assert.equal(result.exitCode, 1);
   assert.match(result.failures.join('\n'), /DO NOT MODIFY THIS FILE/i);
+});
+
+test('validator passes for non-default iOS repo owner when contract drives URL', () => {
+  const result = validateNativeArtifacts({
+    pluginBuildGradle: buildGradleArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContractNonDefaultOwner,
+    androidSettingsGradle: androidSettingsWithoutNativeCore,
+    capAppSpmPackageSwift: capAppSpmGenerated,
+    pluginPackageSwift: packageSwiftArtifactOnlyNonDefaultOwner,
+    capacitorConfigJson: capacitorConfigWithPluginClass,
+    pluginSwiftSource: pluginSwiftDiscoverableShape,
+  });
+
+  assert.equal(result.status, 'PASS');
+  assert.equal(result.failures.length, 0);
+});
+
+test('validator fails when iOS product identity diverges from contract', () => {
+  const result = validateNativeArtifacts({
+    pluginBuildGradle: buildGradleArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContract,
+    androidSettingsGradle: androidSettingsWithoutNativeCore,
+    capAppSpmPackageSwift: capAppSpmGenerated,
+    pluginPackageSwift: packageSwiftArtifactOnly.replace('.product(name: "LegatoCore", package: "LegatoCore")', '.product(name: "WrongCore", package: "LegatoCore")'),
+    capacitorConfigJson: capacitorConfigWithPluginClass,
+    pluginSwiftSource: pluginSwiftDiscoverableShape,
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.match(result.failures.join('\n'), /product identity mismatch/i);
 });
 
 test('fixture mode path validator fails when host/plugin paths are coupled to monorepo app path', () => {

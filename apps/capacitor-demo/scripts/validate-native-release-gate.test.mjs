@@ -16,7 +16,15 @@ const pluginPackageSwiftArtifactOnly = `
 let package = Package(
     name: "LegatoCapacitor",
     dependencies: [
-        .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.1")
+        .package(url: "https://github.com/ddgutierrezc/legato-ios-core.git", exact: "0.1.1")
+    ],
+    targets: [
+        .target(
+            name: "LegatoPlugin",
+            dependencies: [
+                .product(name: "LegatoCore", package: "LegatoCore")
+            ]
+        )
     ]
 )
 `;
@@ -35,6 +43,24 @@ const capacitorConfig = `
 const androidSettings = `
 include ':app'
 apply from: 'capacitor.settings.gradle'
+`;
+
+const nativeArtifactsContract = `
+{
+  "android": {
+    "repositoryUrl": "https://repo1.maven.org/maven2",
+    "group": "dev.dgutierrez",
+    "artifact": "legato-android-core",
+    "version": "0.1.1"
+  },
+  "ios": {
+    "packageUrl": "https://github.com/ddgutierrezc/legato-ios-core.git",
+    "packageName": "LegatoCore",
+    "product": "LegatoCore",
+    "version": "0.1.1",
+    "versionPolicy": "exact"
+  }
+}
 `;
 
 const capAppSpm = `
@@ -62,6 +88,7 @@ test('release gate passes when native artifact checks and smoke reports pass', (
   const result = validateNativeReleaseGate({
     nativeValidationInput: {
       pluginBuildGradle: pluginBuildGradleArtifactOnly,
+      nativeArtifactsContractJson: nativeArtifactsContract,
       androidSettingsGradle: androidSettings,
       capAppSpmPackageSwift: capAppSpm,
       pluginPackageSwift: pluginPackageSwiftArtifactOnly,
@@ -99,6 +126,7 @@ test('release gate fails when evidence manifest is missing required artifacts', 
   const result = validateNativeReleaseGate({
     nativeValidationInput: {
       pluginBuildGradle: pluginBuildGradleArtifactOnly,
+      nativeArtifactsContractJson: nativeArtifactsContract,
       androidSettingsGradle: androidSettings,
       capAppSpmPackageSwift: capAppSpm,
       pluginPackageSwift: pluginPackageSwiftArtifactOnly,
@@ -123,6 +151,7 @@ test('release gate fails when external consumer summary is FAIL', () => {
   const result = validateNativeReleaseGate({
     nativeValidationInput: {
       pluginBuildGradle: pluginBuildGradleArtifactOnly,
+      nativeArtifactsContractJson: nativeArtifactsContract,
       androidSettingsGradle: androidSettings,
       capAppSpmPackageSwift: capAppSpm,
       pluginPackageSwift: pluginPackageSwiftArtifactOnly,

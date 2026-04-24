@@ -21,6 +21,10 @@ function isLocalPathLike(value) {
   return /^(?:\.{1,2}[\\/]|\/|file:)/i.test(value);
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function validateContract(contract) {
   if (!contract || typeof contract !== 'object') {
     throw new Error('native-artifacts.json: root contract must be an object');
@@ -104,9 +108,9 @@ export function generateManagedSnippets(contract) {
   };
 }
 
-function syncIosSwiftDependency(packageSwiftSource) {
+function syncIosSwiftDependency(packageSwiftSource, contract) {
   const localPathPattern = /\.package\(path:\s*"[^\"]*LegatoCore[^\"]*"\)/;
-  const remoteUrlPattern = /\.package\(url:\s*"https:\/\/github\.com\/legato\/legato-ios-core\.git",\s*exact:\s*"[^"]+"\)/;
+  const remoteUrlPattern = new RegExp(`\\.package\\(url:\\s*"${escapeRegExp(contract.ios.packageUrl)}",\\s*exact:\\s*"[^"]+"\\)`);
   const dependencyLine = '        legatoCorePackageDependency';
 
   if (localPathPattern.test(packageSwiftSource)) {
@@ -160,7 +164,7 @@ export function syncNativeArtifacts({ packageRoot = PACKAGE_ROOT } = {}) {
 
   const packageSwiftPath = path.join(packageRoot, 'Package.swift');
   const currentPackageSwift = readFileSync(packageSwiftPath, 'utf8');
-  const packageSwiftWithManagedDependency = syncIosSwiftDependency(currentPackageSwift);
+  const packageSwiftWithManagedDependency = syncIosSwiftDependency(currentPackageSwift, contract);
   writeFileSync(packageSwiftPath, packageSwiftWithManagedDependency, 'utf8');
 
   applyManagedFile(packageSwiftPath, {

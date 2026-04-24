@@ -16,7 +16,7 @@ test('generateManagedSnippets emits Maven + exact SwiftPM identity', () => {
       version: '0.1.1',
     },
     ios: {
-      packageUrl: 'https://github.com/legato/legato-ios-core.git',
+      packageUrl: 'https://github.com/ddgutierrezc/legato-ios-core.git',
       packageName: 'LegatoCore',
       product: 'LegatoCore',
       version: '0.1.1',
@@ -27,14 +27,35 @@ test('generateManagedSnippets emits Maven + exact SwiftPM identity', () => {
   const snippets = generateManagedSnippets(contract);
 
   assert.match(snippets.android, /https:\/\/repo1\.maven\.org\/maven2/);
-  assert.match(snippets.android, /dev\.dgutierrez:legato-android-core:0\.1\.0/);
+  assert.match(snippets.android, /dev\.dgutierrez:legato-android-core:0\.1\.1/);
   assert.match(snippets.android, /Adapter Android dependency must stay artifact-only/i);
   assert.doesNotMatch(snippets.android, /Foundation-only metadata.*deferred/i);
-  assert.match(snippets.swift, /\n\s*\.package\(url: "https:\/\/github\.com\/legato\/legato-ios-core\.git", exact: "0\.1\.0"\)/);
-  assert.doesNotMatch(snippets.swift, /^\s*\/\/\s*\.package\(url: "https:\/\/github\.com\/legato\/legato-ios-core\.git", exact: "0\.1\.0"\)/m);
+  assert.match(snippets.swift, /\n\s*\.package\(url: "https:\/\/github\.com\/ddgutierrezc\/legato-ios-core\.git", exact: "0\.1\.1"\)/);
+  assert.doesNotMatch(snippets.swift, /^\s*\/\/\s*\.package\(url: "https:\/\/github\.com\/ddgutierrezc\/legato-ios-core\.git", exact: "0\.1\.1"\)/m);
   assert.doesNotMatch(snippets.swift, /switch-over intentionally deferred/i);
   assert.match(snippets.readme, /Maven Central/);
   assert.match(snippets.readme, /iOS adapter switch-over is active/i);
+});
+
+test('generateManagedSnippets is owner-agnostic for iOS package URL', () => {
+  const contract = {
+    android: {
+      repositoryUrl: 'https://repo1.maven.org/maven2',
+      group: 'dev.dgutierrez',
+      artifact: 'legato-android-core',
+      version: '0.1.1',
+    },
+    ios: {
+      packageUrl: 'https://github.com/acme/legato-ios-core.git',
+      packageName: 'LegatoCore',
+      product: 'LegatoCore',
+      version: '0.1.1',
+      versionPolicy: 'exact',
+    },
+  };
+
+  const snippets = generateManagedSnippets(contract);
+  assert.match(snippets.swift, /https:\/\/github\.com\/acme\/legato-ios-core\.git/);
 });
 
 test('validateContract rejects local path/package refs', () => {
@@ -69,7 +90,7 @@ test('validateContract rejects non-migrated Android publication namespace', () =
       version: '0.1.1',
     },
     ios: {
-      packageUrl: 'https://github.com/legato/legato-ios-core.git',
+      packageUrl: 'https://github.com/ddgutierrezc/legato-ios-core.git',
       packageName: 'LegatoCore',
       product: 'LegatoCore',
       version: '0.1.1',

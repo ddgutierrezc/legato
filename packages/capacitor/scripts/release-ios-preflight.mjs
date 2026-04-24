@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,7 +11,27 @@ const defaultPaths = {
   contractPath: resolve(scriptDir, '../native-artifacts.json'),
   nativePackagePath: resolve(scriptDir, '../../../native/ios/LegatoCore/Package.swift'),
   pluginPackagePath: resolve(scriptDir, '../Package.swift'),
+  distributionRepoPath: resolve(scriptDir, '../../../../legato-ios-core'),
+  provenancePath: resolve(scriptDir, '../../../../legato-ios-core/distribution-provenance.json'),
 };
+
+const REQUIRED_DISTRIBUTION_PATHS = [
+  'Package.swift',
+  'Sources/LegatoCore',
+  'Sources/LegatoCoreSessionRuntimeiOS',
+  'Tests/LegatoCoreTests',
+  'Tests/LegatoCoreSessionRuntimeiOSTests',
+  'README.md',
+  'LICENSE',
+  '.gitignore',
+  'distribution-provenance.json',
+];
+const REQUIRED_DISTRIBUTION_DIRECTORIES = new Set([
+  'Sources/LegatoCore',
+  'Sources/LegatoCoreSessionRuntimeiOS',
+  'Tests/LegatoCoreTests',
+  'Tests/LegatoCoreSessionRuntimeiOSTests',
+]);
 
 const normalizeIosContract = (contract = {}) => {
   const ios = contract.ios ?? {};
@@ -27,6 +47,19 @@ const normalizeIosContract = (contract = {}) => {
 const parseTagVersion = (releaseTag = '') => releaseTag.trim().replace(/^v/i, '');
 
 const toIsoTimestamp = (date = new Date()) => date.toISOString();
+
+const parseProvenance = (raw) => {
+  const parsed = JSON.parse(raw);
+  return {
+    sourceRepo: typeof parsed.sourceRepo === 'string' ? parsed.sourceRepo.trim() : '',
+    sourceCommit: typeof parsed.sourceCommit === 'string' ? parsed.sourceCommit.trim() : '',
+    packageName: typeof parsed.packageName === 'string' ? parsed.packageName.trim() : '',
+    product: typeof parsed.product === 'string' ? parsed.product.trim() : '',
+    version: typeof parsed.version === 'string' ? parsed.version.trim() : '',
+    releaseTag: typeof parsed.releaseTag === 'string' ? parsed.releaseTag.trim() : '',
+    exportedAt: typeof parsed.exportedAt === 'string' ? parsed.exportedAt.trim() : '',
+  };
+};
 
 const parsePackageName = (packageSwift) => packageSwift.match(/\bname:\s*"([^"]+)"/)?.[1]?.trim() ?? '';
 
@@ -87,6 +120,53 @@ const parseManagedContractBlock = (pluginPackageSwift) => {
   };
 };
 
+const ensureDistributionPayloadPaths = async (distributionRepoPath, fileReader = readFile, pathStat = stat) => {
+  const failures = [];
+
+  for (const relativePath of REQUIRED_DISTRIBUTION_PATHS) {
+    try {
+      const absolutePath = resolve(distributionRepoPath, relativePath);
+      if (REQUIRED_DISTRIBUTION_DIRECTORIES.has(relativePath)) {
+        const info = await pathStat(absolutePath);
+        if (!info.isDirectory()) {
+          failures.push(`Distribution bootstrap missing required path: ${relativePath}`);
+        }
+      } else {
+        await fileReader(absolutePath, 'utf8');
+      }
+    } catch {
+      failures.push(`Distribution bootstrap missing required path: ${relativePath}`);
+    }
+  }
+
+  return failures;
+};
+
+const ensureProvenanceContract = ({ provenance, contract, releaseTag }) => {
+  const failures = [];
+  if (!provenance.sourceRepo) failures.push('Distribution provenance missing sourceRepo.');
+  if (!provenance.sourceCommit) failures.push('Distribution provenance missing sourceCommit.');
+  if (!/^[0-9a-f]{7,40}$/i.test(provenance.sourceCommit)) {
+    failures.push('Distribution provenance sourceCommit must be a git SHA (7-40 hex chars).');
+  }
+  if (provenance.packageName !== contract.packageName) {
+    failures.push(`Distribution provenance packageName mismatch: ${provenance.packageName || '<missing>'} must equal ${contract.packageName}.`);
+  }
+  if (provenance.product !== contract.product) {
+    failures.push(`Distribution provenance product mismatch: ${provenance.product || '<missing>'} must equal ${contract.product}.`);
+  }
+  if (provenance.version !== contract.version) {
+    failures.push(`Distribution provenance version mismatch: ${provenance.version || '<missing>'} must equal ${contract.version}.`);
+  }
+  if (provenance.releaseTag !== releaseTag) {
+    failures.push(`Distribution provenance releaseTag mismatch: ${provenance.releaseTag || '<missing>'} must equal ${releaseTag}.`);
+  }
+  if (!provenance.exportedAt || Number.isNaN(Date.parse(provenance.exportedAt))) {
+    failures.push('Distribution provenance exportedAt must be a valid ISO8601 timestamp.');
+  }
+  return failures;
+};
+
 const readContractFile = async (contractPath, fileReader = readFile) => {
   const raw = await fileReader(contractPath, 'utf8');
   return normalizeIosContract(JSON.parse(raw));
@@ -116,12 +196,17 @@ export const runIosReleasePreflight = async ({
   nativePackagePath = defaultPaths.nativePackagePath,
   pluginPackageSwift,
   pluginPackagePath = defaultPaths.pluginPackagePath,
+  distributionRepoPath = defaultPaths.distributionRepoPath,
+  provenancePath = defaultPaths.provenancePath,
+  provenanceJson,
   releaseTag,
   fileReader = readFile,
+  pathStat = stat,
 } = {}) => {
   const failures = [];
   const resolvedContract = contract ? normalizeIosContract(contract) : await readContractFile(contractPath, fileReader);
-  failures.push(...ensureContractPresence(resolvedContract));
+  const contractFailures = ensureContractPresence(resolvedContract);
+  failures.push(...contractFailures);
 
   const normalizedTag = typeof releaseTag === 'string' ? releaseTag.trim() : '';
   if (!normalizedTag) {
@@ -131,6 +216,22 @@ export const runIosReleasePreflight = async ({
   const normalizedTagVersion = parseTagVersion(normalizedTag);
   if (normalizedTag && resolvedContract.version && normalizedTagVersion !== resolvedContract.version) {
     failures.push(`iOS tag/version mismatch: release tag ${normalizedTag} does not match contract version ${resolvedContract.version}.`);
+  }
+
+  if (contractFailures.length > 0) {
+    return makeResult({
+      status: FAIL,
+      failures,
+      details: {
+        mode: 'ios-preflight',
+        releaseTag: normalizedTag,
+        expectedVersion: resolvedContract.version,
+        expectedPackageUrl: resolvedContract.packageUrl,
+        expectedPackageName: resolvedContract.packageName,
+        expectedProduct: resolvedContract.product,
+        readyForManualHandoff: false,
+      },
+    });
   }
 
   const nativePackage = typeof nativePackageSwift === 'string'
@@ -193,6 +294,42 @@ export const runIosReleasePreflight = async ({
     }
   }
 
+  const distributionBootstrapFailures = await ensureDistributionPayloadPaths(distributionRepoPath, fileReader, pathStat);
+  failures.push(...distributionBootstrapFailures);
+
+  let distributionPackageSwift = '';
+  try {
+    distributionPackageSwift = await fileReader(resolve(distributionRepoPath, 'Package.swift'), 'utf8');
+  } catch {
+    // covered by ensureDistributionPayloadPaths
+  }
+  if (distributionPackageSwift) {
+    const distributionPackageName = parsePackageName(distributionPackageSwift);
+    const distributionProducts = parseLibraryProductNames(distributionPackageSwift);
+    if (distributionPackageName !== resolvedContract.packageName) {
+      failures.push(`Distribution package identity mismatch: ${distributionPackageName || '<missing>'} must equal ${resolvedContract.packageName}.`);
+    }
+    if (!distributionProducts.includes(resolvedContract.product)) {
+      failures.push(`Distribution product identity mismatch: expected ${resolvedContract.product} in distribution Package.swift.`);
+    }
+  }
+
+  let parsedProvenance = null;
+  try {
+    const rawProvenance = typeof provenanceJson === 'string' ? provenanceJson : await fileReader(provenancePath, 'utf8');
+    parsedProvenance = parseProvenance(rawProvenance);
+  } catch (error) {
+    failures.push(`Distribution provenance missing or unreadable at ${provenancePath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  if (parsedProvenance) {
+    failures.push(...ensureProvenanceContract({
+      provenance: parsedProvenance,
+      contract: resolvedContract,
+      releaseTag: normalizedTag,
+    }));
+  }
+
   return makeResult({
     status: failures.length === 0 ? PASS : FAIL,
     failures,
@@ -203,6 +340,8 @@ export const runIosReleasePreflight = async ({
       expectedPackageUrl: resolvedContract.packageUrl,
       expectedPackageName: resolvedContract.packageName,
       expectedProduct: resolvedContract.product,
+      distributionRepoPath,
+      provenancePath,
       readyForManualHandoff: failures.length === 0,
     },
   });
@@ -256,6 +395,8 @@ const parseArgs = (argv) => {
     contractPath: defaultPaths.contractPath,
     nativePackagePath: defaultPaths.nativePackagePath,
     pluginPackagePath: defaultPaths.pluginPackagePath,
+    distributionRepoPath: defaultPaths.distributionRepoPath,
+    provenancePath: defaultPaths.provenancePath,
     releaseTag: '',
     jsonOutPath: '',
   };
@@ -274,6 +415,16 @@ const parseArgs = (argv) => {
     }
     if (arg === '--plugin-package' && argv[i + 1]) {
       options.pluginPackagePath = argv[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--distribution-repo' && argv[i + 1]) {
+      options.distributionRepoPath = argv[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--provenance' && argv[i + 1]) {
+      options.provenancePath = argv[i + 1];
       i += 1;
       continue;
     }
@@ -296,7 +447,7 @@ const isEntrypoint = process.argv[1] && import.meta.url === new URL(`file://${pr
 if (isEntrypoint) {
   const options = parseArgs(process.argv.slice(2));
   if (!options.releaseTag) {
-    process.stdout.write('Mode: ios-preflight\nOverall: FAIL\nManual handoff ready: NO\nFailures:\n- Usage: node scripts/release-ios-preflight.mjs --release-tag <tag> [--contract <path>] [--native-package <path>] [--plugin-package <path>] [--json-out <path>]\n');
+    process.stdout.write('Mode: ios-preflight\nOverall: FAIL\nManual handoff ready: NO\nFailures:\n- Usage: node scripts/release-ios-preflight.mjs --release-tag <tag> [--contract <path>] [--native-package <path>] [--plugin-package <path>] [--distribution-repo <path>] [--provenance <path>] [--json-out <path>]\n');
     process.exit(1);
   }
 

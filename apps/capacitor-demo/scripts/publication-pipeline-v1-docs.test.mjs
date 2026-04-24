@@ -38,4 +38,7 @@ test('publication pipeline runbook links local validation evidence closeout arti
   assert.match(runbook, /workflow_dispatch/i);
   assert.match(runbook, /artifacts\/ios-publication-v1\/\<release_id\>/i);
   assert.match(runbook, /closeout\.json/i);
+  assert.match(runbook, /proofType/i);
+  assert.match(runbook, /proofValue/i);
+  assert.match(runbook, /placeholder values.*rejected/i);
 });
