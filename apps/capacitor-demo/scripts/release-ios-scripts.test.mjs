@@ -18,24 +18,17 @@ test('package scripts expose iOS preflight release gate with explicit release ta
   assert.match(packageJson.scripts['release:ios:preflight'], /native-artifacts\.json/i);
 });
 
-test('package scripts expose iOS handoff/verify/closeout execution commands', async () => {
+test('package scripts expose iOS publish execution command', async () => {
   const packageJsonRaw = await readFile(packageJsonPath, 'utf8');
   const packageJson = JSON.parse(packageJsonRaw);
 
-  assert.equal(typeof packageJson.scripts?.['release:ios:handoff'], 'string');
-  assert.equal(typeof packageJson.scripts?.['release:ios:verify'], 'string');
-  assert.equal(typeof packageJson.scripts?.['release:ios:closeout'], 'string');
+  assert.equal(typeof packageJson.scripts?.['release:ios:publish'], 'string');
 
-  assert.match(packageJson.scripts['release:ios:handoff'], /release-ios-execution\.mjs\s+handoff/i);
-  assert.match(packageJson.scripts['release:ios:verify'], /release-ios-execution\.mjs\s+verify/i);
-  assert.match(packageJson.scripts['release:ios:closeout'], /release-ios-execution\.mjs\s+closeout/i);
-  assert.match(packageJson.scripts['release:ios:verify'], /--attempts/i);
-  assert.match(packageJson.scripts['release:ios:verify'], /--backoff-ms/i);
-  assert.match(packageJson.scripts['release:ios:handoff'], /--artifacts-dir/i);
-  assert.match(packageJson.scripts['release:ios:handoff'], /--proof-type/i);
-  assert.match(packageJson.scripts['release:ios:handoff'], /--proof-value/i);
-  assert.match(packageJson.scripts['release:ios:handoff'], /IOS_OPERATOR:\?/i);
-  assert.match(packageJson.scripts['release:ios:handoff'], /IOS_PUBLISHED_AT:\?/i);
+  assert.match(packageJson.scripts['release:ios:publish'], /release-ios-execution\.mjs\s+publish/i);
+  assert.match(packageJson.scripts['release:ios:publish'], /--distribution-repo/i);
+  assert.match(packageJson.scripts['release:ios:publish'], /--distribution-ref/i);
+  assert.match(packageJson.scripts['release:ios:publish'], /--artifacts-dir/i);
+  assert.match(packageJson.scripts['release:ios:publish'], /IOS_GITHUB_APP_TOKEN:\?/i);
 });
 
 test('package scripts expose release-control and npm policy lane entrypoints', async () => {
@@ -45,8 +38,10 @@ test('package scripts expose release-control and npm policy lane entrypoints', a
   assert.equal(typeof packageJson.scripts?.['release:control:contract:check'], 'string');
   assert.equal(typeof packageJson.scripts?.['release:control:summary:aggregate'], 'string');
   assert.equal(typeof packageJson.scripts?.['release:npm:policy'], 'string');
+  assert.equal(typeof packageJson.scripts?.['release:npm:execute'], 'string');
 
   assert.match(packageJson.scripts['release:control:contract:check'], /release-control-contract\.mjs/i);
   assert.match(packageJson.scripts['release:control:summary:aggregate'], /aggregate-release-summary\.mjs/i);
   assert.match(packageJson.scripts['release:npm:policy'], /run-npm-release-policy\.mjs/i);
+  assert.match(packageJson.scripts['release:npm:execute'], /release-npm-execution\.mjs/i);
 });

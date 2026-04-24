@@ -165,7 +165,24 @@ const writeDistributionMetadata = async ({ destinationRoot, sourceRepo, sourceCo
   await writeFile(join(destinationRoot, '.gitignore'), DIST_GITIGNORE, 'utf8');
   await writeFile(join(destinationRoot, 'LICENSE'), DIST_LICENSE, 'utf8');
   await writeFile(join(destinationRoot, 'distribution-provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`, 'utf8');
-  return provenance;
+  const payload = {
+    releaseTag,
+    version,
+    packageName,
+    product,
+    exportedAt: provenance.exportedAt,
+    exportedPaths: [
+      'Package.swift',
+      'Sources/**',
+      'Tests/**',
+      'README.md',
+      'LICENSE',
+      '.gitignore',
+      'distribution-provenance.json',
+    ],
+  };
+  await writeFile(join(destinationRoot, 'distribution-payload.json'), `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+  return { provenance, payload };
 };
 
 export const promoteIosDistribution = async ({
@@ -226,7 +243,7 @@ export const promoteIosDistribution = async ({
 
   await cleanDestination(absoluteDestinationRoot);
   await copyExportPayload(absoluteSourceRoot, absoluteDestinationRoot);
-  const provenance = await writeDistributionMetadata({
+  const metadata = await writeDistributionMetadata({
     destinationRoot: absoluteDestinationRoot,
     sourceRepo,
     sourceCommit,
@@ -244,7 +261,8 @@ export const promoteIosDistribution = async ({
     releaseTag,
     version,
     sourceCommit,
-    provenance,
+    provenance: metadata.provenance,
+    payload: metadata.payload,
     exportedPaths: [
       'Package.swift',
       'Sources/**',
@@ -253,6 +271,7 @@ export const promoteIosDistribution = async ({
       'LICENSE',
       '.gitignore',
       'distribution-provenance.json',
+      'distribution-payload.json',
     ],
     failures: [],
   };

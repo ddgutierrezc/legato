@@ -9,16 +9,21 @@ const toIsoTimestamp = () => new Date().toISOString();
 
 const resolveOverallStatus = (targets) => {
   const values = Object.values(targets);
-  if (values.some((entry) => entry.terminal_status === 'incomplete' || entry.terminal_status === 'policy_blocked')) {
-    return 'incomplete';
+  const selected = values.filter((entry) => entry.selected);
+  if (selected.length === 0) {
+    return 'failed';
   }
-  if (values.some((entry) => entry.terminal_status === 'handoff_pending')) {
-    return 'incomplete';
+
+  const hasPublishedLike = selected.some((entry) => ['published', 'already_published'].includes(entry.terminal_status));
+  const hasFailureLike = selected.some((entry) => ['failed', 'blocked', 'incomplete'].includes(entry.terminal_status));
+
+  if (hasPublishedLike && !hasFailureLike) {
+    return 'success';
   }
-  if (values.some((entry) => entry.terminal_status === 'published')) {
-    return 'published_or_validated';
+  if (hasPublishedLike && hasFailureLike) {
+    return 'partial_success';
   }
-  return 'validated';
+  return 'failed';
 };
 
 export const aggregateReleaseSummary = ({

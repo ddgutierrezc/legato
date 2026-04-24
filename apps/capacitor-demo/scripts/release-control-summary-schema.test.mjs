@@ -22,7 +22,7 @@ test('summary schema validator reports missing evidence list and invalid status'
   const result = validateTargetSummary({
     target: 'android',
     selected: true,
-    terminal_status: 'done',
+    terminal_status: 'validated',
     stage_statuses: {},
     evidence: [],
     missing_evidence: 'nope',
@@ -32,4 +32,19 @@ test('summary schema validator reports missing evidence list and invalid status'
   assert.equal(result.ok, false);
   assert.match(result.errors.join('\n'), /terminal_status/i);
   assert.match(result.errors.join('\n'), /missing_evidence/i);
+});
+
+test('summary schema accepts v2 terminal statuses', () => {
+  const valid = validateTargetSummary({
+    target: 'ios',
+    selected: true,
+    terminal_status: 'already_published',
+    stage_statuses: { publish: 'PASS' },
+    evidence: [{ label: 'publish', path: 'ios/publish.json' }],
+    missing_evidence: [],
+    notes: [],
+  });
+
+  assert.equal(valid.ok, true);
+  assert.equal(valid.value.terminal_status, 'already_published');
 });

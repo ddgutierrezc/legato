@@ -22,10 +22,15 @@ test('release control workflow orchestrates android, ios, and npm with honest bo
 
   assert.match(workflow, /android-lane:/i);
   assert.match(workflow, /uses:\s*\.\/\.github\/workflows\/release-android\.yml/i);
-  assert.match(workflow, /ios-preflight:/i);
-  assert.match(workflow, /ios-handoff:/i);
-  assert.match(workflow, /ios-verify:/i);
-  assert.match(workflow, /ios-closeout:/i);
+  assert.match(workflow, /ios-lane:/i);
+  assert.match(workflow, /environment:\s*release/i);
+  assert.match(workflow, /actions\/create-github-app-token@v1/i);
+  assert.match(workflow, /IOS_RELEASE_APP_ID/i);
+  assert.match(workflow, /IOS_RELEASE_APP_PRIVATE_KEY/i);
+  assert.match(workflow, /release:ios:publish/i);
+  assert.match(workflow, /ios_distribution_repo/i);
+  assert.match(workflow, /ios_distribution_ref/i);
+  assert.doesNotMatch(workflow, /ios_github_app_token:/i);
   assert.doesNotMatch(workflow, /testflight|app store|deliver/i);
   assert.match(workflow, /npm-lane:/i);
   assert.match(workflow, /uses:\s*\.\/\.github\/workflows\/release-npm\.yml/i);
@@ -40,22 +45,11 @@ test('release control workflow emits release_id keyed final summary artifact', a
   assert.match(workflow, /summary\.md/i);
 });
 
-test('release control workflow transfers iOS lane evidence between jobs', async () => {
+test('release control workflow uploads iOS publish evidence bundle', async () => {
   const workflow = await readFile(workflowPath, 'utf8');
 
-  assert.match(workflow, /Upload iOS preflight evidence/i);
-  assert.match(workflow, /name:\s*release-evidence-\$\{\{\s*inputs\.release_id\s*\}\}-ios-preflight/i);
-  assert.match(workflow, /Download iOS preflight evidence/i);
-
-  assert.match(workflow, /Upload iOS handoff evidence/i);
-  assert.match(workflow, /name:\s*release-evidence-\$\{\{\s*inputs\.release_id\s*\}\}-ios-handoff/i);
-  assert.match(workflow, /Download iOS handoff evidence/i);
-
-  assert.match(workflow, /Upload iOS verify evidence/i);
-  assert.match(workflow, /name:\s*release-evidence-\$\{\{\s*inputs\.release_id\s*\}\}-ios-verify/i);
-  assert.match(workflow, /Download iOS verify evidence/i);
-
-  assert.match(workflow, /Upload iOS closeout evidence/i);
-  assert.match(workflow, /name:\s*release-evidence-\$\{\{\s*inputs\.release_id\s*\}\}-ios-closeout/i);
-  assert.match(workflow, /Download iOS closeout evidence/i);
+  assert.match(workflow, /Upload iOS publish evidence/i);
+  assert.match(workflow, /name:\s*release-evidence-\$\{\{\s*inputs\.release_id\s*\}\}-ios/i);
+  assert.match(workflow, /ios-publication-v2/i);
+  assert.match(workflow, /ios-summary\.json/i);
 });

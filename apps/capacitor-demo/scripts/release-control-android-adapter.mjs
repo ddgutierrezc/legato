@@ -10,18 +10,18 @@ const buildEvidence = (root = 'artifacts/release-ci') => [
 
 const resolveTerminalStatus = ({ mode, stages }) => {
   if (stages.android_preflight !== 'success') {
-    return 'incomplete';
+    return 'failed';
   }
   if (stages.android_verify !== 'success') {
-    return 'incomplete';
+    return 'failed';
   }
   if (mode === 'publish' && stages.android_publish === 'success') {
     return 'published';
   }
   if (mode === 'preflight-only') {
-    return 'validated';
+    return 'blocked';
   }
-  return 'incomplete';
+  return 'failed';
 };
 
 export const adaptAndroidReleaseSummary = ({ selected, releaseSummary, evidenceRoot }) => {
@@ -47,6 +47,6 @@ export const adaptAndroidReleaseSummary = ({ selected, releaseSummary, evidenceR
     },
     evidence,
     missing_evidence: missingEvidence,
-    notes: terminalStatus === 'incomplete' ? ['android lane did not reach terminal success states.'] : [],
+    notes: ['failed', 'blocked'].includes(terminalStatus) ? ['android lane did not reach terminal success states.'] : [],
   });
 };

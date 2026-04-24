@@ -32,7 +32,7 @@ test('android adapter maps successful publish lane to published terminal status'
   assert.ok(summary.evidence.some((entry) => entry.path.endsWith('verify.log')));
 });
 
-test('android adapter maps preflight-only mode to validated and publish skipped', () => {
+test('android adapter maps preflight-only mode to blocked and publish skipped', () => {
   const summary = adaptAndroidReleaseSummary({
     selected: true,
     releaseSummary: {
@@ -46,8 +46,25 @@ test('android adapter maps preflight-only mode to validated and publish skipped'
     evidenceRoot: 'artifacts/release-ci',
   });
 
-  assert.equal(summary.terminal_status, 'validated');
+  assert.equal(summary.terminal_status, 'blocked');
   assert.equal(summary.stage_statuses.publish, 'skipped');
+});
+
+test('android adapter maps verify failure to failed terminal status', () => {
+  const summary = adaptAndroidReleaseSummary({
+    selected: true,
+    releaseSummary: {
+      ...base,
+      stages: {
+        ...base.stages,
+        android_verify: 'failure',
+      },
+    },
+    evidenceRoot: 'artifacts/release-ci',
+  });
+
+  assert.equal(summary.terminal_status, 'failed');
+  assert.match(summary.notes.join('\n'), /did not reach/i);
 });
 
 test('android adapter marks lane as not_selected when target was skipped upstream', () => {

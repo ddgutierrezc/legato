@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runNpmReadiness } from './run-npm-readiness.mjs';
+import { runNpmReleaseExecution } from './release-npm-execution.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ARTIFACTS_DIR = resolve(scriptDir, '../artifacts/npm-release-v1');
@@ -21,7 +22,7 @@ export const runNpmReleasePolicy = async ({
   artifactsDir = DEFAULT_ARTIFACTS_DIR,
   publishIntentEvidence = '',
   runReadiness = runNpmReadiness,
-  runCommand = async () => ({ exitCode: 0, stdout: '', stderr: '' }),
+  runExecution = runNpmReleaseExecution,
 } = {}) => {
   const normalizedReleaseId = String(releaseId ?? '').trim();
   const normalizedMode = String(mode ?? '').trim();
@@ -51,7 +52,7 @@ export const runNpmReleasePolicy = async ({
     status: failures.length === 0 ? 'PASS' : 'FAIL',
     release_id: normalizedReleaseId,
     mode: normalizedMode,
-    terminal_status: failures.length === 0 ? 'validated' : 'policy_blocked',
+    terminal_status: failures.length === 0 ? (normalizedMode === 'protected-publish' ? 'published' : 'blocked') : 'blocked',
     publish_attempted: false,
     publish_intent_evidence: String(publishIntentEvidence ?? '').trim(),
     readiness,
@@ -59,9 +60,21 @@ export const runNpmReleasePolicy = async ({
     generated_at: toIsoTimestamp(),
   };
 
-  // Explicitly no publish in v1; keep an auditable no-op command hook.
   if (normalizedMode === 'protected-publish' && failures.length === 0) {
-    await runCommand({ command: 'node', args: ['-e', 'process.exit(0)'] });
+    const execution = await runExecution({
+      releaseId: normalizedReleaseId,
+      mode: normalizedMode,
+      artifactsDir,
+    });
+    result.publish_attempted = Boolean(execution.publish_attempted);
+    result.publish_command = execution.publish_command;
+    result.verify = execution.verify;
+    result.error_reference = execution.error_reference;
+    result.terminal_status = execution.terminal_status ?? result.terminal_status;
+    if (execution.status === 'FAIL') {
+      result.status = 'FAIL';
+      result.failures.push(...(execution.failures ?? []));
+    }
   }
 
   result.summary_path = await writeJson(

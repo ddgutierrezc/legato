@@ -266,11 +266,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          terminal_status="failed"
+          if [[ "${{ needs.android-preflight.result }}" == "success" && "${{ needs.android-verify.result }}" == "success" ]]; then
+            if [[ "${{ inputs.mode }}" == "publish" && "${{ needs.android-publish.result }}" == "success" ]]; then
+              terminal_status="published"
+            elif [[ "${{ inputs.mode }}" == "preflight-only" ]]; then
+              terminal_status="blocked"
+            fi
+          fi
+
           cat > artifacts/release-ci/summary.json <<'JSON'
           {
             "release_id": "${{ inputs.release_id }}",
             "target": "${{ inputs.target }}",
             "mode": "${{ inputs.mode }}",
+            "terminal_status": "__TERMINAL_STATUS__",
             "run_id": "${{ github.run_id }}",
             "run_attempt": "${{ github.run_attempt }}",
             "actor": "${{ github.actor }}",
@@ -295,6 +305,9 @@ jobs:
             ]
           }
           JSON
+
+          sed -i.bak "s/__TERMINAL_STATUS__/${terminal_status}/g" artifacts/release-ci/summary.json
+          rm -f artifacts/release-ci/summary.json.bak
 
           cat > artifacts/release-ci/summary.md <<'MARKDOWN'
           # Android Release v1 Summary

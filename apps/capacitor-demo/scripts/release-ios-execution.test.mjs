@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import {
   buildVerifyScratchPackageSwift,
   buildIosControlPlaneSummary,
+  executeIosPublishTransaction,
   recordIosPublishHandoff,
   verifyIosPublishHandoff,
   closeoutIosPublication,
@@ -499,4 +500,122 @@ test('iOS control-plane summary reports incomplete/non-published when handoff ev
   assert.equal(summary.terminal_status, 'incomplete');
   assert.ok(summary.missing_evidence.includes('handoff.json'));
   assert.match(summary.notes.join('\n'), /manual handoff evidence missing/i);
+});
+
+test('iOS publish transaction returns already_published when immutable tag already exists', async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), 'legato-ios-publish-existing-tag-'));
+
+  const result = await executeIosPublishTransaction({
+    releaseId: 'rel-001',
+    artifactsDir: tempDir,
+    releaseTag: 'v0.1.1',
+    distributionRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
+    distributionRef: 'main',
+    githubAppToken: 'token',
+    runGit: async (args) => {
+      if (args[0] === 'ls-remote') {
+        return { exitCode: 0, stdout: 'abc refs/tags/v0.1.1\n', stderr: '' };
+      }
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+    runPromote: async () => ({ status: 'PASS' }),
+    runSwiftPackageResolve: async () => ({ exitCode: 0, stdout: 'resolved', stderr: '' }),
+  });
+
+  assert.equal(result.status, 'PASS');
+  assert.equal(result.terminal_status, 'already_published');
+  assert.equal(result.publish_attempted, false);
+  assert.equal(result.commit_created, false);
+
+  await rm(tempDir, { recursive: true, force: true });
+});
+
+test('iOS publish transaction writes published evidence when tag does not exist', async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), 'legato-ios-publish-ok-'));
+
+  let lsRemoteCalls = 0;
+  const result = await executeIosPublishTransaction({
+    releaseId: 'rel-001',
+    artifactsDir: tempDir,
+    releaseTag: 'v0.1.1',
+    distributionRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
+    distributionRef: 'main',
+    githubAppToken: 'token',
+    runGit: async (args) => {
+      if (args[0] === 'ls-remote') {
+        lsRemoteCalls += 1;
+        if (lsRemoteCalls === 1) {
+          return { exitCode: 0, stdout: '', stderr: '' };
+        }
+        return { exitCode: 0, stdout: 'abc refs/tags/v0.1.1\n', stderr: '' };
+      }
+      if (args[0] === 'status') {
+        return { exitCode: 0, stdout: 'M Package.swift', stderr: '' };
+      }
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+    runPromote: async () => ({ status: 'PASS', provenance: { sourceCommit: 'abc1234' } }),
+    runSwiftPackageResolve: async () => ({ exitCode: 0, stdout: 'resolved', stderr: '' }),
+  });
+
+  assert.equal(result.status, 'PASS');
+  assert.equal(result.terminal_status, 'published');
+  assert.equal(result.publish_attempted, true);
+  assert.equal(result.tag_created, true);
+
+  await rm(tempDir, { recursive: true, force: true });
+});
+
+test('iOS publish transaction maps missing authority input to blocked', async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), 'legato-ios-publish-blocked-'));
+
+  const result = await executeIosPublishTransaction({
+    releaseId: 'rel-001',
+    artifactsDir: tempDir,
+    releaseTag: 'v0.1.1',
+    distributionRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
+    distributionRef: 'main',
+    githubAppToken: '',
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.terminal_status, 'blocked');
+  assert.equal(result.publish_attempted, false);
+
+  await rm(tempDir, { recursive: true, force: true });
+});
+
+test('iOS publish transaction maps verification failure to failed', async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), 'legato-ios-publish-failed-'));
+
+  let lsRemoteCalls = 0;
+  const result = await executeIosPublishTransaction({
+    releaseId: 'rel-001',
+    artifactsDir: tempDir,
+    releaseTag: 'v0.1.1',
+    distributionRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
+    distributionRef: 'main',
+    githubAppToken: 'token',
+    runGit: async (args) => {
+      if (args[0] === 'ls-remote') {
+        lsRemoteCalls += 1;
+        if (lsRemoteCalls === 1) {
+          return { exitCode: 0, stdout: '', stderr: '' };
+        }
+        return { exitCode: 0, stdout: 'abc refs/tags/v0.1.1\n', stderr: '' };
+      }
+      if (args[0] === 'status') {
+        return { exitCode: 0, stdout: 'M Package.swift', stderr: '' };
+      }
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+    runPromote: async () => ({ status: 'PASS', provenance: { sourceCommit: 'abc1234' } }),
+    runSwiftPackageResolve: async () => ({ exitCode: 1, stdout: '', stderr: 'no matching package' }),
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.terminal_status, 'failed');
+  assert.match(result.failures.join('\n'), /swift package resolve failed/i);
+
+  await rm(tempDir, { recursive: true, force: true });
 });

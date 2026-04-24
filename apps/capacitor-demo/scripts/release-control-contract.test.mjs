@@ -19,7 +19,7 @@ test('release control contract rejects mode entries for non-selected targets', (
   const result = validateReleaseControlContract({
     releaseId: 'R-2026.04.24.1',
     targets: 'android',
-    targetModes: { android: 'preflight-only', ios: 'full-manual-lane' },
+    targetModes: { android: 'preflight-only', ios: 'publish' },
   });
 
   assert.equal(result.ok, false);
@@ -45,8 +45,8 @@ test('release control contract normalizes a valid cross-platform request with on
     targets: 'android,ios,npm',
     targetModes: {
       android: 'publish',
-      ios: 'full-manual-lane',
-      npm: 'readiness',
+      ios: 'publish',
+      npm: 'protected-publish',
     },
   });
 
@@ -54,6 +54,19 @@ test('release control contract normalizes a valid cross-platform request with on
   assert.deepEqual(result.value.targets, ['android', 'ios', 'npm']);
   assert.equal(result.value.release_id, 'R-2026.04.24.1');
   assert.equal(result.value.target_modes.android, 'publish');
-  assert.equal(result.value.target_modes.ios, 'full-manual-lane');
-  assert.equal(result.value.target_modes.npm, 'readiness');
+  assert.equal(result.value.target_modes.ios, 'publish');
+  assert.equal(result.value.target_modes.npm, 'protected-publish');
+});
+
+test('release control contract rejects unsupported iOS mode and reports allowed values', () => {
+  const result = validateReleaseControlContract({
+    releaseId: 'R-2026.04.24.2',
+    targets: 'ios',
+    targetModes: { ios: 'manual-handoff' },
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /unsupported mode for target ios/i);
+  assert.match(result.errors.join('\n'), /allowed/i);
+  assert.match(result.errors.join('\n'), /publish/i);
 });

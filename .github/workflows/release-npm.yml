@@ -1,4 +1,4 @@
-name: Release npm policy lane (v1)
+name: Release npm policy lane (v2)
 
 on:
   workflow_call:
@@ -39,6 +39,7 @@ on:
 jobs:
   npm-policy:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.mode == 'protected-publish' && 'release' || '' }}
     defaults:
       run:
         working-directory: apps/capacitor-demo
@@ -65,11 +66,28 @@ jobs:
           set -euo pipefail
           npm run release:npm:policy -- --release-id "${{ inputs.release_id }}" --mode "${{ inputs.mode }}" --publish-intent-evidence "${{ inputs.publish_intent_evidence }}"
 
+      - name: Execute protected npm publish lane
+        if: ${{ inputs.mode == 'protected-publish' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run release:npm:execute -- --release-id "${{ inputs.release_id }}" --mode "${{ inputs.mode }}"
+
+      - name: Document protected publish command
+        if: ${{ inputs.mode == 'protected-publish' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'npm publish --provenance' > ./artifacts/npm-release-v1/${{ inputs.release_id }}/publish-command.txt
+
       - name: Upload npm lane evidence
         uses: actions/upload-artifact@v4
         with:
           name: release-evidence-${{ inputs.release_id }}-npm
-          path: apps/capacitor-demo/artifacts/npm-release-v1/${{ inputs.release_id }}/summary.json
+          path: |
+            apps/capacitor-demo/artifacts/npm-release-v1/${{ inputs.release_id }}/summary.json
+            apps/capacitor-demo/artifacts/npm-release-v2/${{ inputs.release_id }}/publish.json
+            apps/capacitor-demo/artifacts/npm-release-v1/${{ inputs.release_id }}/publish-command.txt
 
       - name: Emit reusable workflow outputs
         id: emit

@@ -2,6 +2,8 @@
 
 This runbook defines the v1 control plane implemented in `.github/workflows/release-control.yml`.
 
+> Legacy reference: v2 execution runbook lives in [`publication-pipeline-v2.md`](./publication-pipeline-v2.md).
+
 ## Scope Boundary
 
 - Android publication is still CI-driven and protected by the existing release environment gates.

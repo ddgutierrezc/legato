@@ -2,7 +2,7 @@ const TARGETS = ['android', 'ios', 'npm'];
 
 const ALLOWED_MODES = {
   android: new Set(['preflight-only', 'publish']),
-  ios: new Set(['preflight', 'handoff', 'verify', 'closeout', 'full-manual-lane']),
+  ios: new Set(['publish']),
   npm: new Set(['readiness', 'release-candidate', 'protected-publish']),
 };
 
@@ -43,7 +43,7 @@ export const validateReleaseControlContract = ({
       continue;
     }
     if (!ALLOWED_MODES[target].has(mode)) {
-      errors.push(`unsupported mode for target ${target}: ${mode}.`);
+      errors.push(`unsupported mode for target ${target}: ${mode}. allowed: ${[...ALLOWED_MODES[target]].join('|')}.`);
     }
   }
 

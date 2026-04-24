@@ -10,6 +10,7 @@ const CONFIG_ERROR_EXIT_CODE = 2;
 
 const DEFAULT_RELEASE_ID = 'manual';
 const DEFAULT_ARTIFACTS_DIR = 'artifacts/ios-publication-v1';
+const DEFAULT_PUBLISH_ARTIFACTS_DIR = 'artifacts/ios-publication-v2';
 const DEFAULT_CONTRACT_PATH = '../../packages/capacitor/native-artifacts.json';
 const ALLOWED_PROOF_TYPES = new Set(['tag-release-url', 'commit-sha']);
 const PLACEHOLDER_VALUE_RE = /(\b(tbd|example|placeholder)\b|^<.+>$)/i;
@@ -71,6 +72,39 @@ const defaultRunGitLsRemote = async ({ repo }) => new Promise((resolvePromise) =
       stderr,
     });
   });
+  child.on('error', (error) => {
+    resolvePromise({
+      exitCode: 1,
+      stdout,
+      stderr: `${stderr}\n${error.message}`.trim(),
+    });
+  });
+});
+
+const defaultRunGit = async ({ args, cwd }) => new Promise((resolvePromise) => {
+  const child = spawn('git', args, {
+    cwd,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: process.env,
+  });
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk.toString();
+  });
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  child.on('close', (code) => {
+    resolvePromise({
+      exitCode: Number.isInteger(code) ? code : 1,
+      stdout,
+      stderr,
+    });
+  });
+
   child.on('error', (error) => {
     resolvePromise({
       exitCode: 1,
@@ -171,6 +205,9 @@ const parseArgs = (argv) => {
     verifyPath: '',
     closeoutPath: '',
     contractPath: DEFAULT_CONTRACT_PATH,
+    distributionRepo: '',
+    distributionRef: 'main',
+    githubAppToken: '',
   };
 
   for (let i = 1; i < argv.length; i += 1) {
@@ -252,6 +289,21 @@ const parseArgs = (argv) => {
     }
     if (arg === '--contract' && argv[i + 1]) {
       options.contractPath = argv[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--distribution-repo' && argv[i + 1]) {
+      options.distributionRepo = argv[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--distribution-ref' && argv[i + 1]) {
+      options.distributionRef = argv[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--github-app-token' && argv[i + 1]) {
+      options.githubAppToken = argv[i + 1];
       i += 1;
     }
   }
@@ -809,6 +861,253 @@ export const closeoutIosPublication = async ({
   };
 };
 
+export const executeIosPublishTransaction = async ({
+  releaseId = DEFAULT_RELEASE_ID,
+  artifactsDir = DEFAULT_PUBLISH_ARTIFACTS_DIR,
+  releaseTag = '',
+  distributionRepo = '',
+  distributionRef = 'main',
+  githubAppToken = '',
+  contractPath = DEFAULT_CONTRACT_PATH,
+  runGit = async (args, cwd) => defaultRunGit({ args, cwd }),
+  runPromote = async ({ destinationRoot }) => ({
+    status: PASS,
+    destinationRoot,
+    provenance: {},
+  }),
+  runSwiftPackageResolve = defaultRunSwiftPackageResolve,
+  jsonReader = readJson,
+  jsonWriter = writeJson,
+} = {}) => {
+  const normalizedReleaseId = String(releaseId ?? '').trim() || DEFAULT_RELEASE_ID;
+  const normalizedReleaseTag = String(releaseTag ?? '').trim();
+  const normalizedDistributionRepo = String(distributionRepo ?? '').trim();
+  const normalizedDistributionRef = String(distributionRef ?? '').trim() || 'main';
+  const normalizedToken = String(githubAppToken ?? '').trim();
+  const failures = [];
+
+  if (!normalizedReleaseTag) {
+    failures.push('missing required --release-tag for iOS publish lane.');
+  }
+  if (!normalizedDistributionRepo) {
+    failures.push('missing required --distribution-repo for iOS publish lane.');
+  }
+  if (!normalizedToken) {
+    failures.push('missing required --github-app-token for iOS publish lane.');
+  }
+
+  const releaseRoot = resolve(artifactsDir, normalizedReleaseId);
+  const publishPath = resolve(releaseRoot, 'publish.json');
+  const summaryPath = resolve(releaseRoot, 'ios-summary.json');
+
+  if (failures.length > 0) {
+    const blockedArtifact = {
+      status: FAIL,
+      terminal_status: 'blocked',
+      releaseId: normalizedReleaseId,
+      releaseTag: normalizedReleaseTag,
+      distributionRepo: normalizedDistributionRepo,
+      distributionRef: normalizedDistributionRef,
+      publish_attempted: false,
+      commit_created: false,
+      tag_created: false,
+      failures,
+      generatedAt: toIsoTimestamp(),
+    };
+    await jsonWriter(publishPath, blockedArtifact);
+    await jsonWriter(summaryPath, normalizeTargetSummary({
+      target: 'ios',
+      selected: true,
+      terminal_status: 'blocked',
+      stage_statuses: { publish: FAIL, verify: 'skipped' },
+      evidence: [{ label: 'publish', path: publishPath }],
+      missing_evidence: [],
+      notes: failures,
+    }));
+    return {
+      ...blockedArtifact,
+      mode: 'publish',
+      publishPath,
+      summaryPath,
+      exitCode: 1,
+    };
+  }
+
+  const tagProbe = await runGit(['ls-remote', '--tags', normalizedDistributionRepo, `refs/tags/${normalizedReleaseTag}`]);
+  const remoteTagExists = tagProbe.exitCode === 0 && tagProbe.stdout.includes(`refs/tags/${normalizedReleaseTag}`);
+
+  let iosContract = { packageUrl: '', packageName: '', product: '', version: '' };
+  try {
+    const contract = await jsonReader(contractPath);
+    iosContract = parseIosContract(contract);
+  } catch (error) {
+    failures.push(`unable to read iOS contract at ${resolve(contractPath)} (${error instanceof Error ? error.message : String(error)})`);
+  }
+
+  if (remoteTagExists) {
+    const alreadyPublishedArtifact = {
+      status: PASS,
+      terminal_status: 'already_published',
+      releaseId: normalizedReleaseId,
+      releaseTag: normalizedReleaseTag,
+      distributionRepo: normalizedDistributionRepo,
+      distributionRef: normalizedDistributionRef,
+      publish_attempted: false,
+      commit_created: false,
+      tag_created: false,
+      verify: {
+        remote_tag: PASS,
+        swift_package_resolve: PASS,
+      },
+      failures,
+      generatedAt: toIsoTimestamp(),
+    };
+    await jsonWriter(publishPath, alreadyPublishedArtifact);
+    await jsonWriter(summaryPath, normalizeTargetSummary({
+      target: 'ios',
+      selected: true,
+      terminal_status: 'already_published',
+      stage_statuses: { publish: PASS, verify: PASS, mode: 'publish' },
+      evidence: [{ label: 'publish', path: publishPath }],
+      missing_evidence: [],
+      notes: [],
+    }));
+    return {
+      ...alreadyPublishedArtifact,
+      mode: 'publish',
+      publishPath,
+      summaryPath,
+      exitCode: 0,
+    };
+  }
+
+  const scratchRoot = await mkdtemp(resolve(tmpdir(), 'legato-ios-publish-'));
+  const checkoutRoot = resolve(scratchRoot, 'distribution-repo');
+  const authenticatedRepo = normalizedDistributionRepo.replace('https://', `https://x-access-token:${normalizedToken}@`);
+
+  const cloneResult = await runGit(['clone', '--depth', '1', '--branch', normalizedDistributionRef, authenticatedRepo, checkoutRoot]);
+  if (cloneResult.exitCode !== 0) {
+    failures.push(`git clone failed for distribution repo: ${clip(cloneResult.stderr || cloneResult.stdout)}`);
+  }
+
+  let promoteResult = { status: FAIL, provenance: {} };
+  if (failures.length === 0) {
+    promoteResult = await runPromote({
+      destinationRoot: checkoutRoot,
+      releaseTag: normalizedReleaseTag,
+    });
+    if (promoteResult.status !== PASS) {
+      failures.push(...(promoteResult.failures ?? ['iOS distribution promotion failed.']));
+    }
+  }
+
+  let commitCreated = false;
+  let tagCreated = false;
+  if (failures.length === 0) {
+    const statusResult = await runGit(['status', '--porcelain'], checkoutRoot);
+    const hasDiff = statusResult.exitCode === 0 && String(statusResult.stdout ?? '').trim().length > 0;
+    if (hasDiff) {
+      const addResult = await runGit(['add', '.'], checkoutRoot);
+      if (addResult.exitCode !== 0) {
+        failures.push(`git add failed: ${clip(addResult.stderr || addResult.stdout)}`);
+      }
+      const commitResult = failures.length === 0
+        ? await runGit(['commit', '-m', `release: ios distribution ${normalizedReleaseTag}`], checkoutRoot)
+        : { exitCode: 1, stderr: 'skip commit' };
+      if (commitResult.exitCode !== 0) {
+        failures.push(`git commit failed: ${clip(commitResult.stderr || commitResult.stdout)}`);
+      } else {
+        commitCreated = true;
+      }
+    }
+
+    const tagResult = failures.length === 0
+      ? await runGit(['tag', normalizedReleaseTag], checkoutRoot)
+      : { exitCode: 1, stderr: 'skip tag' };
+    if (tagResult.exitCode !== 0) {
+      failures.push(`git tag failed: ${clip(tagResult.stderr || tagResult.stdout)}`);
+    } else {
+      tagCreated = true;
+    }
+
+    const pushBranchResult = failures.length === 0
+      ? await runGit(['push', 'origin', normalizedDistributionRef], checkoutRoot)
+      : { exitCode: 1, stderr: 'skip push branch' };
+    if (pushBranchResult.exitCode !== 0) {
+      failures.push(`git push branch failed: ${clip(pushBranchResult.stderr || pushBranchResult.stdout)}`);
+    }
+    const pushTagResult = failures.length === 0
+      ? await runGit(['push', 'origin', normalizedReleaseTag], checkoutRoot)
+      : { exitCode: 1, stderr: 'skip push tag' };
+    if (pushTagResult.exitCode !== 0) {
+      failures.push(`git push tag failed: ${clip(pushTagResult.stderr || pushTagResult.stdout)}`);
+    }
+  }
+
+  const verifyTagResult = await runGit(['ls-remote', '--tags', normalizedDistributionRepo, `refs/tags/${normalizedReleaseTag}`]);
+  const verifyTagPass = verifyTagResult.exitCode === 0 && verifyTagResult.stdout.includes(`refs/tags/${normalizedReleaseTag}`);
+  if (!verifyTagPass) {
+    failures.push(`remote verification failed: expected tag ${normalizedReleaseTag} not found in ${normalizedDistributionRepo}.`);
+  }
+
+  const swiftResolveResult = await runSwiftPackageResolve({
+    packageUrl: iosContract.packageUrl,
+    packageName: iosContract.packageName,
+    product: iosContract.product,
+    version: normalizeTagVersion(normalizedReleaseTag),
+  });
+  const swiftResolvePass = swiftResolveResult.exitCode === 0;
+  if (!swiftResolvePass) {
+    failures.push(`swift package resolve failed: ${clip(swiftResolveResult.stderr || swiftResolveResult.stdout)}`);
+  }
+
+  await rm(scratchRoot, { recursive: true, force: true });
+
+  const pass = failures.length === 0;
+  const terminalStatus = pass ? 'published' : 'failed';
+  const artifact = {
+    status: pass ? PASS : FAIL,
+    terminal_status: terminalStatus,
+    releaseId: normalizedReleaseId,
+    releaseTag: normalizedReleaseTag,
+    distributionRepo: normalizedDistributionRepo,
+    distributionRef: normalizedDistributionRef,
+    publish_attempted: true,
+    commit_created: commitCreated,
+    tag_created: tagCreated,
+    provenance: promoteResult.provenance ?? {},
+    verify: {
+      remote_tag: verifyTagPass ? PASS : FAIL,
+      swift_package_resolve: swiftResolvePass ? PASS : FAIL,
+    },
+    failures,
+    generatedAt: toIsoTimestamp(),
+  };
+
+  await jsonWriter(publishPath, artifact);
+  await jsonWriter(summaryPath, normalizeTargetSummary({
+    target: 'ios',
+    selected: true,
+    terminal_status: terminalStatus,
+    stage_statuses: {
+      publish: artifact.status,
+      verify: artifact.verify.remote_tag === PASS && artifact.verify.swift_package_resolve === PASS ? PASS : FAIL,
+      mode: 'publish',
+    },
+    evidence: [{ label: 'publish', path: publishPath }],
+    missing_evidence: [],
+    notes: failures,
+  }));
+
+  return {
+    ...artifact,
+    mode: 'publish',
+    publishPath,
+    summaryPath,
+    exitCode: pass ? 0 : 1,
+  };
+};
+
 export const buildIosControlPlaneSummary = ({
   releaseId,
   mode,
@@ -874,13 +1173,17 @@ export const runIosExecutionCommand = async (rawOptions, dependencies = {}) => {
   const options = { ...rawOptions };
   const command = String(options.command ?? '').trim();
 
-  if (!['handoff', 'verify', 'closeout'].includes(command)) {
+  if (!['publish', 'handoff', 'verify', 'closeout'].includes(command)) {
     return {
       status: FAIL,
       exitCode: CONFIG_ERROR_EXIT_CODE,
       mode: command || 'unknown',
-      failures: ['Usage: node scripts/release-ios-execution.mjs <handoff|verify|closeout> [--release-id <id>] [--artifacts-dir <dir>] [--release-tag <tag>]'],
+      failures: ['Usage: node scripts/release-ios-execution.mjs <publish|handoff|verify|closeout> [--release-id <id>] [--artifacts-dir <dir>] [--release-tag <tag>]'],
     };
+  }
+
+  if (command === 'publish') {
+    return executeIosPublishTransaction({ ...options, ...dependencies });
   }
 
   if (command === 'handoff') {
@@ -906,6 +1209,9 @@ export const formatIosExecutionSummary = (result) => {
   }
   if (result.handoffPath) {
     lines.push(`handoff.json: ${result.handoffPath}`);
+  }
+  if (result.publishPath) {
+    lines.push(`publish.json: ${result.publishPath}`);
   }
   if (result.verifyPath) {
     lines.push(`verify.json: ${result.verifyPath}`);

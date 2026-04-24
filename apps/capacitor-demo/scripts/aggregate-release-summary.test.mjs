@@ -10,7 +10,7 @@ test('aggregate release summary preserves mixed truthful platform outcomes', () 
     requested_modes: {
       android: 'publish',
       ios: 'full-manual-lane',
-      npm: 'readiness',
+      npm: 'protected-publish',
     },
     target_summaries: {
       android: {
@@ -25,11 +25,11 @@ test('aggregate release summary preserves mixed truthful platform outcomes', () 
       ios: {
         target: 'ios',
         selected: true,
-        terminal_status: 'handoff_pending',
-        stage_statuses: { handoff: 'pending' },
-        evidence: [{ label: 'preflight', path: 'ios/preflight.json' }],
+        terminal_status: 'blocked',
+        stage_statuses: { publish: 'blocked' },
+        evidence: [{ label: 'publish', path: 'ios/publish.json' }],
         missing_evidence: [],
-        notes: ['awaiting operator handoff proof'],
+        notes: ['missing GitHub App token'],
       },
       npm: {
         target: 'npm',
@@ -45,22 +45,22 @@ test('aggregate release summary preserves mixed truthful platform outcomes', () 
 
   assert.equal(result.release_id, 'R-2026.04.24.1');
   assert.equal(result.targets.android.terminal_status, 'published');
-  assert.equal(result.targets.ios.terminal_status, 'handoff_pending');
+  assert.equal(result.targets.ios.terminal_status, 'blocked');
   assert.equal(result.targets.npm.terminal_status, 'not_selected');
-  assert.equal(result.overall_status, 'incomplete');
+  assert.equal(result.overall_status, 'partial_success');
 });
 
 test('aggregate summary marks target incomplete when evidence is missing', () => {
   const result = aggregateReleaseSummary({
     release_id: 'R-2026.04.24.1',
     selected_targets: ['ios'],
-    requested_modes: { ios: 'verify' },
+    requested_modes: { ios: 'publish' },
     target_summaries: {
       ios: {
         target: 'ios',
         selected: true,
-        terminal_status: 'validated',
-        stage_statuses: { verify: 'success' },
+        terminal_status: 'published',
+        stage_statuses: { publish: 'success' },
         evidence: [],
         missing_evidence: ['verify.json'],
         notes: [],
@@ -70,4 +70,34 @@ test('aggregate summary marks target incomplete when evidence is missing', () =>
 
   assert.equal(result.targets.ios.terminal_status, 'incomplete');
   assert.match(result.targets.ios.notes.join('\n'), /missing evidence/i);
+});
+
+test('aggregate summary marks overall failed when every selected lane fails', () => {
+  const result = aggregateReleaseSummary({
+    release_id: 'R-2026.04.24.2',
+    selected_targets: ['android', 'ios'],
+    requested_modes: { android: 'publish', ios: 'publish' },
+    target_summaries: {
+      android: {
+        target: 'android',
+        selected: true,
+        terminal_status: 'failed',
+        stage_statuses: {},
+        evidence: [{ label: 'summary', path: 'android/summary.json' }],
+        missing_evidence: [],
+        notes: ['publish rejected'],
+      },
+      ios: {
+        target: 'ios',
+        selected: true,
+        terminal_status: 'failed',
+        stage_statuses: {},
+        evidence: [{ label: 'summary', path: 'ios/summary.json' }],
+        missing_evidence: [],
+        notes: ['tag mismatch'],
+      },
+    },
+  });
+
+  assert.equal(result.overall_status, 'failed');
 });

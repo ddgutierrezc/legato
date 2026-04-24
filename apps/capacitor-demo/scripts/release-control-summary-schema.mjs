@@ -1,8 +1,8 @@
 const TERMINAL_STATUSES = new Set([
   'published',
-  'validated',
-  'handoff_pending',
-  'policy_blocked',
+  'already_published',
+  'blocked',
+  'failed',
   'not_selected',
   'incomplete',
 ]);
