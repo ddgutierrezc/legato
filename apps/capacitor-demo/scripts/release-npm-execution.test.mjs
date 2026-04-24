@@ -60,3 +60,25 @@ test('npm execution retries npm view until registry visibility catches up', asyn
   assert.equal(result.verify.npm_view, 'PASS');
   assert.equal(result.verify.attempts, 3);
 });
+
+test('npm execution maps immutable version rejection to already_published when registry confirms visibility', async () => {
+  const result = await runNpmReleaseExecution({
+    releaseId: 'R-2026.04.24.3',
+    mode: 'protected-publish',
+    commandRunner: async ({ args }) => {
+      if (args.includes('name')) return { exitCode: 0, stdout: '"@ddgutierrezc/legato-capacitor"', stderr: '' };
+      if (args.includes('version') && args[0] !== 'view') return { exitCode: 0, stdout: '"0.1.2"', stderr: '' };
+      if (args[0] === 'publish') {
+        return { exitCode: 1, stdout: '', stderr: 'npm error You cannot publish over the previously published versions: 0.1.2.' };
+      }
+      if (args[0] === 'view') {
+        return { exitCode: 0, stdout: '"0.1.2"', stderr: '' };
+      }
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  assert.equal(result.status, 'PASS');
+  assert.equal(result.terminal_status, 'already_published');
+  assert.equal(result.verify.npm_view, 'PASS');
+});

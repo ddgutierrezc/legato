@@ -8,6 +8,7 @@ const DEFAULT_ARTIFACTS_DIR = resolve(scriptDir, '../artifacts/npm-release-v2');
 
 const toIsoTimestamp = () => new Date().toISOString();
 const wait = (ms) => new Promise((resolveDelay) => { setTimeout(resolveDelay, ms); });
+const IMMUTABLE_VERSION_PATTERN = /cannot publish over the previously published versions/i;
 
 const writeJson = async (filePath, payload) => {
   const absolutePath = resolve(filePath);
@@ -91,6 +92,47 @@ export const runNpmReleaseExecution = async ({
   const identity = await readPackageIdentity(commandRunner);
   const publishResult = await commandRunner({ command: 'npm', args: ['publish', '--access', 'public'] });
   if (publishResult.exitCode !== 0) {
+    const publishFailureText = publishResult.stderr || publishResult.stdout || 'npm publish failed';
+    if (IMMUTABLE_VERSION_PATTERN.test(publishFailureText)) {
+      const npmViewResult = await verifyPublishedVersion({
+        commandRunner,
+        packageName: identity.packageName,
+        packageVersion: identity.packageVersion,
+      });
+      const verifyPass = npmViewResult.exitCode === 0;
+      if (verifyPass) {
+        const alreadyPublishedPath = await writeJson(
+          resolve(artifactsDir, normalizedReleaseId || 'missing-release-id', 'publish.json'),
+          {
+            status: 'PASS',
+            terminal_status: 'already_published',
+            publish_attempted: true,
+            publish_command: 'npm publish --access public',
+            package_name: identity.packageName,
+            package_version: identity.packageVersion,
+            verify: {
+              npm_view: 'PASS',
+              attempts: npmViewResult.attemptsUsed,
+              stdout: npmViewResult.stdout,
+              stderr: npmViewResult.stderr,
+            },
+            failures: [],
+            generated_at: toIsoTimestamp(),
+          },
+        );
+
+        return {
+          status: 'PASS',
+          terminal_status: 'already_published',
+          publish_attempted: true,
+          publish_command: 'npm publish --access public',
+          verify: { npm_view: 'PASS', attempts: npmViewResult.attemptsUsed },
+          failures: [],
+          error_reference: alreadyPublishedPath,
+        };
+      }
+    }
+
     const errorPath = await writeJson(
       resolve(artifactsDir, normalizedReleaseId || 'missing-release-id', 'publish.json'),
       {
@@ -100,7 +142,7 @@ export const runNpmReleaseExecution = async ({
         publish_command: 'npm publish --access public',
         package_name: identity.packageName,
         package_version: identity.packageVersion,
-        failures: [publishResult.stderr || publishResult.stdout || 'npm publish failed'],
+        failures: [publishFailureText],
         generated_at: toIsoTimestamp(),
       },
     );
@@ -111,7 +153,7 @@ export const runNpmReleaseExecution = async ({
       publish_attempted: true,
       publish_command: 'npm publish --access public',
       error_reference: errorPath,
-      failures: [publishResult.stderr || publishResult.stdout || 'npm publish failed'],
+      failures: [publishFailureText],
     };
   }
 
