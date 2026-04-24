@@ -31,6 +31,7 @@ const DEFAULT_ALLOWED_PATHS = Object.freeze([
   'native/android/core/build.gradle',
   'native/android/core/scripts/release-android.mjs',
   'packages/capacitor/README.md',
+  'docs/releases/android-maven-central-operator-guide.md',
   'docs/releases/publication-pipeline-v1-validation.md',
   'apps/capacitor-demo/scripts/check-publication-scope.mjs',
 ]);
