@@ -200,6 +200,8 @@ export const runIosReleasePreflight = async ({
   provenancePath = defaultPaths.provenancePath,
   provenanceJson,
   releaseTag,
+  releaseId = 'manual',
+  mode = 'preflight',
   fileReader = readFile,
   pathStat = stat,
 } = {}) => {
@@ -224,6 +226,8 @@ export const runIosReleasePreflight = async ({
       failures,
       details: {
         mode: 'ios-preflight',
+        controlPlaneMode: mode,
+        releaseId,
         releaseTag: normalizedTag,
         expectedVersion: resolvedContract.version,
         expectedPackageUrl: resolvedContract.packageUrl,
@@ -335,6 +339,8 @@ export const runIosReleasePreflight = async ({
     failures,
     details: {
       mode: 'ios-preflight',
+      controlPlaneMode: mode,
+      releaseId,
       releaseTag: normalizedTag,
       expectedVersion: resolvedContract.version,
       expectedPackageUrl: resolvedContract.packageUrl,
@@ -368,6 +374,8 @@ export const formatIosPreflightSummary = (result) => {
 
 const makePreflightArtifact = (result, generatedAt = toIsoTimestamp()) => ({
   status: result.status,
+  releaseId: result.details?.releaseId ?? 'manual',
+  controlPlaneMode: result.details?.controlPlaneMode ?? 'preflight',
   releaseTag: result.details?.releaseTag ?? '',
   expectedVersion: result.details?.expectedVersion ?? '',
   expectedPackageUrl: result.details?.expectedPackageUrl ?? '',
@@ -398,6 +406,8 @@ const parseArgs = (argv) => {
     distributionRepoPath: defaultPaths.distributionRepoPath,
     provenancePath: defaultPaths.provenancePath,
     releaseTag: '',
+    releaseId: 'manual',
+    mode: 'preflight',
     jsonOutPath: '',
   };
 
@@ -433,6 +443,16 @@ const parseArgs = (argv) => {
       i += 1;
       continue;
     }
+    if (arg === '--release-id' && argv[i + 1]) {
+      options.releaseId = argv[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--mode' && argv[i + 1]) {
+      options.mode = argv[i + 1];
+      i += 1;
+      continue;
+    }
     if (arg === '--json-out' && argv[i + 1]) {
       options.jsonOutPath = argv[i + 1];
       i += 1;
@@ -447,7 +467,7 @@ const isEntrypoint = process.argv[1] && import.meta.url === new URL(`file://${pr
 if (isEntrypoint) {
   const options = parseArgs(process.argv.slice(2));
   if (!options.releaseTag) {
-    process.stdout.write('Mode: ios-preflight\nOverall: FAIL\nManual handoff ready: NO\nFailures:\n- Usage: node scripts/release-ios-preflight.mjs --release-tag <tag> [--contract <path>] [--native-package <path>] [--plugin-package <path>] [--distribution-repo <path>] [--provenance <path>] [--json-out <path>]\n');
+    process.stdout.write('Mode: ios-preflight\nOverall: FAIL\nManual handoff ready: NO\nFailures:\n- Usage: node scripts/release-ios-preflight.mjs --release-tag <tag> [--release-id <id>] [--mode <preflight|handoff|verify|closeout|full-manual-lane>] [--contract <path>] [--native-package <path>] [--plugin-package <path>] [--distribution-repo <path>] [--provenance <path>] [--json-out <path>]\n');
     process.exit(1);
   }
 

@@ -6,6 +6,7 @@ import { join } from 'node:path';
 
 import {
   buildVerifyScratchPackageSwift,
+  buildIosControlPlaneSummary,
   recordIosPublishHandoff,
   verifyIosPublishHandoff,
   closeoutIosPublication,
@@ -480,4 +481,22 @@ test('closeout rejects proof reference mismatch between handoff and verify artif
   assert.match(result.failures.join('\n'), /proof reference mismatch/i);
 
   await rm(tempDir, { recursive: true, force: true });
+});
+
+test('iOS control-plane summary reports incomplete/non-published when handoff evidence is missing', () => {
+  const summary = buildIosControlPlaneSummary({
+    releaseId: 'R-2026.04.24.1',
+    mode: 'full-manual-lane',
+    selected: true,
+    preflight: { status: 'PASS' },
+    handoff: null,
+    verify: null,
+    closeout: null,
+  });
+
+  assert.equal(summary.target, 'ios');
+  assert.equal(summary.selected, true);
+  assert.equal(summary.terminal_status, 'incomplete');
+  assert.ok(summary.missing_evidence.includes('handoff.json'));
+  assert.match(summary.notes.join('\n'), /manual handoff evidence missing/i);
 });

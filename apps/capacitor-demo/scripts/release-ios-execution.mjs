@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
+import { normalizeTargetSummary } from './release-control-summary-schema.mjs';
 
 const PASS = 'PASS';
 const FAIL = 'FAIL';
@@ -806,6 +807,67 @@ export const closeoutIosPublication = async ({
     exitCode: 0,
     failures: [],
   };
+};
+
+export const buildIosControlPlaneSummary = ({
+  releaseId,
+  mode,
+  selected,
+  preflight,
+  handoff,
+  verify,
+  closeout,
+} = {}) => {
+  if (!selected) {
+    return normalizeTargetSummary({
+      target: 'ios',
+      selected: false,
+      terminal_status: 'not_selected',
+      stage_statuses: {},
+      evidence: [],
+      missing_evidence: [],
+      notes: [],
+    });
+  }
+
+  const missingEvidence = [];
+  if (!preflight) missingEvidence.push('preflight.json');
+  if (!handoff) missingEvidence.push('handoff.json');
+  if (!verify) missingEvidence.push('verify.json');
+  if (!closeout) missingEvidence.push('closeout.json');
+
+  const terminalStatus = closeout?.status === PASS
+    ? 'validated'
+    : handoff?.status === PASS
+      ? 'handoff_pending'
+      : 'incomplete';
+
+  const notes = [];
+  if (missingEvidence.includes('handoff.json')) {
+    notes.push('manual handoff evidence missing; publication remains non-published.');
+  }
+
+  const releaseRoot = resolve(DEFAULT_ARTIFACTS_DIR, String(releaseId ?? DEFAULT_RELEASE_ID).trim() || DEFAULT_RELEASE_ID);
+  return normalizeTargetSummary({
+    target: 'ios',
+    selected: true,
+    terminal_status: missingEvidence.length > 0 ? 'incomplete' : terminalStatus,
+    stage_statuses: {
+      preflight: preflight?.status ?? 'missing',
+      handoff: handoff?.status ?? 'missing',
+      verify: verify?.status ?? 'missing',
+      closeout: closeout?.status ?? 'missing',
+      mode: mode ?? 'full-manual-lane',
+    },
+    evidence: [
+      { label: 'preflight', path: resolve(releaseRoot, 'preflight.json') },
+      { label: 'handoff', path: resolve(releaseRoot, 'handoff.json') },
+      { label: 'verify', path: resolve(releaseRoot, 'verify.json') },
+      { label: 'closeout', path: resolve(releaseRoot, 'closeout.json') },
+    ],
+    missing_evidence: missingEvidence,
+    notes,
+  });
 };
 
 export const runIosExecutionCommand = async (rawOptions, dependencies = {}) => {

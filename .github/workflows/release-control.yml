@@ -1,0 +1,491 @@
+name: Cross-platform release control (v1)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Shared release id for all selected lanes
+        required: true
+        type: string
+      targets:
+        description: Comma-separated targets (android,ios,npm)
+        required: true
+        default: android,ios,npm
+        type: string
+      target_modes:
+        description: Comma-separated target modes (android=publish,ios=full-manual-lane,npm=readiness)
+        required: true
+        default: android=preflight-only,ios=full-manual-lane,npm=readiness
+        type: string
+      ios_external_repo:
+        description: Optional iOS handoff proof repo URL
+        required: false
+        type: string
+      ios_external_tag:
+        description: Optional iOS handoff proof tag
+        required: false
+        type: string
+      ios_proof_type:
+        description: Optional iOS handoff proof type
+        required: false
+        type: string
+      ios_proof_value:
+        description: Optional iOS handoff proof value
+        required: false
+        type: string
+      ios_operator:
+        description: Optional iOS handoff operator
+        required: false
+        type: string
+      ios_published_at:
+        description: Optional iOS handoff ISO8601 timestamp
+        required: false
+        type: string
+      npm_publish_intent_evidence:
+        description: Optional protected-publish approval proof URL
+        required: false
+        type: string
+
+concurrency:
+  group: release-control-${{ inputs.release_id }}
+  cancel-in-progress: false
+
+jobs:
+  validate-dispatch:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/capacitor-demo
+    outputs:
+      targets_json: ${{ steps.normalize.outputs.targets_json }}
+      android_selected: ${{ steps.normalize.outputs.android_selected }}
+      ios_selected: ${{ steps.normalize.outputs.ios_selected }}
+      npm_selected: ${{ steps.normalize.outputs.npm_selected }}
+      android_mode: ${{ steps.normalize.outputs.android_mode }}
+      ios_mode: ${{ steps.normalize.outputs.ios_mode }}
+      npm_mode: ${{ steps.normalize.outputs.npm_mode }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/capacitor-demo/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate release control contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ./artifacts
+          node ./scripts/release-control-contract.mjs --release-id "${{ inputs.release_id }}" --targets "${{ inputs.targets }}" --target-modes "${{ inputs.target_modes }}" > ./artifacts/release-control-contract.json
+
+      - name: Normalize selected targets and modes
+        id: normalize
+        shell: bash
+        run: |
+          set -euo pipefail
+          contract_json=$(cat ./artifacts/release-control-contract.json)
+          is_ok=$(node -e 'const fs=require("node:fs");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));process.stdout.write(String(c.ok));')
+          if [[ "$is_ok" != "true" ]]; then
+            node -e 'const fs=require("node:fs");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));for (const err of c.errors ?? []) console.error(err);process.exit(1);'
+          fi
+          targets_json=$(node -e 'const fs=require("node:fs");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));process.stdout.write(JSON.stringify(c.value.targets));')
+          android_mode=$(node -e 'const fs=require("node:fs");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));process.stdout.write(c.value.target_modes.android ?? "");')
+          ios_mode=$(node -e 'const fs=require("node:fs");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));process.stdout.write(c.value.target_modes.ios ?? "");')
+          npm_mode=$(node -e 'const fs=require("node:fs");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));process.stdout.write(c.value.target_modes.npm ?? "");')
+          echo "targets_json=$targets_json" >> "$GITHUB_OUTPUT"
+          [[ "$targets_json" == *"android"* ]] && echo "android_selected=true" >> "$GITHUB_OUTPUT" || echo "android_selected=false" >> "$GITHUB_OUTPUT"
+          [[ "$targets_json" == *"ios"* ]] && echo "ios_selected=true" >> "$GITHUB_OUTPUT" || echo "ios_selected=false" >> "$GITHUB_OUTPUT"
+          [[ "$targets_json" == *"npm"* ]] && echo "npm_selected=true" >> "$GITHUB_OUTPUT" || echo "npm_selected=false" >> "$GITHUB_OUTPUT"
+          echo "android_mode=$android_mode" >> "$GITHUB_OUTPUT"
+          echo "ios_mode=$ios_mode" >> "$GITHUB_OUTPUT"
+          echo "npm_mode=$npm_mode" >> "$GITHUB_OUTPUT"
+
+  android-lane:
+    if: ${{ needs.validate-dispatch.outputs.android_selected == 'true' }}
+    needs: validate-dispatch
+    uses: ./.github/workflows/release-android.yml
+    with:
+      target: android
+      mode: ${{ needs.validate-dispatch.outputs.android_mode }}
+      release_id: ${{ inputs.release_id }}
+    secrets: inherit
+
+  ios-preflight:
+    if: ${{ needs.validate-dispatch.outputs.ios_selected == 'true' }}
+    needs: validate-dispatch
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/capacitor-demo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/capacitor-demo/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run iOS preflight
+        run: IOS_RELEASE_ID=${{ inputs.release_id }} IOS_RELEASE_TAG=v0.1.1 npm run release:ios:preflight -- --release-id "${{ inputs.release_id }}" --mode "${{ needs.validate-dispatch.outputs.ios_mode }}"
+      - name: Upload iOS preflight evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-preflight
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}/preflight.json
+
+  ios-handoff:
+    if: ${{ needs.validate-dispatch.outputs.ios_selected == 'true' }}
+    needs: [validate-dispatch, ios-preflight]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/capacitor-demo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/capacitor-demo/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Download iOS preflight evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-preflight
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}
+      - name: Run iOS handoff or emit missing-proof marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ inputs.ios_external_repo }}" || -z "${{ inputs.ios_external_tag }}" || -z "${{ inputs.ios_proof_type }}" || -z "${{ inputs.ios_proof_value }}" || -z "${{ inputs.ios_operator }}" || -z "${{ inputs.ios_published_at }}" ]]; then
+            mkdir -p "./artifacts/ios-publication-v1/${{ inputs.release_id }}"
+            cat > "./artifacts/ios-publication-v1/${{ inputs.release_id }}/handoff.json" <<'JSON'
+            {
+              "status": "FAIL",
+              "releaseId": "${{ inputs.release_id }}",
+              "failures": ["manual handoff evidence missing"],
+              "generatedAt": "${{ github.run_id }}"
+            }
+            JSON
+            exit 0
+          fi
+          IOS_RELEASE_ID=${{ inputs.release_id }} IOS_RELEASE_TAG=v0.1.1 IOS_EXTERNAL_REPO="${{ inputs.ios_external_repo }}" IOS_EXTERNAL_TAG="${{ inputs.ios_external_tag }}" IOS_PROOF_TYPE="${{ inputs.ios_proof_type }}" IOS_PROOF_VALUE="${{ inputs.ios_proof_value }}" IOS_OPERATOR="${{ inputs.ios_operator }}" IOS_PUBLISHED_AT="${{ inputs.ios_published_at }}" npm run release:ios:handoff
+      - name: Upload iOS handoff evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-handoff
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}/handoff.json
+
+  ios-verify:
+    if: ${{ needs.validate-dispatch.outputs.ios_selected == 'true' }}
+    needs: [validate-dispatch, ios-handoff]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/capacitor-demo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/capacitor-demo/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Download iOS preflight evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-preflight
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}
+      - name: Download iOS handoff evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-handoff
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}
+      - name: Run iOS verify or emit missing-proof marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! grep -q '"status": "PASS"' "./artifacts/ios-publication-v1/${{ inputs.release_id }}/handoff.json"; then
+            cat > "./artifacts/ios-publication-v1/${{ inputs.release_id }}/verify.json" <<'JSON'
+            {
+              "status": "FAIL",
+              "releaseId": "${{ inputs.release_id }}",
+              "failures": ["verify skipped because handoff is not PASS"]
+            }
+            JSON
+            exit 0
+          fi
+          IOS_RELEASE_ID=${{ inputs.release_id }} IOS_VERIFY_ATTEMPTS=2 IOS_VERIFY_BACKOFF_MS=1 npm run release:ios:verify
+      - name: Upload iOS verify evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-verify
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}/verify.json
+
+  ios-closeout:
+    if: ${{ needs.validate-dispatch.outputs.ios_selected == 'true' }}
+    needs: [validate-dispatch, ios-verify]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/capacitor-demo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/capacitor-demo/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Download iOS preflight evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-preflight
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}
+      - name: Download iOS handoff evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-handoff
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}
+      - name: Download iOS verify evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-verify
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}
+      - name: Run iOS closeout best-effort
+        shell: bash
+        run: |
+          set +e
+          IOS_RELEASE_ID=${{ inputs.release_id }} npm run release:ios:closeout
+          code=$?
+          set -e
+          if [[ "$code" -ne 0 ]]; then
+            mkdir -p "./artifacts/ios-publication-v1/${{ inputs.release_id }}"
+            cat > "./artifacts/ios-publication-v1/${{ inputs.release_id }}/closeout.json" <<'JSON'
+            {
+              "status": "FAIL",
+              "releaseId": "${{ inputs.release_id }}",
+              "failures": ["closeout incomplete"]
+            }
+            JSON
+          fi
+      - name: Upload iOS closeout evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-closeout
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}/closeout.json
+
+  ios-summary:
+    if: ${{ needs.validate-dispatch.outputs.ios_selected == 'true' }}
+    needs: [validate-dispatch, ios-preflight, ios-handoff, ios-verify, ios-closeout]
+    runs-on: ubuntu-latest
+    outputs:
+      summary_json: ${{ steps.emit.outputs.summary_json }}
+    defaults:
+      run:
+        working-directory: apps/capacitor-demo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/capacitor-demo/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Download iOS preflight evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-preflight
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}
+      - name: Download iOS handoff evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-handoff
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}
+      - name: Download iOS verify evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-verify
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}
+      - name: Download iOS closeout evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios-closeout
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}
+      - name: Build iOS target summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises';
+          import { resolve } from 'node:path';
+          import { buildIosControlPlaneSummary } from './scripts/release-ios-execution.mjs';
+
+          const root = resolve('./artifacts/ios-publication-v1', '${{ inputs.release_id }}');
+          const readJsonOrNull = async (path) => {
+            try {
+              const raw = await readFile(path, 'utf8');
+              return JSON.parse(raw);
+            } catch {
+              return null;
+            }
+          };
+          const preflight = await readJsonOrNull(resolve(root, 'preflight.json'));
+          const handoff = await readJsonOrNull(resolve(root, 'handoff.json'));
+          const verify = await readJsonOrNull(resolve(root, 'verify.json'));
+          const closeout = await readJsonOrNull(resolve(root, 'closeout.json'));
+          const summary = buildIosControlPlaneSummary({
+            releaseId: '${{ inputs.release_id }}',
+            mode: '${{ needs.validate-dispatch.outputs.ios_mode }}',
+            selected: true,
+            preflight,
+            handoff,
+            verify,
+            closeout,
+          });
+          await writeFile(resolve(root, 'ios-summary.json'), `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+          NODE
+      - name: Emit iOS summary output
+        id: emit
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo 'summary_json<<EOF'
+            cat "./artifacts/ios-publication-v1/${{ inputs.release_id }}/ios-summary.json"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+      - name: Upload iOS evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-ios
+          path: apps/capacitor-demo/artifacts/ios-publication-v1/${{ inputs.release_id }}/*
+
+  npm-lane:
+    if: ${{ needs.validate-dispatch.outputs.npm_selected == 'true' }}
+    needs: validate-dispatch
+    uses: ./.github/workflows/release-npm.yml
+    with:
+      release_id: ${{ inputs.release_id }}
+      mode: ${{ needs.validate-dispatch.outputs.npm_mode }}
+      publish_intent_evidence: ${{ inputs.npm_publish_intent_evidence }}
+    secrets: inherit
+
+  aggregate-release-summary:
+    if: ${{ always() }}
+    needs: [validate-dispatch, android-lane, ios-summary, npm-lane]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/capacitor-demo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/capacitor-demo/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build aggregated summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          import { writeFile, mkdir } from 'node:fs/promises';
+          import { resolve } from 'node:path';
+          import { adaptAndroidReleaseSummary } from './scripts/release-control-android-adapter.mjs';
+          import { aggregateReleaseSummary } from './scripts/aggregate-release-summary.mjs';
+          import { createNotSelectedSummary, normalizeTargetSummary } from './scripts/release-control-summary-schema.mjs';
+
+          const selectedTargets = JSON.parse('${{ needs.validate-dispatch.outputs.targets_json }}');
+          const requestedModes = {
+            android: '${{ needs.validate-dispatch.outputs.android_mode }}',
+            ios: '${{ needs.validate-dispatch.outputs.ios_mode }}',
+            npm: '${{ needs.validate-dispatch.outputs.npm_mode }}',
+          };
+
+          const androidRaw = `${{ needs.android-lane.outputs.summary_json || '' }}`.trim();
+          const iosRaw = `${{ needs.ios-summary.outputs.summary_json || '' }}`.trim();
+          const npmRaw = `${{ needs.npm-lane.outputs.summary_json || '' }}`.trim();
+
+          const androidSummary = selectedTargets.includes('android') && androidRaw
+            ? adaptAndroidReleaseSummary({ selected: true, releaseSummary: JSON.parse(androidRaw), evidenceRoot: 'android' })
+            : createNotSelectedSummary('android');
+          const iosSummary = selectedTargets.includes('ios') && iosRaw
+            ? normalizeTargetSummary(JSON.parse(iosRaw))
+            : createNotSelectedSummary('ios');
+          const npmSummary = selectedTargets.includes('npm') && npmRaw
+            ? normalizeTargetSummary({
+              target: 'npm',
+              selected: true,
+              terminal_status: JSON.parse(npmRaw).terminal_status,
+              stage_statuses: { mode: JSON.parse(npmRaw).mode, readiness: JSON.parse(npmRaw).status },
+              evidence: [{ label: 'summary', path: `npm/${'${{ inputs.release_id }}'}/summary.json` }],
+              missing_evidence: [],
+              notes: JSON.parse(npmRaw).failures ?? [],
+            })
+            : createNotSelectedSummary('npm');
+
+          const summary = aggregateReleaseSummary({
+            release_id: '${{ inputs.release_id }}',
+            selected_targets: selectedTargets,
+            requested_modes: requestedModes,
+            target_summaries: {
+              android: androidSummary,
+              ios: iosSummary,
+              npm: npmSummary,
+            },
+          });
+
+          const root = resolve('./artifacts/release-control', '${{ inputs.release_id }}');
+          await mkdir(root, { recursive: true });
+          await writeFile(resolve(root, 'android-summary.json'), `${JSON.stringify(androidSummary, null, 2)}\n`, 'utf8');
+          await writeFile(resolve(root, 'ios-summary.json'), `${JSON.stringify(iosSummary, null, 2)}\n`, 'utf8');
+          await writeFile(resolve(root, 'npm-summary.json'), `${JSON.stringify(npmSummary, null, 2)}\n`, 'utf8');
+          await writeFile(resolve(root, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+          const markdown = [
+            '# Cross-platform release summary (v1)',
+            '',
+            `- release_id: \`${summary.release_id}\``,
+            `- overall_status: \`${summary.overall_status}\``,
+            '',
+            '## Targets',
+            ...Object.values(summary.targets).map((entry) => `- ${entry.target}: ${entry.terminal_status}`),
+          ].join('\n');
+          await writeFile(resolve(root, 'summary.md'), `${markdown}\n`, 'utf8');
+          NODE
+      - name: Upload aggregated summary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-control-summary-${{ inputs.release_id }}
+          path: |
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/android-summary.json
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/ios-summary.json
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/npm-summary.json
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/summary.json
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/summary.md

@@ -29,7 +29,10 @@ test('validation checklist enforces evidence bundles and iOS closeout evidence c
   const docs = await readFile(validationDocsPath, 'utf8');
 
   assert.match(docs, /manual\/external/i);
-  assert.match(docs, /release-evidence-<release_id>/i);
+  assert.match(docs, /release-control-summary-<release_id>/i);
+  assert.match(docs, /android-summary\.json/i);
+  assert.match(docs, /ios-summary\.json/i);
+  assert.match(docs, /npm-summary\.json/i);
   assert.match(docs, /dispatch\.json/i);
   assert.match(docs, /preflight\.log/i);
   assert.match(docs, /publish\.log/i);

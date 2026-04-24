@@ -22,6 +22,16 @@ Run from `apps/capacitor-demo`:
 
 Any FAIL is a **NO-GO** for publication.
 
+## Control-plane npm policy modes
+
+When npm is selected from the release control plane, one explicit mode is required:
+
+- `readiness`: checks only, never publish.
+- `release-candidate`: checks plus candidate evidence capture.
+- `protected-publish`: publish-capable intent that still requires explicit publish intent evidence.
+
+If `protected-publish` is requested without publish intent evidence, the lane returns `policy_blocked` and the run is a NO-GO.
+
 ### Expected PASS/FAIL signals (CI-parity order)
 
 1. `validate:npm:readiness`

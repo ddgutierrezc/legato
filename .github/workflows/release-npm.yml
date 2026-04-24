@@ -1,0 +1,84 @@
+name: Release npm policy lane (v1)
+
+on:
+  workflow_call:
+    inputs:
+      release_id:
+        required: true
+        type: string
+      mode:
+        required: true
+        type: string
+      publish_intent_evidence:
+        required: false
+        type: string
+    outputs:
+      artifact_name:
+        value: ${{ jobs.npm-policy.outputs.artifact_name }}
+      summary_json:
+        value: ${{ jobs.npm-policy.outputs.summary_json }}
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Release id shared with control-plane
+        required: true
+        type: string
+      mode:
+        description: npm lane mode
+        required: true
+        type: choice
+        options:
+          - readiness
+          - release-candidate
+          - protected-publish
+      publish_intent_evidence:
+        description: Approval/evidence URL for protected publish intent
+        required: false
+        type: string
+
+jobs:
+  npm-policy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/capacitor-demo
+    outputs:
+      artifact_name: ${{ steps.emit.outputs.artifact_name }}
+      summary_json: ${{ steps.emit.outputs.summary_json }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/capacitor-demo/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm release policy lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run release:npm:policy -- --release-id "${{ inputs.release_id }}" --mode "${{ inputs.mode }}" --publish-intent-evidence "${{ inputs.publish_intent_evidence }}"
+
+      - name: Upload npm lane evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}-npm
+          path: apps/capacitor-demo/artifacts/npm-release-v1/${{ inputs.release_id }}/summary.json
+
+      - name: Emit reusable workflow outputs
+        id: emit
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "artifact_name=release-evidence-${{ inputs.release_id }}-npm" >> "$GITHUB_OUTPUT"
+          {
+            echo 'summary_json<<EOF'
+            cat "./artifacts/npm-release-v1/${{ inputs.release_id }}/summary.json"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
