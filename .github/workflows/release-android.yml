@@ -226,28 +226,28 @@ jobs:
       - android-verify
     steps:
       - name: Download dispatch artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-dispatch-${{ inputs.release_id }}-android
           path: artifacts/release-ci
 
       - name: Download preflight artifact
         if: ${{ needs.android-preflight.result != 'skipped' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-preflight-${{ inputs.release_id }}-android
           path: artifacts/release-ci
 
       - name: Download publish artifact
         if: ${{ needs.android-publish.result != 'skipped' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-publish-${{ inputs.release_id }}-android
           path: artifacts/release-ci
 
       - name: Download verify artifact
         if: ${{ needs.android-verify.result != 'skipped' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-verify-${{ inputs.release_id }}-android
           path: artifacts/release-ci
