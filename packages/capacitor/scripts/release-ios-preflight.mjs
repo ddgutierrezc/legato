@@ -206,6 +206,8 @@ export const runIosReleasePreflight = async ({
   pathStat = stat,
 } = {}) => {
   const failures = [];
+  const normalizedMode = typeof mode === 'string' ? mode.trim() : '';
+  const requiresDistributionBootstrap = normalizedMode !== 'publish';
   const resolvedContract = contract ? normalizeIosContract(contract) : await readContractFile(contractPath, fileReader);
   const contractFailures = ensureContractPresence(resolvedContract);
   failures.push(...contractFailures);
@@ -298,40 +300,42 @@ export const runIosReleasePreflight = async ({
     }
   }
 
-  const distributionBootstrapFailures = await ensureDistributionPayloadPaths(distributionRepoPath, fileReader, pathStat);
-  failures.push(...distributionBootstrapFailures);
+  if (requiresDistributionBootstrap) {
+    const distributionBootstrapFailures = await ensureDistributionPayloadPaths(distributionRepoPath, fileReader, pathStat);
+    failures.push(...distributionBootstrapFailures);
 
-  let distributionPackageSwift = '';
-  try {
-    distributionPackageSwift = await fileReader(resolve(distributionRepoPath, 'Package.swift'), 'utf8');
-  } catch {
-    // covered by ensureDistributionPayloadPaths
-  }
-  if (distributionPackageSwift) {
-    const distributionPackageName = parsePackageName(distributionPackageSwift);
-    const distributionProducts = parseLibraryProductNames(distributionPackageSwift);
-    if (distributionPackageName !== resolvedContract.packageName) {
-      failures.push(`Distribution package identity mismatch: ${distributionPackageName || '<missing>'} must equal ${resolvedContract.packageName}.`);
+    let distributionPackageSwift = '';
+    try {
+      distributionPackageSwift = await fileReader(resolve(distributionRepoPath, 'Package.swift'), 'utf8');
+    } catch {
+      // covered by ensureDistributionPayloadPaths
     }
-    if (!distributionProducts.includes(resolvedContract.product)) {
-      failures.push(`Distribution product identity mismatch: expected ${resolvedContract.product} in distribution Package.swift.`);
+    if (distributionPackageSwift) {
+      const distributionPackageName = parsePackageName(distributionPackageSwift);
+      const distributionProducts = parseLibraryProductNames(distributionPackageSwift);
+      if (distributionPackageName !== resolvedContract.packageName) {
+        failures.push(`Distribution package identity mismatch: ${distributionPackageName || '<missing>'} must equal ${resolvedContract.packageName}.`);
+      }
+      if (!distributionProducts.includes(resolvedContract.product)) {
+        failures.push(`Distribution product identity mismatch: expected ${resolvedContract.product} in distribution Package.swift.`);
+      }
     }
-  }
 
-  let parsedProvenance = null;
-  try {
-    const rawProvenance = typeof provenanceJson === 'string' ? provenanceJson : await fileReader(provenancePath, 'utf8');
-    parsedProvenance = parseProvenance(rawProvenance);
-  } catch (error) {
-    failures.push(`Distribution provenance missing or unreadable at ${provenancePath}: ${error instanceof Error ? error.message : String(error)}`);
-  }
+    let parsedProvenance = null;
+    try {
+      const rawProvenance = typeof provenanceJson === 'string' ? provenanceJson : await fileReader(provenancePath, 'utf8');
+      parsedProvenance = parseProvenance(rawProvenance);
+    } catch (error) {
+      failures.push(`Distribution provenance missing or unreadable at ${provenancePath}: ${error instanceof Error ? error.message : String(error)}`);
+    }
 
-  if (parsedProvenance) {
-    failures.push(...ensureProvenanceContract({
-      provenance: parsedProvenance,
-      contract: resolvedContract,
-      releaseTag: normalizedTag,
-    }));
+    if (parsedProvenance) {
+      failures.push(...ensureProvenanceContract({
+        provenance: parsedProvenance,
+        contract: resolvedContract,
+        releaseTag: normalizedTag,
+      }));
+    }
   }
 
   return makeResult({

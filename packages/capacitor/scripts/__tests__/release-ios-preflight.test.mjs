@@ -152,6 +152,26 @@ test('iOS preflight passes when contract/native/plugin identity and tag are alig
   assert.equal(result.failures.length, 0);
 });
 
+test('iOS publish preflight skips local distribution bootstrap/provenance requirements', async () => {
+  const result = await runIosReleasePreflight(makeBaseInput({
+    mode: 'publish',
+    fileReader: async (filePath, encoding) => {
+      if (filePath.endsWith('/distribution-provenance.json') || filePath.endsWith('/distribution-repo/Package.swift') || filePath.endsWith('/distribution-repo/README.md') || filePath.endsWith('/distribution-repo/LICENSE') || filePath.endsWith('/distribution-repo/.gitignore')) {
+        throw new Error(`distribution bootstrap should be skipped for publish mode: ${filePath} (${encoding})`);
+      }
+      throw new Error(`Unexpected file read in publish fixture: ${filePath} (${encoding})`);
+    },
+    pathStat: async (filePath) => {
+      throw new Error(`distribution bootstrap should be skipped for publish mode: ${filePath}`);
+    },
+  }));
+
+  assert.equal(result.status, 'PASS');
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.failures.length, 0);
+  assert.equal(result.details.controlPlaneMode, 'publish');
+});
+
 test('iOS preflight fails when release tag does not match contract version', async () => {
   const result = await runIosReleasePreflight(makeBaseInput({ releaseTag: 'v0.1.0' }));
 
