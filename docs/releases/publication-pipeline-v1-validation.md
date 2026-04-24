@@ -1,15 +1,18 @@
-# Publication Pipeline V1 — CI Validation & Audit Evidence
+# Publication Pipeline V1 — Validation & Audit Evidence
 
-This checklist documents what must be captured from `.github/workflows/release-android.yml` for every v1 run.
+This checklist documents required audit evidence for both v1 lanes:
+- Android CI run evidence (`.github/workflows/release-android.yml`)
+- iOS manual publication execution evidence (`preflight -> handoff -> verify -> closeout`)
 
 ## Scope Reminder
 
-- CI publication is Android-only in v1.
-- iOS remains preflight/manual-handoff only.
+- Android publication automation is CI-driven in v1.
+- iOS publication in `legato-ios-core` remains manual/external.
+- iOS repo-owned gates/evidence are mandatory before closeout.
 
 ## Required Audit Fields
 
-Record the following for each release run:
+Record the following for each Android CI release run:
 
 | Field | Source |
 |---|---|
@@ -21,6 +24,20 @@ Record the following for each release run:
 | Environment gate | `release` required for mode `publish` |
 | Approver (publish mode) | Protected environment approvals/audit log |
 | Stage outcomes | `validate-dispatch`, `android-preflight`, `android-publish`, `android-verify` |
+
+Record the following for each iOS execution run:
+
+| Field | Source |
+|---|---|
+| `release_id` | CLI input and artifact directory `artifacts/ios-publication-v1/<release_id>/` |
+| `releaseTag` / pinned version | `preflight.json` |
+| External repo reference | `handoff.json.externalRepo` |
+| External publish tag evidence | `handoff.json.externalTag` |
+| Operator identity | `handoff.json.operator` |
+| Publish timestamp | `handoff.json.publishedAt` |
+| Verification retry evidence | `verify.json.attemptsConfigured`, `attemptsUsed`, `retries` |
+| Remote check outcomes | `verify.json.checks.remoteTag`, `verify.json.checks.swiftPackageResolve` |
+| Final closeout proof | `closeout.json` |
 
 ## Required Evidence Artifact Bundle
 
@@ -35,6 +52,17 @@ Must include:
 - `summary.json`
 - `summary.md`
 
+## Required iOS Evidence Chain
+
+For each `<release_id>`, `artifacts/ios-publication-v1/<release_id>/` must include:
+
+- `preflight.json`
+- `handoff.json`
+- `verify.json`
+- `closeout.json`
+
+`closeout.json` is valid only if all previous artifacts are PASS and version/release-id chain is consistent.
+
 ## Release Outcome Checklist
 
 | Check | Evidence |
@@ -45,6 +73,10 @@ Must include:
 | Verify executed with bounded retries | `verify.log` and optional `verify-summary.json` payload |
 | Evidence bundle retained | downloadable `release-evidence-<release_id>` artifact |
 | iOS boundary documented as manual | runbook text in `publication-pipeline-v1.md` |
+| iOS preflight anti-drift gate passed | `preflight.json.status=PASS`, `readyForManualHandoff=true` |
+| iOS manual handoff evidence captured | `handoff.json` includes repo/tag/operator/timestamp |
+| iOS remote verification passed | `verify.json.checks.remoteTag=PASS` and `swiftPackageResolve=PASS` |
+| iOS closeout generated from complete chain | `closeout.json` links preflight/handoff/verify artifacts |
 
 ## Notes for Preflight-only Runs
 

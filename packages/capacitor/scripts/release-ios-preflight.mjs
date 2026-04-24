@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +25,8 @@ const normalizeIosContract = (contract = {}) => {
 };
 
 const parseTagVersion = (releaseTag = '') => releaseTag.trim().replace(/^v/i, '');
+
+const toIsoTimestamp = (date = new Date()) => date.toISOString();
 
 const parsePackageName = (packageSwift) => packageSwift.match(/\bname:\s*"([^"]+)"/)?.[1]?.trim() ?? '';
 
@@ -225,12 +227,37 @@ export const formatIosPreflightSummary = (result) => {
   return lines.join('\n');
 };
 
+const makePreflightArtifact = (result, generatedAt = toIsoTimestamp()) => ({
+  status: result.status,
+  releaseTag: result.details?.releaseTag ?? '',
+  expectedVersion: result.details?.expectedVersion ?? '',
+  expectedPackageUrl: result.details?.expectedPackageUrl ?? '',
+  expectedPackageName: result.details?.expectedPackageName ?? '',
+  expectedProduct: result.details?.expectedProduct ?? '',
+  readyForManualHandoff: Boolean(result.details?.readyForManualHandoff),
+  generatedAt,
+  failures: Array.isArray(result.failures) ? result.failures : [],
+});
+
+export const writeIosPreflightArtifact = async (result, jsonOutPath) => {
+  if (!jsonOutPath) {
+    return null;
+  }
+
+  const outputPath = resolve(jsonOutPath);
+  await mkdir(dirname(outputPath), { recursive: true });
+  const artifact = makePreflightArtifact(result);
+  await writeFile(outputPath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
+  return outputPath;
+};
+
 const parseArgs = (argv) => {
   const options = {
     contractPath: defaultPaths.contractPath,
     nativePackagePath: defaultPaths.nativePackagePath,
     pluginPackagePath: defaultPaths.pluginPackagePath,
     releaseTag: '',
+    jsonOutPath: '',
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -253,6 +280,11 @@ const parseArgs = (argv) => {
     if (arg === '--release-tag' && argv[i + 1]) {
       options.releaseTag = argv[i + 1];
       i += 1;
+      continue;
+    }
+    if (arg === '--json-out' && argv[i + 1]) {
+      options.jsonOutPath = argv[i + 1];
+      i += 1;
     }
   }
 
@@ -264,12 +296,13 @@ const isEntrypoint = process.argv[1] && import.meta.url === new URL(`file://${pr
 if (isEntrypoint) {
   const options = parseArgs(process.argv.slice(2));
   if (!options.releaseTag) {
-    process.stdout.write('Mode: ios-preflight\nOverall: FAIL\nManual handoff ready: NO\nFailures:\n- Usage: node scripts/release-ios-preflight.mjs --release-tag <tag> [--contract <path>] [--native-package <path>] [--plugin-package <path>]\n');
+    process.stdout.write('Mode: ios-preflight\nOverall: FAIL\nManual handoff ready: NO\nFailures:\n- Usage: node scripts/release-ios-preflight.mjs --release-tag <tag> [--contract <path>] [--native-package <path>] [--plugin-package <path>] [--json-out <path>]\n');
     process.exit(1);
   }
 
   try {
     const result = await runIosReleasePreflight(options);
+    await writeIosPreflightArtifact(result, options.jsonOutPath);
     process.stdout.write(`${formatIosPreflightSummary(result)}\n`);
     process.exit(result.exitCode);
   } catch (error) {
