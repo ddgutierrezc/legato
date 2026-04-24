@@ -1,6 +1,6 @@
 {
   "name": "@ddgutierrezc/legato-capacitor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Capacitor binding MVP for Legato.",
   "author": "Legato",
   "homepage": "https://github.com/legato/legato",
@@ -43,7 +43,7 @@
   },
   "peerDependencies": {
     "@capacitor/core": "^8.0.0",
-    "@ddgutierrezc/legato-contract": "^0.1.1"
+    "@ddgutierrezc/legato-contract": "^0.1.2"
   },
   "devDependencies": {
     "@capacitor/core": "^8.0.0",
