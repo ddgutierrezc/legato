@@ -1,5 +1,5 @@
 {
-  "name": "@legato/contract",
+  "name": "@ddgutierrezc/legato-contract",
   "version": "0.1.1",
   "description": "Canonical contract types and constants for Legato.",
   "license": "MIT",

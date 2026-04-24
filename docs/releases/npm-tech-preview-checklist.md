@@ -1,6 +1,6 @@
 # NPM Tech-Preview Checklist (v1)
 
-This checklist defines the **go/no-go** contract for publishing the first npm tech-preview of `@legato/contract` and `@legato/capacitor`.
+This checklist defines the **go/no-go** contract for publishing the first npm tech-preview of `@ddgutierrezc/legato-contract` and `@ddgutierrezc/legato-capacitor`.
 
 ## Risk Posture
 
@@ -14,7 +14,7 @@ This checklist defines the **go/no-go** contract for publishing the first npm te
 Run from `apps/capacitor-demo`:
 
 1. `npm run validate:npm:readiness`
-   - Packs `@legato/contract` + `@legato/capacitor` tarballs.
+   - Packs `@ddgutierrezc/legato-contract` + `@ddgutierrezc/legato-capacitor` tarballs.
    - Enforces tarball hygiene (`dist` truth + forbidden transient output such as `android/build/**`).
    - Runs external-consumer install + typecheck + `cap add/sync` using those tarballs.
 2. `npm run test:npm:readiness`
@@ -49,7 +49,7 @@ If `protected-publish` is requested without publish intent evidence, the lane re
 
 ## Manual Release Sign-off Template
 
-- Candidate version(s): `@legato/contract@<version>`, `@legato/capacitor@<version>`
+- Candidate version(s): `@ddgutierrezc/legato-contract@<version>`, `@ddgutierrezc/legato-capacitor@<version>`
 - Readiness run URL / local evidence path:
 - `validate:npm:readiness`: PASS/FAIL
 - `test:npm:readiness`: PASS/FAIL

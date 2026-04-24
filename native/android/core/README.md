@@ -25,7 +25,7 @@ They are intentionally no-op and DO NOT provide full Media3 audio-focus/backgrou
 `native/android/core` is now an Android library module (`com.android.library` + Kotlin Android)
 with namespace `io.legato.core`, `compileSdk 34`, `minSdk 24`, and Java/Kotlin 17.
 
-Historically this module was wired into `@legato/capacitor` through the monorepo-local Gradle path:
+Historically this module was wired into `@ddgutierrezc/legato-capacitor` through the monorepo-local Gradle path:
 
 `project(':native:android:core')`
 

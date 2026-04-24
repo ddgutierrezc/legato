@@ -7,7 +7,7 @@ Provide thin bindings for:
 - Flutter (`packages/flutter/legato`)
 
 ## Binding Rules
-1. Bindings map 1:1 to contract types/events/error codes from `@legato/contract`.
+1. Bindings map 1:1 to contract types/events/error codes from `@ddgutierrezc/legato-contract`.
 2. Bindings must not redefine domain semantics.
 3. Any platform-specific limitation is represented via `Capability` and/or typed errors.
 4. Keep adapter layers thin: translation, marshaling, lifecycle wiring.

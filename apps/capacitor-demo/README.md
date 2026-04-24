@@ -1,6 +1,6 @@
 # Capacitor Demo App (`apps/capacitor-demo`)
 
-Minimal host app to stage the **first real manual smoke path** for `@legato/capacitor`, without pretending playback is already fully integrated.
+Minimal host app to stage the **first real manual smoke path** for `@ddgutierrezc/legato-capacitor`, without pretending playback is already fully integrated.
 
 ## Milestone status
 
@@ -171,7 +171,7 @@ What this does **not** give us yet:
 
 ### Android
 
-`@legato/capacitor` Android now resolves native core through artifact coordinates declared by the plugin package.
+`@ddgutierrezc/legato-capacitor` Android now resolves native core through artifact coordinates declared by the plugin package.
 
 `apps/capacitor-demo/android/settings.gradle` should keep only Capacitor-managed includes (`:app`, `:capacitor-cordova-android-plugins`) plus `apply from: 'capacitor.settings.gradle'`.
 
@@ -181,7 +181,7 @@ Do **not** re-add `include ':native:android:core'` host wiring. If this line app
 
 `packages/capacitor/ios/Sources/LegatoPlugin/*.swift` imports `LegatoCore`.
 
-The host iOS app should rely on Capacitor-generated `CapApp-SPM` integration (which includes local `@legato/capacitor`).
+The host iOS app should rely on Capacitor-generated `CapApp-SPM` integration (which includes local `@ddgutierrezc/legato-capacitor`).
 The plugin package product name expected by generated SPM integration is `CapacitorLegato`, and `LegatoCore` resolves transitively from that plugin package.
 The host target should not keep a duplicate manual local package reference or direct `LegatoCore` linkage.
 Never hand-edit `ios/App/CapApp-SPM/Package.swift`; refresh via `npm run cap:sync` instead.
@@ -240,6 +240,6 @@ Gate notes:
 
 ## Web build resolution note
 
-This demo uses `@legato/capacitor` as a local `file:` dependency and that package currently exports from `src/`.
-`vite.config.ts` sets `resolve.preserveSymlinks = true` so imports like `@capacitor/core` and `@legato/contract`
+This demo uses `@ddgutierrezc/legato-capacitor` as a local `file:` dependency and that package currently exports from `src/`.
+`vite.config.ts` sets `resolve.preserveSymlinks = true` so imports like `@capacitor/core` and `@ddgutierrezc/legato-contract`
 are resolved from `apps/capacitor-demo/node_modules` instead of breaking on monorepo realpaths.

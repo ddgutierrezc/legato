@@ -1,12 +1,12 @@
 {
-  "name": "@legato/capacitor",
+  "name": "@ddgutierrezc/legato-capacitor",
   "version": "0.1.1",
   "description": "Capacitor binding MVP for Legato.",
   "author": "Legato",
   "homepage": "https://github.com/legato/legato",
   "repository": {
     "type": "git",
-    "url": "https://github.com/legato/legato.git",
+    "url": "https://github.com/ddgutierrezc/legato.git",
     "directory": "packages/capacitor"
   },
   "license": "MIT",
@@ -43,11 +43,11 @@
   },
   "peerDependencies": {
     "@capacitor/core": "^8.0.0",
-    "@legato/contract": "^0.1.1"
+    "@ddgutierrezc/legato-contract": "^0.1.1"
   },
   "devDependencies": {
     "@capacitor/core": "^8.0.0",
-    "@legato/contract": "file:../contract",
+    "@ddgutierrezc/legato-contract": "file:../contract",
     "typescript": "^5.6.3"
   },
   "capacitor": {

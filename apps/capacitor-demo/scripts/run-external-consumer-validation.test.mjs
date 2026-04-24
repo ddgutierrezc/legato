@@ -26,7 +26,7 @@ test('isolation scanner reports workspace and non-tarball file leaks', () => {
   const result = inspectIsolationLeaks({
     packageLockRaw: JSON.stringify({
       dependencies: {
-        '@legato/capacitor': { version: 'workspace:*' },
+        '@ddgutierrezc/legato-capacitor': { version: 'workspace:*' },
         localDep: { version: 'file:../local-package' },
       },
     }),
@@ -56,21 +56,21 @@ test('orchestrator preserves sync resolver output in evidence on failure', async
     if (command === 'npm' && args[0] === 'install') {
       await writeFile(join(fixtureRoot, 'package-lock.json'), JSON.stringify({
         packages: {
-          'node_modules/@legato/capacitor': { resolved: `file:${basename(providedTarballs.capacitor)}` },
-          'node_modules/@legato/contract': { resolved: `file:${basename(providedTarballs.contract)}` },
+          'node_modules/@ddgutierrezc/legato-capacitor': { resolved: `file:${basename(providedTarballs.capacitor)}` },
+          'node_modules/@ddgutierrezc/legato-contract': { resolved: `file:${basename(providedTarballs.contract)}` },
         },
       }), 'utf8');
-      await mkdir(join(fixtureRoot, 'node_modules/@legato/capacitor'), { recursive: true });
-      await mkdir(join(fixtureRoot, 'node_modules/@legato/contract'), { recursive: true });
-      await writeFile(join(fixtureRoot, 'node_modules/@legato/capacitor/package.json'), JSON.stringify({
-        name: '@legato/capacitor',
+      await mkdir(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor'), { recursive: true });
+      await mkdir(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-contract'), { recursive: true });
+      await writeFile(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor/package.json'), JSON.stringify({
+        name: '@ddgutierrezc/legato-capacitor',
         main: './dist/index.js',
         types: './dist/index.d.ts',
         bin: { legato: './dist/cli/index.mjs' },
         exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
       }), 'utf8');
-      await writeFile(join(fixtureRoot, 'node_modules/@legato/contract/package.json'), JSON.stringify({
-        name: '@legato/contract',
+      await writeFile(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-contract/package.json'), JSON.stringify({
+        name: '@ddgutierrezc/legato-contract',
         main: './dist/index.js',
         types: './dist/index.d.ts',
         exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
@@ -148,21 +148,21 @@ test('orchestrator provisions ios/android platforms before cap sync in disposabl
     if (command === 'npm' && args[0] === 'install') {
       await writeFile(join(fixtureRoot, 'package-lock.json'), JSON.stringify({
         packages: {
-          'node_modules/@legato/capacitor': { resolved: `file:${basename(providedTarballs.capacitor)}` },
-          'node_modules/@legato/contract': { resolved: `file:${basename(providedTarballs.contract)}` },
+          'node_modules/@ddgutierrezc/legato-capacitor': { resolved: `file:${basename(providedTarballs.capacitor)}` },
+          'node_modules/@ddgutierrezc/legato-contract': { resolved: `file:${basename(providedTarballs.contract)}` },
         },
       }), 'utf8');
-      await mkdir(join(fixtureRoot, 'node_modules/@legato/capacitor'), { recursive: true });
-      await mkdir(join(fixtureRoot, 'node_modules/@legato/contract'), { recursive: true });
-      await writeFile(join(fixtureRoot, 'node_modules/@legato/capacitor/package.json'), JSON.stringify({
-        name: '@legato/capacitor',
+      await mkdir(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor'), { recursive: true });
+      await mkdir(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-contract'), { recursive: true });
+      await writeFile(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor/package.json'), JSON.stringify({
+        name: '@ddgutierrezc/legato-capacitor',
         main: './dist/index.js',
         types: './dist/index.d.ts',
         bin: { legato: './dist/cli/index.mjs' },
         exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
       }), 'utf8');
-      await writeFile(join(fixtureRoot, 'node_modules/@legato/contract/package.json'), JSON.stringify({
-        name: '@legato/contract',
+      await writeFile(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-contract/package.json'), JSON.stringify({
+        name: '@ddgutierrezc/legato-contract',
         main: './dist/index.js',
         types: './dist/index.d.ts',
         exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
@@ -246,21 +246,21 @@ test('orchestrator fails when tarball is missing declared entrypoint', async () 
     if (command === 'npm' && args[0] === 'install') {
       await writeFile(join(fixtureRoot, 'package-lock.json'), JSON.stringify({
         packages: {
-          'node_modules/@legato/capacitor': { resolved: `file:${basename(providedTarballs.capacitor)}` },
-          'node_modules/@legato/contract': { resolved: `file:${basename(providedTarballs.contract)}` },
+          'node_modules/@ddgutierrezc/legato-capacitor': { resolved: `file:${basename(providedTarballs.capacitor)}` },
+          'node_modules/@ddgutierrezc/legato-contract': { resolved: `file:${basename(providedTarballs.contract)}` },
         },
       }), 'utf8');
-      await mkdir(join(fixtureRoot, 'node_modules/@legato/capacitor'), { recursive: true });
-      await mkdir(join(fixtureRoot, 'node_modules/@legato/contract'), { recursive: true });
-      await writeFile(join(fixtureRoot, 'node_modules/@legato/capacitor/package.json'), JSON.stringify({
-        name: '@legato/capacitor',
+      await mkdir(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor'), { recursive: true });
+      await mkdir(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-contract'), { recursive: true });
+      await writeFile(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor/package.json'), JSON.stringify({
+        name: '@ddgutierrezc/legato-capacitor',
         main: './dist/index.js',
         types: './dist/index.d.ts',
         bin: { legato: './dist/cli/index.mjs' },
         exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
       }), 'utf8');
-      await writeFile(join(fixtureRoot, 'node_modules/@legato/contract/package.json'), JSON.stringify({
-        name: '@legato/contract',
+      await writeFile(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-contract/package.json'), JSON.stringify({
+        name: '@ddgutierrezc/legato-contract',
         main: './dist/index.js',
         types: './dist/index.d.ts',
         exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
@@ -329,26 +329,26 @@ test('orchestrator reuses validator with fixture-installed native-artifacts cont
     if (command === 'npm' && args[0] === 'install') {
       await writeFile(join(fixtureRoot, 'package-lock.json'), JSON.stringify({
         packages: {
-          'node_modules/@legato/capacitor': { resolved: `file:${basename(providedTarballs.capacitor)}` },
-          'node_modules/@legato/contract': { resolved: `file:${basename(providedTarballs.contract)}` },
+          'node_modules/@ddgutierrezc/legato-capacitor': { resolved: `file:${basename(providedTarballs.capacitor)}` },
+          'node_modules/@ddgutierrezc/legato-contract': { resolved: `file:${basename(providedTarballs.contract)}` },
         },
       }), 'utf8');
-      await mkdir(join(fixtureRoot, 'node_modules/@legato/capacitor'), { recursive: true });
-      await mkdir(join(fixtureRoot, 'node_modules/@legato/contract'), { recursive: true });
-      await writeFile(join(fixtureRoot, 'node_modules/@legato/capacitor/package.json'), JSON.stringify({
-        name: '@legato/capacitor',
+      await mkdir(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor'), { recursive: true });
+      await mkdir(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-contract'), { recursive: true });
+      await writeFile(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor/package.json'), JSON.stringify({
+        name: '@ddgutierrezc/legato-capacitor',
         main: './dist/index.js',
         types: './dist/index.d.ts',
         bin: { legato: './dist/cli/index.mjs' },
         exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
       }), 'utf8');
-      await writeFile(join(fixtureRoot, 'node_modules/@legato/contract/package.json'), JSON.stringify({
-        name: '@legato/contract',
+      await writeFile(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-contract/package.json'), JSON.stringify({
+        name: '@ddgutierrezc/legato-contract',
         main: './dist/index.js',
         types: './dist/index.d.ts',
         exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
       }), 'utf8');
-      await writeFile(join(fixtureRoot, 'node_modules/@legato/capacitor/native-artifacts.json'), '{"ios":{"packageUrl":"https://github.com/ddgutierrezc/legato-ios-core.git","packageName":"LegatoCore","product":"LegatoCore","version":"0.1.1"}}', 'utf8');
+      await writeFile(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor/native-artifacts.json'), '{"ios":{"packageUrl":"https://github.com/ddgutierrezc/legato-ios-core.git","packageName":"LegatoCore","product":"LegatoCore","version":"0.1.1"}}', 'utf8');
       return { stdout: 'install ok', stderr: '' };
     }
     if (command === 'tar' && args[0] === '-tzf') {

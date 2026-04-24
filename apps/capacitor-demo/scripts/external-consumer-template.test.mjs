@@ -14,8 +14,8 @@ test('external consumer template package uses standard Capacitor deps with no wo
   assert.equal(packageJson.name, '@legato/external-consumer-template');
   assert.equal(typeof packageJson.scripts?.typecheck, 'string');
   assert.match(packageJson.scripts.typecheck, /tsc\s+--noEmit/i);
-  assert.equal(Object.hasOwn(packageJson.dependencies ?? {}, '@legato/capacitor'), false);
-  assert.equal(Object.hasOwn(packageJson.dependencies ?? {}, '@legato/contract'), false);
+  assert.equal(Object.hasOwn(packageJson.dependencies ?? {}, '@ddgutierrezc/legato-capacitor'), false);
+  assert.equal(Object.hasOwn(packageJson.dependencies ?? {}, '@ddgutierrezc/legato-contract'), false);
 
   const dependencyValues = Object.values({
     ...(packageJson.dependencies ?? {}),

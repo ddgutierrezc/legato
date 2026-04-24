@@ -68,7 +68,7 @@ const capAppSpm = `
 let package = Package(
     name: "CapApp-SPM",
     dependencies: [
-        .package(name: "LegatoCapacitor", path: "../../../node_modules/@legato/capacitor")
+        .package(name: "LegatoCapacitor", path: "../../../node_modules/@ddgutierrezc/legato-capacitor")
     ]
 )
 `;

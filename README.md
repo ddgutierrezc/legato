@@ -3,11 +3,11 @@ La metáfora es perfecta: en música, legato significa tocar notas de forma suav
 
 ## Demo apps
 
-- `apps/capacitor-demo`: minimal Capacitor v8 host scaffold showing TypeScript-level wiring for `@legato/capacitor`.
+- `apps/capacitor-demo`: minimal Capacitor v8 host scaffold showing TypeScript-level wiring for `@ddgutierrezc/legato-capacitor`.
 
 ## Milestones
 
-- 2026-04-19: first successful **Android Capacitor smoke** in a real host app for `@legato/capacitor` minimal flow.
+- 2026-04-19: first successful **Android Capacitor smoke** in a real host app for `@ddgutierrezc/legato-capacitor` minimal flow.
   - See: `specs/milestones/2026-04-19-android-capacitor-smoke.md`
 - 2026-04-19: generated **iOS Capacitor host scaffold** for `apps/capacitor-demo` with Capacitor-managed SPM plugin wiring (`CapacitorLegato`, no direct host `LegatoCore` link required).
 

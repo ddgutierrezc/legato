@@ -1,5 +1,5 @@
-import { Legato, type PlaybackSnapshot } from '@legato/capacitor';
-import type { Track } from '@legato/contract';
+import { Legato, type PlaybackSnapshot } from '@ddgutierrezc/legato-capacitor';
+import type { Track } from '@ddgutierrezc/legato-contract';
 
 const fixtureTrack: Track = {
   id: 'external-track-1',

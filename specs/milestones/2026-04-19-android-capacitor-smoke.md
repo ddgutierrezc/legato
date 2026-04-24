@@ -2,7 +2,7 @@
 
 ## Scope
 
-First successful end-to-end smoke of `@legato/capacitor` minimal flow inside a **real Android Capacitor host app**.
+First successful end-to-end smoke of `@ddgutierrezc/legato-capacitor` minimal flow inside a **real Android Capacitor host app**.
 
 ## Validated
 

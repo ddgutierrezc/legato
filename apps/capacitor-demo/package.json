@@ -2,7 +2,7 @@
   "name": "@legato/capacitor-demo",
   "version": "0.1.1",
   "private": true,
-  "description": "Minimal Capacitor demo app for @legato/capacitor integration.",
+  "description": "Minimal Capacitor demo app for @ddgutierrezc/legato-capacitor integration.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -46,8 +46,8 @@
     "@capacitor/android": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
-    "@legato/capacitor": "file:../../packages/capacitor",
-    "@legato/contract": "file:../../packages/contract"
+    "@ddgutierrezc/legato-capacitor": "file:../../packages/capacitor",
+    "@ddgutierrezc/legato-contract": "file:../../packages/contract"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.0.0",

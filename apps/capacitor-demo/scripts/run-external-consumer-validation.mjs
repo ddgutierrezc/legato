@@ -337,8 +337,8 @@ export const runExternalConsumerValidation = async ({
     const packageLockPath = join(resolvedFixtureRoot, 'package-lock.json');
     const packageLockRaw = await readFile(packageLockPath, 'utf8');
     const packageLock = JSON.parse(packageLockRaw);
-    const capacitorInstall = packageLock?.packages?.['node_modules/@legato/capacitor'] ?? null;
-    const contractInstall = packageLock?.packages?.['node_modules/@legato/contract'] ?? null;
+    const capacitorInstall = packageLock?.packages?.['node_modules/@ddgutierrezc/legato-capacitor'] ?? null;
+    const contractInstall = packageLock?.packages?.['node_modules/@ddgutierrezc/legato-contract'] ?? null;
     const installManifest = {
       capacitor: capacitorInstall,
       contract: contractInstall,
@@ -353,8 +353,8 @@ export const runExternalConsumerValidation = async ({
       areas.installability = PASS;
     }
 
-    const installedCapacitorPackageJson = await readJsonIfPresent(join(resolvedFixtureRoot, 'node_modules/@legato/capacitor/package.json'));
-    const installedContractPackageJson = await readJsonIfPresent(join(resolvedFixtureRoot, 'node_modules/@legato/contract/package.json'));
+    const installedCapacitorPackageJson = await readJsonIfPresent(join(resolvedFixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor/package.json'));
+    const installedContractPackageJson = await readJsonIfPresent(join(resolvedFixtureRoot, 'node_modules/@ddgutierrezc/legato-contract/package.json'));
     const capacitorEntrypoints = collectDeclaredEntrypoints(installedCapacitorPackageJson ?? {});
     const contractEntrypoints = collectDeclaredEntrypoints(installedContractPackageJson ?? {});
     const capacitorTarEntries = await listTarballEntries({ tarballPath: tarballs.capacitor, commandRunner });
@@ -363,12 +363,12 @@ export const runExternalConsumerValidation = async ({
       ...verifyEntrypointsInTarball({
         entrypoints: capacitorEntrypoints,
         tarballEntries: capacitorTarEntries,
-        packageName: '@legato/capacitor',
+        packageName: '@ddgutierrezc/legato-capacitor',
       }),
       ...verifyEntrypointsInTarball({
         entrypoints: contractEntrypoints,
         tarballEntries: contractTarEntries,
-        packageName: '@legato/contract',
+        packageName: '@ddgutierrezc/legato-contract',
       }),
     ];
 
@@ -391,8 +391,8 @@ export const runExternalConsumerValidation = async ({
       installManifestRaw: JSON.stringify(installManifest),
     });
 
-    const installedCapacitorPath = join(resolvedFixtureRoot, 'node_modules/@legato/capacitor');
-    const installedContractPath = join(resolvedFixtureRoot, 'node_modules/@legato/contract');
+    const installedCapacitorPath = join(resolvedFixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor');
+    const installedContractPath = join(resolvedFixtureRoot, 'node_modules/@ddgutierrezc/legato-contract');
     const installedNativeArtifactsContractPath = join(installedCapacitorPath, 'native-artifacts.json');
     const capacitorStat = await lstat(installedCapacitorPath);
     const contractStat = await lstat(installedContractPath);
@@ -434,12 +434,12 @@ export const runExternalConsumerValidation = async ({
       command: 'node',
       args: [
         resolve(scriptDir, 'validate-native-artifacts.mjs'),
-        '--plugin-gradle', join(resolvedFixtureRoot, 'node_modules/@legato/capacitor/android/build.gradle'),
+        '--plugin-gradle', join(resolvedFixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor/android/build.gradle'),
         '--native-artifacts-contract', installedNativeArtifactsContractPath,
         '--android-settings', join(resolvedFixtureRoot, 'android/settings.gradle'),
         '--capapp-spm-package', join(resolvedFixtureRoot, 'ios/App/CapApp-SPM/Package.swift'),
-        '--plugin-swift-package', join(resolvedFixtureRoot, 'node_modules/@legato/capacitor/Package.swift'),
-        '--plugin-swift-source', join(resolvedFixtureRoot, 'node_modules/@legato/capacitor/ios/Sources/LegatoPlugin/LegatoPlugin.swift'),
+        '--plugin-swift-package', join(resolvedFixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor/Package.swift'),
+        '--plugin-swift-source', join(resolvedFixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor/ios/Sources/LegatoPlugin/LegatoPlugin.swift'),
         '--capacitor-config', join(resolvedFixtureRoot, 'ios/App/App/capacitor.config.json'),
         '--fixture-root', resolvedFixtureRoot,
         '--repo-root', repoRoot,

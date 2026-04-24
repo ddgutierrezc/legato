@@ -9,7 +9,7 @@ import {
   type AudioPlayerApi,
   type PlaybackSnapshot,
   type Track,
-} from '@legato/capacitor';
+} from '@ddgutierrezc/legato-capacitor';
 import {
   buildSmokeReportV1,
   createInitialSmokeVerdict,

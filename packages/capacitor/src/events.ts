@@ -2,7 +2,7 @@ import {
   LEGATO_EVENT_NAMES,
   MEDIA_SESSION_EVENT_NAMES,
   PLAYER_EVENT_NAMES,
-} from '@legato/contract';
+} from '@ddgutierrezc/legato-contract';
 import type {
   LegatoEventName,
   LegatoEventPayloadMap,

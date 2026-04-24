@@ -1,10 +1,10 @@
-# @legato/capacitor
+# @ddgutierrezc/legato-capacitor
 
 Modern Capacitor binding MVP for Legato.
 
 ## API surface (v1 boundary split, additive)
 
-`@legato/capacitor` now exposes three public entry points over the same Capacitor plugin instance:
+`@ddgutierrezc/legato-capacitor` now exposes three public entry points over the same Capacitor plugin instance:
 
 - `audioPlayer` (playback/queue/seek/read-model commands + playback events)
 - `mediaSession` (remote/session-facing event surface)
@@ -25,7 +25,7 @@ Playback commands/queries (available on `audioPlayer` and legacy `Legato`):
 
 This split is additive: existing `Legato` consumers remain source-compatible while new code can adopt namespaced boundaries.
 
-It also exports typed event helpers aligned with `@legato/contract`, and `createLegatoSync()` for lightweight snapshot/event resync.
+It also exports typed event helpers aligned with `@ddgutierrezc/legato-contract`, and `createLegatoSync()` for lightweight snapshot/event resync.
 
 ### Migration guidance
 
@@ -50,7 +50,7 @@ import {
   addAudioPlayerListener,
   addMediaSessionListener,
   createAudioPlayerSync,
-} from '@legato/capacitor';
+} from '@ddgutierrezc/legato-capacitor';
 
 const sync = createAudioPlayerSync({
   onSnapshot(snapshot) {
@@ -86,7 +86,7 @@ await sync.stop();
 - Publish-facing entrypoints (`main`/`types`/`exports` + `legato` CLI bin) resolve to built artifacts in `dist/**`.
 - Build before packing/publishing so `dist` is complete (`npm run build`).
 - Tarball readiness checks are available via `npm run pack:check` in `packages/capacitor`.
-- `@legato/contract` is a peer dependency and should be installed by host apps.
+- `@ddgutierrezc/legato-contract` is a peer dependency and should be installed by host apps.
 - This package can be validated in a packed external-consumer flow through `apps/capacitor-demo` (`npm run validate:npm:readiness`).
 
 ## iOS Swift Package Manager integration
@@ -109,7 +109,7 @@ To keep iOS SPM integration clean and compatible with `npx cap sync ios` generat
 For `legato-ios-core` distribution, release tags must satisfy these minimum expectations:
 
 - `https://github.com/ddgutierrezc/legato-ios-core.git` contains a valid root `Package.swift` exposing product `LegatoCore`.
-- Every version consumed by `@legato/capacitor` is published as an immutable semver tag (example: `0.1.1`).
+- Every version consumed by `@ddgutierrezc/legato-capacitor` is published as an immutable semver tag (example: `0.1.1`).
 - `packages/capacitor/native-artifacts.json` remains the single source of truth for the exact iOS version pin.
 - Any product/package identity mismatch discovered in SwiftPM resolver logs must block release until fixed.
 

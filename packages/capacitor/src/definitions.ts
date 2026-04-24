@@ -11,7 +11,7 @@ import type {
   PlayerEventPayloadMap as ContractPlayerEventPayloadMap,
   QueueSnapshot,
   Track,
-} from '@legato/contract';
+} from '@ddgutierrezc/legato-contract';
 
 export type {
   LegatoError,

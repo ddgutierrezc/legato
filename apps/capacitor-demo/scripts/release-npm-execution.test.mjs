@@ -21,7 +21,7 @@ test('npm execution maps publish failure to failed terminal status', async () =>
     mode: 'protected-publish',
     commandRunner: async ({ command, args }) => {
       calls.push(`${command} ${args.join(' ')}`);
-      if (args.includes('name')) return { exitCode: 0, stdout: '"@legato/capacitor"', stderr: '' };
+      if (args.includes('name')) return { exitCode: 0, stdout: '"@ddgutierrezc/legato-capacitor"', stderr: '' };
       if (args.includes('version')) return { exitCode: 0, stdout: '"0.1.1"', stderr: '' };
       if (args[0] === 'publish') return { exitCode: 1, stdout: '', stderr: 'npm ERR! 403 already exists' };
       return { exitCode: 0, stdout: '', stderr: '' };
