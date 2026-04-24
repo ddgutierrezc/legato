@@ -48,6 +48,18 @@ export const runNpmReadiness = async () => {
 
   await runCommand({
     command: 'npm',
+    args: ['install', '--no-package-lock'],
+    cwd: resolve(repoRoot, 'packages/contract'),
+  });
+
+  await runCommand({
+    command: 'npm',
+    args: ['install', '--no-package-lock'],
+    cwd: resolve(repoRoot, 'packages/capacitor'),
+  });
+
+  await runCommand({
+    command: 'npm',
     args: ['run', 'build'],
     cwd: resolve(repoRoot, 'packages/contract'),
   });
