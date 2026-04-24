@@ -83,9 +83,11 @@ await sync.stop();
 
 ## Local repo integration notes
 
-- Package exports currently point to `src/` for local monorepo/demo consumption (no `dist/` build required for wiring).
+- Publish-facing entrypoints (`main`/`types`/`exports` + `legato` CLI bin) resolve to built artifacts in `dist/**`.
+- Build before packing/publishing so `dist` is complete (`npm run build`).
+- Tarball readiness checks are available via `npm run pack:check` in `packages/capacitor`.
 - `@legato/contract` is a peer dependency and should be installed by host apps.
-- This package is currently optimized for in-repo integration, not publish-ready distribution workflows.
+- This package can be validated in a packed external-consumer flow through `apps/capacitor-demo` (`npm run validate:npm:readiness`).
 
 ## iOS Swift Package Manager integration
 

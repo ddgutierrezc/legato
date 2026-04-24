@@ -161,6 +161,43 @@ const parsePackTarballName = (stdout) => {
   return lines[lines.length - 1] ?? null;
 };
 
+const collectDeclaredEntrypoints = (packageJson) => {
+  const values = collectStringValues([
+    packageJson?.main,
+    packageJson?.types,
+    packageJson?.exports,
+    packageJson?.bin,
+  ]);
+  return [...new Set(values
+    .map((value) => value.replaceAll('\\', '/').replace(/^\.\//, ''))
+    .filter(Boolean))];
+};
+
+const listTarballEntries = async ({ tarballPath, commandRunner }) => {
+  const result = await commandRunner({
+    command: 'tar',
+    args: ['-tzf', tarballPath],
+    cwd: dirname(tarballPath),
+  });
+  return result.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((entry) => entry.replaceAll('\\', '/').replace(/^\.\//, '').replace(/^\/+/, ''));
+};
+
+const verifyEntrypointsInTarball = ({ entrypoints, tarballEntries, packageName }) => {
+  const missing = [];
+  const set = new Set(tarballEntries);
+  for (const entrypoint of entrypoints) {
+    const expectedEntry = `package/${entrypoint}`;
+    if (!set.has(expectedEntry)) {
+      missing.push(`${packageName}: missing ${expectedEntry}`);
+    }
+  }
+  return missing;
+};
+
 const readJsonIfPresent = async (path) => {
   try {
     return JSON.parse(await readFile(path, 'utf8'));
@@ -183,6 +220,8 @@ const parseArgs = (argv) => {
     repoRoot: defaultRepoRoot,
     artifactsDir: defaultArtifactsDir,
     keepFixture: false,
+    skipPack: false,
+    tarballs: {},
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -199,6 +238,20 @@ const parseArgs = (argv) => {
     }
     if (arg === '--keep-fixture') {
       options.keepFixture = true;
+      continue;
+    }
+    if (arg === '--skip-pack') {
+      options.skipPack = true;
+      continue;
+    }
+    if (arg === '--tarball-contract' && argv[i + 1]) {
+      options.tarballs.contract = resolve(argv[i + 1]);
+      i += 1;
+      continue;
+    }
+    if (arg === '--tarball-capacitor' && argv[i + 1]) {
+      options.tarballs.capacitor = resolve(argv[i + 1]);
+      i += 1;
     }
   }
 
@@ -219,6 +272,7 @@ export const runExternalConsumerValidation = async ({
   const areas = {
     isolation: FAIL,
     installability: FAIL,
+    packedEntrypoints: FAIL,
     typecheckAndSync: FAIL,
     validatorReuse: FAIL,
   };
@@ -245,6 +299,7 @@ export const runExternalConsumerValidation = async ({
   const runManifestPath = join(artifactsDir, 'run-manifest.json');
   const installMetadataPath = join(artifactsDir, 'install-metadata.json');
   const dependencyScanPath = join(artifactsDir, 'dependency-scan.json');
+  const tarballEntrypointCheckPath = join(artifactsDir, 'tarball-entrypoint-check.json');
   const summaryPath = join(artifactsDir, 'summary.json');
 
   try {
@@ -298,6 +353,39 @@ export const runExternalConsumerValidation = async ({
       areas.installability = PASS;
     }
 
+    const installedCapacitorPackageJson = await readJsonIfPresent(join(resolvedFixtureRoot, 'node_modules/@legato/capacitor/package.json'));
+    const installedContractPackageJson = await readJsonIfPresent(join(resolvedFixtureRoot, 'node_modules/@legato/contract/package.json'));
+    const capacitorEntrypoints = collectDeclaredEntrypoints(installedCapacitorPackageJson ?? {});
+    const contractEntrypoints = collectDeclaredEntrypoints(installedContractPackageJson ?? {});
+    const capacitorTarEntries = await listTarballEntries({ tarballPath: tarballs.capacitor, commandRunner });
+    const contractTarEntries = await listTarballEntries({ tarballPath: tarballs.contract, commandRunner });
+    const missingEntrypoints = [
+      ...verifyEntrypointsInTarball({
+        entrypoints: capacitorEntrypoints,
+        tarballEntries: capacitorTarEntries,
+        packageName: '@legato/capacitor',
+      }),
+      ...verifyEntrypointsInTarball({
+        entrypoints: contractEntrypoints,
+        tarballEntries: contractTarEntries,
+        packageName: '@legato/contract',
+      }),
+    ];
+
+    await writeFile(tarballEntrypointCheckPath, stringify({
+      status: missingEntrypoints.length === 0 ? PASS : FAIL,
+      capacitorEntrypoints,
+      contractEntrypoints,
+      missingEntrypoints,
+    }), 'utf8');
+
+    if (missingEntrypoints.length === 0) {
+      areas.packedEntrypoints = PASS;
+    } else {
+      failures.push('Packed contract breach: declared package entrypoints are missing from tarball contents.');
+      failures.push(...missingEntrypoints);
+    }
+
     const leakScan = inspectIsolationLeaks({
       packageLockRaw,
       installManifestRaw: JSON.stringify(installManifest),
@@ -305,6 +393,7 @@ export const runExternalConsumerValidation = async ({
 
     const installedCapacitorPath = join(resolvedFixtureRoot, 'node_modules/@legato/capacitor');
     const installedContractPath = join(resolvedFixtureRoot, 'node_modules/@legato/contract');
+    const installedNativeArtifactsContractPath = join(installedCapacitorPath, 'native-artifacts.json');
     const capacitorStat = await lstat(installedCapacitorPath);
     const contractStat = await lstat(installedContractPath);
     if (capacitorStat.isSymbolicLink() || contractStat.isSymbolicLink()) {
@@ -346,6 +435,7 @@ export const runExternalConsumerValidation = async ({
       args: [
         resolve(scriptDir, 'validate-native-artifacts.mjs'),
         '--plugin-gradle', join(resolvedFixtureRoot, 'node_modules/@legato/capacitor/android/build.gradle'),
+        '--native-artifacts-contract', installedNativeArtifactsContractPath,
         '--android-settings', join(resolvedFixtureRoot, 'android/settings.gradle'),
         '--capapp-spm-package', join(resolvedFixtureRoot, 'ios/App/CapApp-SPM/Package.swift'),
         '--plugin-swift-package', join(resolvedFixtureRoot, 'node_modules/@legato/capacitor/Package.swift'),
@@ -391,6 +481,7 @@ export const runExternalConsumerValidation = async ({
       typecheckLogPath,
       capSyncLogPath,
       validatorSummaryPath,
+      tarballEntrypointCheckPath,
     },
     fixtureRoot: resolvedFixtureRoot,
   };

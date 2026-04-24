@@ -1,7 +1,6 @@
 {
   "name": "@legato/capacitor",
   "version": "0.1.1",
-  "private": true,
   "description": "Capacitor binding MVP for Legato.",
   "author": "Legato",
   "homepage": "https://github.com/legato/legato",
@@ -13,31 +12,34 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "legato": "./src/cli/index.mjs"
+    "legato": "./dist/cli/index.mjs"
   },
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "files": [
-    "src",
     "dist",
-    "android",
-    "ios",
+    "android/src/main",
+    "android/build.gradle",
+    "native-artifacts.json",
+    "ios/Sources",
     "Package.swift",
     "README.md",
     "CapacitorLegato.podspec"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node ./scripts/copy-cli-to-dist.mjs && npm run readiness:entries",
     "typecheck": "tsc --noEmit",
+    "readiness:entries": "node ./scripts/assert-package-entries.mjs --package-root .",
+    "pack:check": "npm run build && node ./scripts/inspect-tarball.mjs --package-root . --profile capacitor",
     "promote:ios-distribution": "node ./scripts/promote-ios-distribution.mjs",
     "sync:native-artifacts": "node ./scripts/sync-native-artifacts.mjs",
-    "test:native-artifacts": "node --test ./scripts/__tests__/sync-native-artifacts.test.mjs ./scripts/__tests__/promote-ios-distribution.test.mjs ./scripts/__tests__/release-ios-preflight.test.mjs"
+    "test:native-artifacts": "node --test ./scripts/__tests__/sync-native-artifacts.test.mjs ./scripts/__tests__/promote-ios-distribution.test.mjs ./scripts/__tests__/release-ios-preflight.test.mjs ./scripts/__tests__/inspect-tarball.test.mjs"
   },
   "peerDependencies": {
     "@capacitor/core": "^8.0.0",
