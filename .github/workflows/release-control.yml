@@ -56,10 +56,10 @@ jobs:
       npm_mode: ${{ steps.normalize.outputs.npm_mode }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
@@ -123,10 +123,10 @@ jobs:
         working-directory: apps/capacitor-demo
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
@@ -168,7 +168,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload iOS publish evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-evidence-${{ inputs.release_id }}-ios
           path: apps/capacitor-demo/artifacts/ios-publication-v2/${{ inputs.release_id }}/*
@@ -192,10 +192,10 @@ jobs:
         working-directory: apps/capacitor-demo
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
@@ -283,7 +283,7 @@ jobs:
           NODE
 
       - name: Upload aggregated summary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-control-summary-${{ inputs.release_id }}
           path: |

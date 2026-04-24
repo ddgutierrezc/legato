@@ -76,7 +76,7 @@ jobs:
           JSON
 
       - name: Upload dispatch payload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-dispatch-${{ inputs.release_id }}-android
           path: artifacts/release-ci/dispatch.json
@@ -90,10 +90,10 @@ jobs:
         working-directory: apps/capacitor-demo
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: npm
@@ -118,7 +118,7 @@ jobs:
 
       - name: Upload preflight log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-preflight-${{ inputs.release_id }}-android
           path: |
@@ -146,10 +146,10 @@ jobs:
       ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyPassword || secrets.SIGNING_PASSWORD }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: npm
@@ -167,7 +167,7 @@ jobs:
 
       - name: Upload publish log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-publish-${{ inputs.release_id }}-android
           path: apps/capacitor-demo/artifacts/release-ci/publish.log
@@ -184,10 +184,10 @@ jobs:
         working-directory: apps/capacitor-demo
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: npm
@@ -205,7 +205,7 @@ jobs:
 
       - name: Upload verify log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-verify-${{ inputs.release_id }}-android
           path: |
@@ -335,7 +335,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload evidence bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-evidence-${{ inputs.release_id }}-android
           path: |

@@ -20,6 +20,7 @@ test('release npm workflow supports workflow_call and protected publish executio
   assert.match(workflow, /registry-url:\s*https:\/\/registry\.npmjs\.org/i);
   assert.match(workflow, /actions\/checkout@v6/i);
   assert.match(workflow, /actions\/setup-node@v6/i);
+  assert.match(workflow, /actions\/upload-artifact@v7/i);
   assert.match(workflow, /npm install --global npm@11\.5\.1/i);
   assert.match(workflow, /release:npm:policy/i);
   assert.doesNotMatch(workflow, /Execute protected npm publish lane/i);

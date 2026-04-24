@@ -83,7 +83,7 @@ jobs:
           echo 'npm publish --access public' > ./artifacts/npm-release-v1/${{ inputs.release_id }}/publish-command.txt
 
       - name: Upload npm lane evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-evidence-${{ inputs.release_id }}-npm
           path: |
