@@ -16,7 +16,7 @@ const pluginPackageSwiftArtifactOnly = `
 let package = Package(
     name: "LegatoCapacitor",
     dependencies: [
-        .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.0")
+        .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.1")
     ]
 )
 `;
@@ -77,6 +77,16 @@ test('release gate passes when native artifact checks and smoke reports pass', (
       iosResolutionLog: './artifacts/release-native-artifact-foundation-v1/ios-spm-resolution.log',
       androidSmokeReport: './artifacts/release-native-artifact-foundation-v1/android-smoke-report.json',
       iosSmokeReport: './artifacts/release-native-artifact-foundation-v1/ios-smoke-report.json',
+      externalConsumerSummary: './artifacts/release-native-artifact-foundation-v1/external-consumer-summary.json',
+    },
+    externalConsumerSummary: {
+      status: 'PASS',
+      areas: {
+        isolation: 'PASS',
+        installability: 'PASS',
+        typecheckAndSync: 'PASS',
+        validatorReuse: 'PASS',
+      },
     },
   });
 
@@ -106,6 +116,46 @@ test('release gate fails when evidence manifest is missing required artifacts', 
   assert.match(result.failures.join('\n'), /Missing release evidence artifact entry: iosResolutionLog/i);
   assert.match(result.failures.join('\n'), /Missing release evidence artifact entry: androidSmokeReport/i);
   assert.match(result.failures.join('\n'), /Missing release evidence artifact entry: iosSmokeReport/i);
+  assert.match(result.failures.join('\n'), /Missing release evidence artifact entry: externalConsumerSummary/i);
+});
+
+test('release gate fails when external consumer summary is FAIL', () => {
+  const result = validateNativeReleaseGate({
+    nativeValidationInput: {
+      pluginBuildGradle: pluginBuildGradleArtifactOnly,
+      androidSettingsGradle: androidSettings,
+      capAppSpmPackageSwift: capAppSpm,
+      pluginPackageSwift: pluginPackageSwiftArtifactOnly,
+      pluginSwiftSource,
+      capacitorConfigJson: capacitorConfig,
+    },
+    smokeArtifacts: [
+      { path: './artifacts/android-smoke-report.json', report: { ...passingSmokeReport, metadata: { platform: 'android' } } },
+      { path: './artifacts/ios-smoke-report.json', report: { ...passingSmokeReport, metadata: { platform: 'ios' } } },
+    ],
+    evidenceManifest: {
+      androidResolutionLog: './artifacts/release-native-artifact-foundation-v1/android-dependency-resolution.log',
+      iosResolutionLog: './artifacts/release-native-artifact-foundation-v1/ios-spm-resolution.log',
+      androidSmokeReport: './artifacts/release-native-artifact-foundation-v1/android-smoke-report.json',
+      iosSmokeReport: './artifacts/release-native-artifact-foundation-v1/ios-smoke-report.json',
+      externalConsumerSummary: './artifacts/release-native-artifact-foundation-v1/external-consumer-summary.json',
+    },
+    externalConsumerSummary: {
+      status: 'FAIL',
+      areas: {
+        isolation: 'PASS',
+        installability: 'PASS',
+        typecheckAndSync: 'FAIL',
+        validatorReuse: 'PASS',
+      },
+      failures: ['Sync resolver failed'],
+    },
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.sections.externalConsumer, 'FAIL');
+  assert.match(result.failures.join('\n'), /external consumer/i);
+  assert.match(result.failures.join('\n'), /Sync resolver failed/i);
 });
 
 test('release gate formatter emits deterministic sections', () => {
@@ -122,5 +172,6 @@ test('release gate formatter emits deterministic sections', () => {
   assert.match(summary, /native-artifacts: FAIL/i);
   assert.match(summary, /smoke: FAIL/i);
   assert.match(summary, /release-evidence: FAIL/i);
+  assert.match(summary, /external-consumer: FAIL/i);
   assert.match(summary, /project\(':native:android:core'\)/i);
 });

@@ -11,7 +11,7 @@ import {
   runAndroidReleaseVerify,
 } from './release-android.mjs';
 
-const makeFixture = async ({ coordinate = 'dev.dgutierrez:legato-android-core:0.1.0' } = {}) => {
+const makeFixture = async ({ coordinate = 'dev.dgutierrez:legato-android-core:0.1.1' } = {}) => {
   const tempDir = await mkdtemp(join(tmpdir(), 'legato-android-release-fixture-'));
   const projectDir = join(tempDir, 'android-core');
   const contractPath = join(tempDir, 'native-artifacts.json');
@@ -25,7 +25,7 @@ const makeFixture = async ({ coordinate = 'dev.dgutierrez:legato-android-core:0.
       repositoryUrl: 'https://repo1.maven.org/maven2',
       group: 'dev.dgutierrez',
       artifact: 'legato-android-core',
-      version: '0.1.0',
+      version: '0.1.1',
     },
   }, null, 2), 'utf8');
 
@@ -34,6 +34,11 @@ const makeFixture = async ({ coordinate = 'dev.dgutierrez:legato-android-core:0.
     `plugins { id 'com.vanniktech.maven.publish' }
 // contract path marker for metadata validation
 def nativeArtifacts = file('../../packages/capacitor/native-artifacts.json')
+signing {
+  if (providers.gradleProperty('signing.gnupg.keyName').isPresent()) {
+    useGpgCmd()
+  }
+}
 `,
     'utf8',
   );
@@ -90,7 +95,7 @@ test('integration: preflight passes with fixture contract/build.gradle and Gradl
 });
 
 test('integration: publish remains blocked when preflight detects contract drift', async () => {
-  const fixture = await makeFixture({ coordinate: 'io.legato:legato-android-core:0.1.0' });
+  const fixture = await makeFixture({ coordinate: 'io.legato:legato-android-core:0.1.1' });
   try {
     const result = await runAndroidReleasePublish({
       contractPath: fixture.contractPath,
@@ -117,7 +122,7 @@ test('integration: publish remains blocked when preflight detects contract drift
 test('integration: verify fails when remote pom identity mismatches contract', async () => {
   const server = createServer((_, response) => {
     response.writeHead(200, { 'content-type': 'application/xml' });
-    response.end('<project><groupId>dev.dgutierrez</groupId><artifactId>wrong-artifact</artifactId><version>0.1.0</version></project>');
+    response.end('<project><groupId>dev.dgutierrez</groupId><artifactId>wrong-artifact</artifactId><version>0.1.1</version></project>');
   });
 
   const port = await new Promise((resolvePort) => {
@@ -134,7 +139,7 @@ test('integration: verify fails when remote pom identity mismatches contract', a
           repositoryUrl: `http://127.0.0.1:${port}`,
           group: 'dev.dgutierrez',
           artifact: 'legato-android-core',
-          version: '0.1.0',
+          version: '0.1.1',
         },
       },
     });

@@ -9,6 +9,7 @@ const REQUIRED_ARTIFACT_KEYS = Object.freeze([
   'iosResolutionLog',
   'androidSmokeReport',
   'iosSmokeReport',
+  'externalConsumerSummary',
 ]);
 
 const resolveDefaultArtifacts = () => ({
@@ -16,6 +17,7 @@ const resolveDefaultArtifacts = () => ({
   iosResolutionLog: 'artifacts/ios-spm-resolution.log',
   androidSmokeReport: 'artifacts/android-smoke-report.json',
   iosSmokeReport: 'artifacts/ios-smoke-report.json',
+  externalConsumerSummary: 'artifacts/external-consumer-validation-v1/summary.json',
 });
 
 const resolveOutputNames = () => ({
@@ -23,6 +25,7 @@ const resolveOutputNames = () => ({
   iosResolutionLog: 'ios-spm-resolution.log',
   androidSmokeReport: 'android-smoke-report.json',
   iosSmokeReport: 'ios-smoke-report.json',
+  externalConsumerSummary: 'external-consumer-summary.json',
 });
 
 const normalizeManifest = ({ artifacts, failures }) => {
@@ -56,6 +59,7 @@ export const captureNativeReleaseEvidence = async ({
   iosResolutionLogPath,
   androidSmokeReportPath,
   iosSmokeReportPath,
+  externalSummaryPath,
   outputDir = 'artifacts/release-native-artifact-foundation-v1',
 } = {}) => {
   const defaults = resolveDefaultArtifacts();
@@ -64,6 +68,7 @@ export const captureNativeReleaseEvidence = async ({
     iosResolutionLog: iosResolutionLogPath ?? defaults.iosResolutionLog,
     androidSmokeReport: androidSmokeReportPath ?? defaults.androidSmokeReport,
     iosSmokeReport: iosSmokeReportPath ?? defaults.iosSmokeReport,
+    externalConsumerSummary: externalSummaryPath ?? defaults.externalConsumerSummary,
   };
 
   const outputNames = resolveOutputNames();
@@ -126,6 +131,11 @@ const parseArgs = (argv) => {
     }
     if (arg === '--output-dir' && argv[i + 1]) {
       options.outputDir = argv[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--external-summary' && argv[i + 1]) {
+      options.externalSummaryPath = argv[i + 1];
       i += 1;
     }
   }

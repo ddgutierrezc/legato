@@ -11,7 +11,7 @@ const contract = {
     packageUrl: 'https://github.com/legato/legato-ios-core.git',
     packageName: 'LegatoCore',
     product: 'LegatoCore',
-    version: '0.1.0',
+    version: '0.1.1',
     versionPolicy: 'exact',
   },
 };
@@ -35,13 +35,13 @@ let legatoNativeArtifactContract = (
     packageName: "LegatoCore",
     product: "LegatoCore",
     versionPolicy: "exact",
-    version: "0.1.0"
+    version: "0.1.1"
 )
 // NATIVE_ARTIFACTS:END
 let package = Package(
     name: "LegatoCapacitor",
     dependencies: [
-        .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.0")
+        .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.1")
     ],
     targets: [
         .target(
@@ -61,14 +61,14 @@ let legatoNativeArtifactContract = (
     packageName: "LegatoCore",
     product: "LegatoCore",
     versionPolicy: "exact",
-    version: "0.1.0"
+    version: "0.1.1"
 )
 // NATIVE_ARTIFACTS:END
 let package = Package(
     name: "LegatoCapacitor",
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "8.0.0"),
-        .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.0")
+        .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.1")
     ],
     targets: [
         .target(
@@ -86,7 +86,7 @@ let package = Package(
 test('iOS preflight passes when contract/native/plugin identity and tag are aligned', async () => {
   const result = await runIosReleasePreflight({
     contract,
-    releaseTag: 'v0.1.0',
+    releaseTag: 'v0.1.1',
     nativePackageSwift,
     pluginPackageSwift,
   });
@@ -112,7 +112,7 @@ test('iOS preflight fails when release tag does not match contract version', asy
 test('iOS preflight fails when plugin package URL or product identity drifts', async () => {
   const result = await runIosReleasePreflight({
     contract,
-    releaseTag: 'v0.1.0',
+    releaseTag: 'v0.1.1',
     nativePackageSwift,
     pluginPackageSwift: pluginPackageSwift
       .replaceAll('https://github.com/legato/legato-ios-core.git', 'https://github.com/acme/legato-ios-core.git')
@@ -127,7 +127,7 @@ test('iOS preflight fails when plugin package URL or product identity drifts', a
 test('iOS preflight fails when native package name mismatches contract package name', async () => {
   const result = await runIosReleasePreflight({
     contract,
-    releaseTag: 'v0.1.0',
+    releaseTag: 'v0.1.1',
     nativePackageSwift: nativePackageSwift.replace('name: "LegatoCore"', 'name: "WrongCore"'),
     pluginPackageSwift,
   });
@@ -154,7 +154,7 @@ test('iOS preflight summary includes readiness and tag context', async () => {
 test('iOS preflight passes when plugin declares multiple product dependencies including LegatoCore', async () => {
   const result = await runIosReleasePreflight({
     contract,
-    releaseTag: 'v0.1.0',
+    releaseTag: 'v0.1.1',
     nativePackageSwift,
     pluginPackageSwift: pluginPackageSwiftWithMultipleProducts,
   });

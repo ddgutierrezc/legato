@@ -1,11 +1,32 @@
 # Copy this file to `gradle.properties` (local only) and provide real values.
 # Do NOT commit secrets.
+# The tracked `gradle.properties` enables AndroidX for this module.
+# This example file exists only for maintainer-owned publish secrets.
+# These keys map to the release gate aliases:
+# - mavenCentralUsername  -> ORG_GRADLE_PROJECT_mavenCentralUsername / MAVEN_CENTRAL_USERNAME
+# - mavenCentralPassword  -> ORG_GRADLE_PROJECT_mavenCentralPassword / MAVEN_CENTRAL_PASSWORD
+# - signing.gnupg.keyName -> SIGNING_GNUPG_KEY_NAME (preferred local GPG backend)
+# - signing.gnupg.passphrase -> SIGNING_GNUPG_PASSPHRASE (optional when gpg-agent already unlocks key)
+# - signing.gnupg.executable -> SIGNING_GNUPG_EXECUTABLE (optional override)
+# - signing.gnupg.homeDir -> SIGNING_GNUPG_HOME_DIR (optional override)
+# - signingInMemoryKey    -> ORG_GRADLE_PROJECT_signingInMemoryKey / SIGNING_KEY
+# - signingInMemoryKeyFile -> ORG_GRADLE_PROJECT_signingInMemoryKeyFile / SIGNING_KEY_FILE
+# - signingInMemoryKeyPassword -> ORG_GRADLE_PROJECT_signingInMemoryKeyPassword / SIGNING_PASSWORD
 
 # Maven Central Portal credentials
 mavenCentralUsername=
 mavenCentralPassword=
 
-# In-memory ASCII-armored GPG private key (single-line, base64-safe)
+# Preferred backend: local GPG key via signing.gnupg.*
+signing.gnupg.keyName=
+signing.gnupg.passphrase=
+signing.gnupg.executable=
+signing.gnupg.homeDir=
+
+# Fallback backend: in-memory key material
+signingInMemoryKeyFile=
+
+# Optional fallback: in-memory ASCII-armored private key (only if key-file alias is not used)
 signingInMemoryKey=
 signingInMemoryKeyId=
 signingInMemoryKeyPassword=

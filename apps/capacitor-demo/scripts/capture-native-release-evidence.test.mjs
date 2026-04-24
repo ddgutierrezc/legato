@@ -19,12 +19,14 @@ test('capture copies required evidence files and writes manifest', async () => {
   await writeFile(join(sourceDir, 'ios-resolution.log'), 'ios resolver ok\n', 'utf8');
   await writeFile(join(sourceDir, 'android-smoke-report.json'), '{"status":"PASS"}\n', 'utf8');
   await writeFile(join(sourceDir, 'ios-smoke-report.json'), '{"status":"PASS"}\n', 'utf8');
+  await writeFile(join(sourceDir, 'external-summary.json'), '{"status":"PASS","areas":{"isolation":"PASS"}}\n', 'utf8');
 
   const result = await captureNativeReleaseEvidence({
     androidResolutionLogPath: join(sourceDir, 'android-resolution.log'),
     iosResolutionLogPath: join(sourceDir, 'ios-resolution.log'),
     androidSmokeReportPath: join(sourceDir, 'android-smoke-report.json'),
     iosSmokeReportPath: join(sourceDir, 'ios-smoke-report.json'),
+    externalSummaryPath: join(sourceDir, 'external-summary.json'),
     outputDir,
   });
 
@@ -36,10 +38,14 @@ test('capture copies required evidence files and writes manifest', async () => {
   assert.equal(typeof manifest.artifacts.iosResolutionLog, 'string');
   assert.equal(typeof manifest.artifacts.androidSmokeReport, 'string');
   assert.equal(typeof manifest.artifacts.iosSmokeReport, 'string');
+  assert.equal(typeof manifest.artifacts.externalConsumerSummary, 'string');
   assert.equal(manifest.failures.length, 0);
 
   const copiedAndroidResolution = await readFile(manifest.artifacts.androidResolutionLog, 'utf8');
   assert.match(copiedAndroidResolution, /android deps ok/i);
+
+  const copiedExternalSummary = await readFile(manifest.artifacts.externalConsumerSummary, 'utf8');
+  assert.match(copiedExternalSummary, /"status":"PASS"/i);
 
   const summary = formatCaptureSummary(manifest);
   assert.match(summary, /Overall: PASS/i);
@@ -69,6 +75,7 @@ test('capture fails with actionable message when any required evidence file is m
   assert.equal(manifest.exitCode, 1);
   assert.match(manifest.failures.join('\n'), /android-resolution\.log/i);
   assert.match(manifest.failures.join('\n'), /ios-resolution\.log/i);
+  assert.match(manifest.failures.join('\n'), /external-consumer-validation-v1\/summary\.json/i);
 
   await rm(tempDir, { recursive: true, force: true });
 });

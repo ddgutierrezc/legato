@@ -17,7 +17,35 @@ const REQUIRED_EVIDENCE_KEYS = Object.freeze([
   'iosResolutionLog',
   'androidSmokeReport',
   'iosSmokeReport',
+  'externalConsumerSummary',
 ]);
+
+const normalizeExternalConsumer = (summary = undefined) => {
+  if (!summary || typeof summary !== 'object') {
+    return {
+      status: FAIL,
+      failures: ['Missing external consumer validation summary payload.'],
+    };
+  }
+
+  const normalizedStatus = summary.status === PASS ? PASS : FAIL;
+  const failures = [];
+  if (normalizedStatus === FAIL) {
+    failures.push('Release blocked: external consumer validation reported FAIL.');
+    if (Array.isArray(summary.failures)) {
+      for (const failure of summary.failures) {
+        if (typeof failure === 'string' && failure.trim() !== '') {
+          failures.push(`External consumer failure: ${failure}`);
+        }
+      }
+    }
+  }
+
+  return {
+    status: normalizedStatus,
+    failures,
+  };
+};
 
 const normalizeReleaseEvidence = (evidenceManifest = {}) => {
   const failures = [];
@@ -38,6 +66,7 @@ export const validateNativeReleaseGate = ({
   nativeValidationInput,
   smokeArtifacts,
   evidenceManifest,
+  externalConsumerSummary,
 }) => {
   const nativeResult = validateNativeArtifacts(nativeValidationInput);
   const reports = smokeArtifacts ?? [];
@@ -47,11 +76,13 @@ export const validateNativeReleaseGate = ({
   }
   const smokeResult = validateSmokeReports(reports, { preflightFailures: smokePreflightFailures });
   const evidenceResult = normalizeReleaseEvidence(evidenceManifest);
+  const externalConsumerResult = normalizeExternalConsumer(externalConsumerSummary);
 
   const failures = [
     ...nativeResult.failures,
     ...smokeResult.failures,
     ...evidenceResult.failures,
+    ...externalConsumerResult.failures,
   ];
 
   const status = failures.length === 0 ? PASS : FAIL;
@@ -62,11 +93,13 @@ export const validateNativeReleaseGate = ({
       nativeArtifacts: nativeResult.status,
       smoke: smokeResult.status,
       releaseEvidence: evidenceResult.status,
+      externalConsumer: externalConsumerResult.status,
     },
     failures,
     nativeResult,
     smokeResult,
     evidenceResult,
+    externalConsumerResult,
   };
 };
 
@@ -76,6 +109,7 @@ export const formatNativeReleaseGateSummary = (result) => {
     `native-artifacts: ${result.sections.nativeArtifacts}`,
     `smoke: ${result.sections.smoke}`,
     `release-evidence: ${result.sections.releaseEvidence}`,
+    `external-consumer: ${result.sections.externalConsumer}`,
   ];
 
   if (result.failures.length > 0) {
@@ -152,7 +186,7 @@ if (isEntrypoint) {
   const options = parseArgs(process.argv.slice(2));
 
   if (!options.pluginGradlePath || !options.evidenceManifestPath) {
-    process.stdout.write('Overall: FAIL\nnative-artifacts: FAIL\nsmoke: FAIL\nrelease-evidence: FAIL\nFailures:\n- Usage: node scripts/validate-native-release-gate.mjs --plugin-gradle <path> --evidence-manifest <path> [--native-artifacts-contract <path>] [--android-settings <path>] [--capapp-spm-package <path>] [--plugin-swift-package <path>] [--plugin-swift-source <path>] [--capacitor-config <path>]\n');
+    process.stdout.write('Overall: FAIL\nnative-artifacts: FAIL\nsmoke: FAIL\nrelease-evidence: FAIL\nexternal-consumer: FAIL\nFailures:\n- Usage: node scripts/validate-native-release-gate.mjs --plugin-gradle <path> --evidence-manifest <path> [--native-artifacts-contract <path>] [--android-settings <path>] [--capapp-spm-package <path>] [--plugin-swift-package <path>] [--plugin-swift-source <path>] [--capacitor-config <path>]\n');
     process.exit(1);
   }
 
@@ -194,6 +228,10 @@ if (isEntrypoint) {
       ? await readFile(evidenceManifest.iosResolutionLog, 'utf8')
       : '';
 
+    const externalConsumerSummary = typeof evidenceManifest.externalConsumerSummary === 'string'
+      ? JSON.parse(await readFile(evidenceManifest.externalConsumerSummary, 'utf8'))
+      : undefined;
+
     const result = validateNativeReleaseGate({
       nativeValidationInput: {
         pluginBuildGradle,
@@ -208,6 +246,7 @@ if (isEntrypoint) {
       },
       smokeArtifacts,
       evidenceManifest,
+      externalConsumerSummary,
     });
 
     process.stdout.write(`${formatNativeReleaseGateSummary(result)}\n`);
@@ -221,7 +260,7 @@ if (isEntrypoint) {
     process.exit(result.exitCode);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown error';
-    process.stdout.write(`Overall: FAIL\nnative-artifacts: FAIL\nsmoke: FAIL\nrelease-evidence: FAIL\nFailures:\n- Failed to evaluate native release gate inputs: ${message}\n`);
+    process.stdout.write(`Overall: FAIL\nnative-artifacts: FAIL\nsmoke: FAIL\nrelease-evidence: FAIL\nexternal-consumer: FAIL\nFailures:\n- Failed to evaluate native release gate inputs: ${message}\n`);
     process.exit(1);
   }
 }

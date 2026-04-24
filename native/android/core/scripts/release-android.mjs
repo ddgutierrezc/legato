@@ -14,11 +14,41 @@ const defaultPaths = {
   projectDir: resolve(scriptDir, '..'),
 };
 
-const requiredPublishSecrets = [
+const requiredMavenSecrets = [
   ['ORG_GRADLE_PROJECT_mavenCentralUsername', 'MAVEN_CENTRAL_USERNAME'],
   ['ORG_GRADLE_PROJECT_mavenCentralPassword', 'MAVEN_CENTRAL_PASSWORD'],
-  ['ORG_GRADLE_PROJECT_signingInMemoryKey', 'SIGNING_KEY'],
-  ['ORG_GRADLE_PROJECT_signingInMemoryKeyPassword', 'SIGNING_PASSWORD'],
+];
+
+const signingKeyValueAliases = ['ORG_GRADLE_PROJECT_signingInMemoryKey', 'SIGNING_KEY'];
+const signingKeyFileAliases = ['ORG_GRADLE_PROJECT_signingInMemoryKeyFile', 'SIGNING_KEY_FILE'];
+const signingKeyPasswordAliases = ['ORG_GRADLE_PROJECT_signingInMemoryKeyPassword', 'SIGNING_PASSWORD'];
+
+const signingGnupgKeyNameAliases = ['ORG_GRADLE_PROJECT_signingGnupgKeyName', 'SIGNING_GNUPG_KEY_NAME', 'SIGNING_GNUPG_KEYNAME'];
+const signingGnupgPassphraseAliases = ['ORG_GRADLE_PROJECT_signingGnupgPassphrase', 'SIGNING_GNUPG_PASSPHRASE'];
+const signingGnupgExecutableAliases = ['ORG_GRADLE_PROJECT_signingGnupgExecutable', 'SIGNING_GNUPG_EXECUTABLE'];
+const signingGnupgHomeDirAliases = ['ORG_GRADLE_PROJECT_signingGnupgHomeDir', 'SIGNING_GNUPG_HOME_DIR'];
+
+const signingAliasGroups = [
+  signingKeyValueAliases,
+  signingKeyFileAliases,
+  signingKeyPasswordAliases,
+  signingGnupgKeyNameAliases,
+  signingGnupgPassphraseAliases,
+  signingGnupgExecutableAliases,
+  signingGnupgHomeDirAliases,
+];
+
+const placeholderTokens = [
+  'changeme',
+  'replace-me',
+  'replace_me',
+  'placeholder',
+  'example',
+  'sample',
+  'dummy',
+  'your-',
+  '<',
+  'todo',
 ];
 
 const normalizeContract = (contract) => {
@@ -148,6 +178,9 @@ const ensureBuildScriptMetadata = (buildGradle) => {
   if (!/native-artifacts\.json/i.test(buildGradle)) {
     failures.push('Android publication metadata missing: build.gradle must load native-artifacts.json as source of truth.');
   }
+  if (!/useGpgCmd\s*\(/i.test(buildGradle) || !/signing\.gnupg\.keyName/i.test(buildGradle)) {
+    failures.push('Android publication metadata missing: build.gradle must wire signing.useGpgCmd() for signing.gnupg.keyName-based publish runs.');
+  }
   return failures;
 };
 
@@ -158,18 +191,53 @@ const makeResult = ({ status, failures = [], details = {} }) => ({
   details,
 });
 
+const hasPlaceholderSecretValue = (value) => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return placeholderTokens.some((token) => normalized.includes(token));
+};
+
+const invalidPlaceholderSecrets = (env = process.env) => {
+  const failures = [];
+  const placeholderAliasGroups = [
+    ...requiredMavenSecrets,
+    ...signingAliasGroups,
+  ];
+
+  for (const aliases of placeholderAliasGroups) {
+    for (const alias of aliases) {
+      const value = env[alias];
+      if (typeof value === 'string' && hasPlaceholderSecretValue(value)) {
+        failures.push(`Invalid placeholder for ${aliases.join(' or ')} (found in ${alias}).`);
+        break;
+      }
+    }
+  }
+  return failures;
+};
+
 export const runAndroidReleasePreflight = async ({
   contract,
   contractPath = defaultPaths.contractPath,
   buildGradlePath = defaultPaths.buildGradlePath,
   projectDir = defaultPaths.projectDir,
   gradleExecutable,
+  env = process.env,
   fileReader = readFile,
   execCommand = defaultExecCommand,
 }) => {
   const failures = [];
   const resolvedContract = contract ? normalizeContract(contract) : await readContractFile(contractPath, fileReader);
   failures.push(...validateContractFields(resolvedContract));
+  failures.push(...invalidPlaceholderSecrets(env));
+
+  const signingConfigResolution = await resolvePublishSigningConfig({ env, fileReader, requireSigningBackend: false });
+  if (signingConfigResolution.failure) {
+    failures.push(`Invalid signing configuration: ${signingConfigResolution.failure}`);
+  }
 
   let buildGradle = '';
   try {
@@ -213,15 +281,116 @@ export const runAndroidReleasePreflight = async ({
   });
 };
 
-const missingPublishSecrets = (env = process.env) => {
+const missingMavenSecrets = (env = process.env) => {
   const missing = [];
-  for (const aliases of requiredPublishSecrets) {
+  for (const aliases of requiredMavenSecrets) {
     const available = aliases.some((key) => typeof env[key] === 'string' && env[key].trim() !== '');
     if (!available) {
       missing.push(aliases.join(' or '));
     }
   }
   return missing;
+};
+
+const firstPresentAlias = (aliases, env = process.env) => {
+  for (const alias of aliases) {
+    const value = env[alias];
+    if (typeof value === 'string' && value.trim() !== '') {
+      return { alias, value: value.trim() };
+    }
+  }
+  return null;
+};
+
+const resolvePublishSigningConfig = async ({ env = process.env, fileReader = readFile, requireSigningBackend = true }) => {
+  const gnupgKeyName = firstPresentAlias(signingGnupgKeyNameAliases, env);
+  if (gnupgKeyName) {
+    const gnupgPassphrase = firstPresentAlias(signingGnupgPassphraseAliases, env);
+    const gnupgExecutable = firstPresentAlias(signingGnupgExecutableAliases, env);
+    const gnupgHomeDir = firstPresentAlias(signingGnupgHomeDirAliases, env);
+    return {
+      backend: 'gnupg',
+      gradleProperties: {
+        'signing.gnupg.keyName': gnupgKeyName.value,
+        ...(gnupgPassphrase ? { 'signing.gnupg.passphrase': gnupgPassphrase.value } : {}),
+        ...(gnupgExecutable ? { 'signing.gnupg.executable': gnupgExecutable.value } : {}),
+        ...(gnupgHomeDir ? { 'signing.gnupg.homeDir': gnupgHomeDir.value } : {}),
+      },
+      failure: null,
+    };
+  }
+
+  const directKey = firstPresentAlias(signingKeyValueAliases, env);
+  const signingPassword = firstPresentAlias(signingKeyPasswordAliases, env);
+  if (directKey) {
+    if (!signingPassword) {
+      return {
+        backend: 'in-memory',
+        gradleProperties: {},
+        failure: `Missing signing key password (${signingKeyPasswordAliases.join(' or ')}) for in-memory signing key source ${directKey.alias}.`,
+      };
+    }
+
+    return {
+      backend: 'in-memory',
+      gradleProperties: {
+        signingInMemoryKey: directKey.value,
+      },
+      failure: null,
+    };
+  }
+
+  const keyFile = firstPresentAlias(signingKeyFileAliases, env);
+  if (!keyFile) {
+    if (!requireSigningBackend) {
+      return {
+        backend: null,
+        gradleProperties: {},
+        failure: null,
+      };
+    }
+
+    return {
+      backend: null,
+      gradleProperties: {},
+      failure: `Missing signing configuration. Configure one signing backend: (${signingGnupgKeyNameAliases.join(' or ')}) for local GPG signing, or (${signingKeyValueAliases.join(' or ')}) / (${signingKeyFileAliases.join(' or ')}) with ${signingKeyPasswordAliases.join(' or ')} for in-memory signing.`,
+    };
+  }
+
+  if (!signingPassword) {
+    return {
+      backend: 'in-memory',
+      gradleProperties: {},
+      failure: `Missing signing key password (${signingKeyPasswordAliases.join(' or ')}) for in-memory signing key file source ${keyFile.alias}.`,
+    };
+  }
+
+  try {
+    const keyFromFile = await fileReader(keyFile.value, 'utf8');
+    const normalizedKey = keyFromFile.trim();
+    if (!normalizedKey) {
+      return {
+        backend: 'in-memory',
+        gradleProperties: {},
+        failure: `Signing key file is empty (${keyFile.alias}=${keyFile.value}).`,
+      };
+    }
+
+    return {
+      backend: 'in-memory',
+      gradleProperties: {
+        signingInMemoryKey: normalizedKey,
+      },
+      failure: null,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      backend: 'in-memory',
+      gradleProperties: {},
+      failure: `Unable to read signing key file from ${keyFile.alias}=${keyFile.value}: ${message}`,
+    };
+  }
 };
 
 export const runAndroidReleasePublish = async ({
@@ -240,19 +409,25 @@ export const runAndroidReleasePublish = async ({
     buildGradlePath,
     projectDir,
     gradleExecutable,
+    env,
     fileReader,
     execCommand,
   });
+
+  const resolvedContract = contract ? normalizeContract(contract) : await readContractFile(contractPath, fileReader);
+  const expectedCoordinate = expectedCoordinateFromContract(resolvedContract);
+  const pomUrl = makePomUrl(resolvedContract);
+  const portalNamespaceUrl = makePortalNamespaceUrl(resolvedContract);
 
   if (preflight.status === FAIL) {
     return makeResult({
       status: FAIL,
       failures: ['Publish blocked: Android preflight failed.', ...preflight.failures],
-      details: { mode: 'publish', preflight },
+      details: { mode: 'publish', preflight, expectedCoordinate, pomUrl, portalNamespaceUrl },
     });
   }
 
-  const missingSecrets = missingPublishSecrets(env);
+  const missingSecrets = missingMavenSecrets(env);
   if (missingSecrets.length > 0) {
     return makeResult({
       status: FAIL,
@@ -260,29 +435,50 @@ export const runAndroidReleasePublish = async ({
         'Publish blocked: missing required Maven Central/signing credentials.',
         ...missingSecrets.map((entry) => `Missing: ${entry}`),
       ],
-      details: { mode: 'publish', preflight },
+      details: { mode: 'publish', preflight, expectedCoordinate, pomUrl, portalNamespaceUrl },
     });
+  }
+
+  const signingConfigResolution = await resolvePublishSigningConfig({ env, fileReader });
+  if (signingConfigResolution.failure) {
+    return makeResult({
+      status: FAIL,
+      failures: [`Publish blocked: ${signingConfigResolution.failure}`],
+      details: { mode: 'publish', preflight, expectedCoordinate, pomUrl, portalNamespaceUrl },
+    });
+  }
+
+  const publishEnv = { ...env };
+  if (signingConfigResolution.backend === 'in-memory' && signingConfigResolution.gradleProperties.signingInMemoryKey && !publishEnv.ORG_GRADLE_PROJECT_signingInMemoryKey) {
+    publishEnv.ORG_GRADLE_PROJECT_signingInMemoryKey = signingConfigResolution.gradleProperties.signingInMemoryKey;
+  }
+
+  const signingGradleArgs = [];
+  if (signingConfigResolution.backend === 'gnupg') {
+    for (const [propertyName, propertyValue] of Object.entries(signingConfigResolution.gradleProperties)) {
+      signingGradleArgs.push(`-P${propertyName}=${propertyValue}`);
+    }
   }
 
   const resolvedGradleExecutable = await resolveGradleExecutable(projectDir, gradleExecutable);
   const publishResult = await execCommand(
     resolvedGradleExecutable,
-    ['publishAndReleaseToMavenCentral'],
-    { cwd: projectDir, env },
+    [...signingGradleArgs, 'publishAndReleaseToMavenCentral'],
+    { cwd: projectDir, env: publishEnv },
   );
 
   if (publishResult.exitCode !== 0) {
     return makeResult({
       status: FAIL,
       failures: [`Publish failed: ${(publishResult.stderr || publishResult.stdout || '').trim()}`],
-      details: { mode: 'publish', preflight },
+      details: { mode: 'publish', preflight, expectedCoordinate, pomUrl, portalNamespaceUrl },
     });
   }
 
   return makeResult({
     status: PASS,
     failures: [],
-    details: { mode: 'publish', preflight },
+    details: { mode: 'publish', preflight, expectedCoordinate, pomUrl, portalNamespaceUrl },
   });
 };
 
@@ -291,6 +487,8 @@ const makePomUrl = (contract) => {
   const groupPath = contract.group.split('.').join('/');
   return `${base}/${groupPath}/${contract.artifact}/${contract.version}/${contract.artifact}-${contract.version}.pom`;
 };
+
+const makePortalNamespaceUrl = (contract) => `https://central.sonatype.com/namespace/${contract.group}`;
 
 export const runAndroidReleaseVerify = async ({
   contract,
@@ -352,12 +550,23 @@ export const formatReleaseSummary = (result) => {
   if (result.details?.pomUrl) {
     lines.push(`POM URL: ${result.details.pomUrl}`);
   }
+  if (result.details?.portalNamespaceUrl) {
+    lines.push(`Portal namespace: ${result.details.portalNamespaceUrl}`);
+  }
 
   if (result.failures.length > 0) {
     lines.push('Failures:');
     for (const failure of result.failures) {
       lines.push(`- ${failure}`);
     }
+  }
+
+  if (result.details?.mode === 'publish' && result.status === PASS) {
+    lines.push('Next step: run release:android:verify until the POM URL returns HTTP 200 within the agreed retry window.');
+  }
+
+  if (result.details?.mode === 'publish' && result.status === FAIL) {
+    lines.push('Next step: confirm namespace/version in portal, then rerun preflight and publish only if version is not released.');
   }
 
   return lines.join('\n');
