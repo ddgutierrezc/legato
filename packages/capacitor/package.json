@@ -1,6 +1,6 @@
 {
   "name": "@legato/capacitor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Capacitor binding MVP for Legato.",
   "author": "Legato",
@@ -40,7 +40,7 @@
   },
   "peerDependencies": {
     "@capacitor/core": "^8.0.0",
-    "@legato/contract": "^0.1.0"
+    "@legato/contract": "^0.1.1"
   },
   "devDependencies": {
     "@capacitor/core": "^8.0.0",

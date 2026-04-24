@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 const PASS = 'PASS';
 const FAIL = 'FAIL';
@@ -14,6 +15,65 @@ const IOS_PLUGIN_OBJC_PATTERN = /@objc\(LegatoPlugin\)/;
 const IOS_PLUGIN_BRIDGE_PATTERN = /class\s+LegatoPlugin\s*:\s*CAPPlugin,\s*CAPBridgedPlugin/;
 const CAP_APP_SPM_GENERATED_OWNERSHIP_PATTERN = /DO NOT MODIFY THIS FILE - managed by Capacitor CLI commands/;
 const CAP_APP_SPM_MANUAL_LEGATO_CORE_PATH_PATTERN = /\.package\(path:\s*"[^"]*LegatoCore[^"]*"\)/;
+
+const normalizeAbsolute = (value) => resolve(value).replaceAll('\\', '/');
+
+const isPathInside = (targetPath, rootPath) => {
+  const normalizedTarget = normalizeAbsolute(targetPath);
+  const normalizedRoot = normalizeAbsolute(rootPath).replace(/\/+$/, '');
+  return normalizedTarget === normalizedRoot || normalizedTarget.startsWith(`${normalizedRoot}/`);
+};
+
+const isPathCoupledToMonorepoHost = (pathValue, repoRoot) => {
+  if (!repoRoot) {
+    return false;
+  }
+  return isPathInside(pathValue, resolve(repoRoot, 'apps/capacitor-demo'));
+};
+
+export const validateNativeArtifactPaths = ({
+  fixtureRoot,
+  repoRoot,
+  pluginGradlePath,
+  androidSettingsPath,
+  capAppSpmPath,
+  pluginSwiftPackagePath,
+  pluginSwiftSourcePath,
+  capacitorConfigPath,
+} = {}) => {
+  const failures = [];
+  const fixturePaths = [
+    ['pluginGradlePath', pluginGradlePath],
+    ['androidSettingsPath', androidSettingsPath],
+    ['capAppSpmPath', capAppSpmPath],
+    ['pluginSwiftPackagePath', pluginSwiftPackagePath],
+    ['pluginSwiftSourcePath', pluginSwiftSourcePath],
+    ['capacitorConfigPath', capacitorConfigPath],
+  ].filter(([, value]) => typeof value === 'string' && value.trim() !== '');
+
+  if (fixtureRoot) {
+    for (const [key, value] of fixturePaths) {
+      if (!isPathInside(value, fixtureRoot)) {
+        failures.push(`Native validator path coupling detected: ${key} must stay inside fixture root (${fixtureRoot}) but received ${value}.`);
+      }
+    }
+  }
+
+  if (repoRoot) {
+    for (const [, value] of fixturePaths) {
+      if (isPathCoupledToMonorepoHost(value, repoRoot)) {
+        failures.push(`Native validator path coupling detected: expected fixture-owned paths, received monorepo host path ${value}.`);
+      }
+    }
+  }
+
+  const status = failures.length === 0 ? PASS : FAIL;
+  return {
+    status,
+    failures,
+    exitCode: status === PASS ? 0 : 1,
+  };
+};
 
 function parseCapacitorConfigPackageClassList(configJson) {
   try {
@@ -179,6 +239,8 @@ const parseArgs = (argv) => {
     capacitorConfigPath: undefined,
     androidResolutionLogPath: undefined,
     iosResolutionLogPath: undefined,
+    fixtureRoot: undefined,
+    repoRoot: undefined,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -234,6 +296,18 @@ const parseArgs = (argv) => {
     if (arg === '--ios-resolution-log' && argv[i + 1]) {
       options.iosResolutionLogPath = argv[i + 1];
       i += 1;
+      continue;
+    }
+
+    if (arg === '--fixture-root' && argv[i + 1]) {
+      options.fixtureRoot = argv[i + 1];
+      i += 1;
+      continue;
+    }
+
+    if (arg === '--repo-root' && argv[i + 1]) {
+      options.repoRoot = argv[i + 1];
+      i += 1;
     }
   }
 
@@ -253,10 +327,12 @@ if (isEntrypoint) {
     capacitorConfigPath,
     androidResolutionLogPath,
     iosResolutionLogPath,
+    fixtureRoot,
+    repoRoot,
   } = parseArgs(process.argv.slice(2));
 
   if (!pluginGradlePath) {
-    process.stdout.write('Overall: FAIL\nandroid-artifacts: FAIL\nios-artifacts: FAIL\nFailures:\n- Usage: node scripts/validate-native-artifacts.mjs --plugin-gradle <path> [--native-artifacts-contract <path>] [--android-settings <path>] [--capapp-spm-package <path>] [--plugin-swift-package <path>] [--plugin-swift-source <path>] [--capacitor-config <path>] [--android-resolution-log <path>] [--ios-resolution-log <path>]\n');
+    process.stdout.write('Overall: FAIL\nandroid-artifacts: FAIL\nios-artifacts: FAIL\nFailures:\n- Usage: node scripts/validate-native-artifacts.mjs --plugin-gradle <path> [--native-artifacts-contract <path>] [--android-settings <path>] [--capapp-spm-package <path>] [--plugin-swift-package <path>] [--plugin-swift-source <path>] [--capacitor-config <path>] [--android-resolution-log <path>] [--ios-resolution-log <path>] [--fixture-root <path>] [--repo-root <path>]\n');
     process.exit(1);
   }
 
@@ -298,6 +374,23 @@ if (isEntrypoint) {
       androidResolutionLog,
       iosResolutionLog,
     });
+
+    const pathValidation = validateNativeArtifactPaths({
+      fixtureRoot,
+      repoRoot,
+      pluginGradlePath,
+      androidSettingsPath,
+      capAppSpmPath,
+      pluginSwiftPackagePath,
+      pluginSwiftSourcePath,
+      capacitorConfigPath,
+    });
+
+    if (pathValidation.failures.length > 0) {
+      result.failures.push(...pathValidation.failures);
+      result.status = FAIL;
+      result.exitCode = 1;
+    }
 
     process.stdout.write(`${formatNativeArtifactValidation(result)}\n`);
     process.exit(result.exitCode);

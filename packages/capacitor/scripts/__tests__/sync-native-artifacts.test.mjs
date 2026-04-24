@@ -13,13 +13,13 @@ test('generateManagedSnippets emits Maven + exact SwiftPM identity', () => {
       repositoryUrl: 'https://repo1.maven.org/maven2',
       group: 'dev.dgutierrez',
       artifact: 'legato-android-core',
-      version: '0.1.0',
+      version: '0.1.1',
     },
     ios: {
       packageUrl: 'https://github.com/legato/legato-ios-core.git',
       packageName: 'LegatoCore',
       product: 'LegatoCore',
-      version: '0.1.0',
+      version: '0.1.1',
       versionPolicy: 'exact',
     },
   };
@@ -43,13 +43,13 @@ test('validateContract rejects local path/package refs', () => {
       repositoryUrl: '../native/android/core',
       group: 'dev.dgutierrez',
       artifact: 'legato-android-core',
-      version: '0.1.0',
+      version: '0.1.1',
     },
     ios: {
       packageUrl: '../../native/ios/LegatoCore',
       packageName: 'LegatoCore',
       product: 'LegatoCore',
-      version: '0.1.0',
+      version: '0.1.1',
       versionPolicy: 'exact',
     },
   };
@@ -66,13 +66,13 @@ test('validateContract rejects non-migrated Android publication namespace', () =
       repositoryUrl: 'https://repo1.maven.org/maven2',
       group: 'io.legato',
       artifact: 'legato-android-core',
-      version: '0.1.0',
+      version: '0.1.1',
     },
     ios: {
       packageUrl: 'https://github.com/legato/legato-ios-core.git',
       packageName: 'LegatoCore',
       product: 'LegatoCore',
-      version: '0.1.0',
+      version: '0.1.1',
       versionPolicy: 'exact',
     },
   };

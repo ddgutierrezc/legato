@@ -3,13 +3,13 @@
     "repositoryUrl": "https://repo1.maven.org/maven2",
     "group": "dev.dgutierrez",
     "artifact": "legato-android-core",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   "ios": {
     "packageUrl": "https://github.com/legato/legato-ios-core.git",
     "packageName": "LegatoCore",
     "product": "LegatoCore",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "versionPolicy": "exact"
   }
 }

@@ -29,5 +29,6 @@ test('gradle.properties.example documents required signing and central credentia
   assert.match(content, /mavenCentralUsername=/i);
   assert.match(content, /mavenCentralPassword=/i);
   assert.match(content, /signingInMemoryKey=/i);
+  assert.match(content, /signingInMemoryKeyFile=/i);
   assert.match(content, /signingInMemoryKeyPassword=/i);
 });

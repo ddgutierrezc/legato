@@ -94,6 +94,16 @@ mavenPublishing {
     }
 }
 
+signing {
+    def gnupgKeyNameConfigured = providers.gradleProperty('signing.gnupg.keyName')
+        .map { !it.trim().isEmpty() }
+        .orElse(false)
+
+    if (gnupgKeyNameConfigured.get()) {
+        useGpgCmd()
+    }
+}
+
 tasks.register('printPublicationCoordinate') {
     doLast {
         println("publication-coordinate=${project.group}:${legatoAndroidArtifactId}:${project.version}")

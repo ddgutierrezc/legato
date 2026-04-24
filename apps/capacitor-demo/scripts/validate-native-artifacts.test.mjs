@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 
 import {
   validateNativeArtifacts,
+  validateNativeArtifactPaths,
   formatNativeArtifactValidation,
 } from './validate-native-artifacts.mjs';
 
@@ -21,7 +22,7 @@ dependencies {
 // NATIVE_ARTIFACTS:BEGIN
 ext.legatoNativeArtifactContract = [
     repositoryUrl: 'https://repo1.maven.org/maven2',
-    coordinate: 'dev.dgutierrez:legato-android-core:0.1.0'
+    coordinate: 'dev.dgutierrez:legato-android-core:0.1.1'
 ]
 // Adapter Android dependency must stay artifact-only.
 // NATIVE_ARTIFACTS:END
@@ -33,13 +34,13 @@ const nativeArtifactsContract = `
     "repositoryUrl": "https://repo1.maven.org/maven2",
     "group": "dev.dgutierrez",
     "artifact": "legato-android-core",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   "ios": {
     "packageUrl": "https://github.com/legato/legato-ios-core.git",
     "packageName": "LegatoCore",
     "product": "LegatoCore",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "versionPolicy": "exact"
   }
 }
@@ -68,7 +69,7 @@ let package = Package(
     name: "LegatoCapacitor",
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "8.0.0"),
-        .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.0")
+        .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.1")
     ]
 )
 `;
@@ -120,9 +121,9 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {}
 const unresolvedLog = `
 Execution failed for task ':legato-capacitor:compileDebugKotlin'.
 > Could not resolve all files for configuration ':legato-capacitor:debugCompileClasspath'.
-   > Could not find dev.dgutierrez:legato-android-core:0.1.0.
+   > Could not find dev.dgutierrez:legato-android-core:0.1.1.
      Searched in the following locations:
-       - https://repo1.maven.org/maven2/dev/dgutierrez/legato-android-core/0.1.0/legato-android-core-0.1.0.pom
+       - https://repo1.maven.org/maven2/dev/dgutierrez/legato-android-core/0.1.1/legato-android-core-0.1.1.pom
 `;
 
 const iosResolverMismatchLog = `
@@ -312,4 +313,18 @@ test('validator fails when CapApp-SPM generated ownership marker is missing', ()
   assert.equal(result.status, 'FAIL');
   assert.equal(result.exitCode, 1);
   assert.match(result.failures.join('\n'), /DO NOT MODIFY THIS FILE/i);
+});
+
+test('fixture mode path validator fails when host/plugin paths are coupled to monorepo app path', () => {
+  const result = validateNativeArtifactPaths({
+    fixtureRoot: '/tmp/legato-external-fixture/app',
+    repoRoot: '/Volumes/S3/daniel/github/legato',
+    pluginGradlePath: '/Volumes/S3/daniel/github/legato/packages/capacitor/android/build.gradle',
+    androidSettingsPath: '/Volumes/S3/daniel/github/legato/apps/capacitor-demo/android/settings.gradle',
+    capAppSpmPath: '/Volumes/S3/daniel/github/legato/apps/capacitor-demo/ios/App/CapApp-SPM/Package.swift',
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.match(result.failures.join('\n'), /path coupling/i);
+  assert.match(result.failures.join('\n'), /apps\/capacitor-demo/i);
 });
