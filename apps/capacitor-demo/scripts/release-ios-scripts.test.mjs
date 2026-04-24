@@ -32,4 +32,8 @@ test('package scripts expose iOS handoff/verify/closeout execution commands', as
   assert.match(packageJson.scripts['release:ios:verify'], /--attempts/i);
   assert.match(packageJson.scripts['release:ios:verify'], /--backoff-ms/i);
   assert.match(packageJson.scripts['release:ios:handoff'], /--artifacts-dir/i);
+  assert.match(packageJson.scripts['release:ios:handoff'], /--proof-type/i);
+  assert.match(packageJson.scripts['release:ios:handoff'], /--proof-value/i);
+  assert.match(packageJson.scripts['release:ios:handoff'], /IOS_OPERATOR:\?/i);
+  assert.match(packageJson.scripts['release:ios:handoff'], /IOS_PUBLISHED_AT:\?/i);
 });

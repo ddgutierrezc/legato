@@ -19,6 +19,9 @@ test('validation checklist includes required audit fields for release dispatch a
   assert.match(docs, /android-verify/i);
   assert.match(docs, /Operator identity/i);
   assert.match(docs, /Publish timestamp/i);
+  assert.match(docs, /Immutable proof reference/i);
+  assert.match(docs, /proofType/i);
+  assert.match(docs, /proofValue/i);
   assert.match(docs, /verify\.json\.checks\.remoteTag/i);
 });
 
@@ -38,4 +41,5 @@ test('validation checklist enforces evidence bundles and iOS closeout evidence c
   assert.match(docs, /handoff\.json/i);
   assert.match(docs, /verify\.json/i);
   assert.match(docs, /closeout\.json/i);
+  assert.match(docs, /synthetic\/placeholder evidence is rejected/i);
 });

@@ -35,8 +35,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
+    "promote:ios-distribution": "node ./scripts/promote-ios-distribution.mjs",
     "sync:native-artifacts": "node ./scripts/sync-native-artifacts.mjs",
-    "test:native-artifacts": "node --test ./scripts/__tests__/sync-native-artifacts.test.mjs"
+    "test:native-artifacts": "node --test ./scripts/__tests__/sync-native-artifacts.test.mjs ./scripts/__tests__/promote-ios-distribution.test.mjs ./scripts/__tests__/release-ios-preflight.test.mjs"
   },
   "peerDependencies": {
     "@capacitor/core": "^8.0.0",

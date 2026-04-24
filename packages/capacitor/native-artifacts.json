@@ -6,7 +6,7 @@
     "version": "0.1.1"
   },
   "ios": {
-    "packageUrl": "https://github.com/legato/legato-ios-core.git",
+    "packageUrl": "https://github.com/ddgutierrezc/legato-ios-core.git",
     "packageName": "LegatoCore",
     "product": "LegatoCore",
     "version": "0.1.1",

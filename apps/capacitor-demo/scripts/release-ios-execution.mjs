@@ -9,6 +9,9 @@ const CONFIG_ERROR_EXIT_CODE = 2;
 
 const DEFAULT_RELEASE_ID = 'manual';
 const DEFAULT_ARTIFACTS_DIR = 'artifacts/ios-publication-v1';
+const DEFAULT_CONTRACT_PATH = '../../packages/capacitor/native-artifacts.json';
+const ALLOWED_PROOF_TYPES = new Set(['tag-release-url', 'commit-sha']);
+const PLACEHOLDER_VALUE_RE = /(\b(tbd|example|placeholder)\b|^<.+>$)/i;
 
 const normalizeTagVersion = (value = '') => value.trim().replace(/^v/i, '');
 
@@ -76,7 +79,7 @@ const defaultRunGitLsRemote = async ({ repo }) => new Promise((resolvePromise) =
   });
 });
 
-const makeScratchPackageSwift = ({ packageUrl, packageName, product, version }) => `// swift-tools-version: 5.9
+export const buildVerifyScratchPackageSwift = ({ packageUrl, packageName, product, version }) => `// swift-tools-version: 5.9
 import PackageDescription
 
 let package = Package(
@@ -88,7 +91,7 @@ let package = Package(
         .library(name: "LegatoReleaseVerifyScratch", targets: ["LegatoReleaseVerifyScratch"])
     ],
     dependencies: [
-        .package(url: "${packageUrl}", exact: "${version}")
+        .package(name: "${packageName}", url: "${packageUrl}", .exact("${version}"))
     ],
     targets: [
         .target(
@@ -104,7 +107,7 @@ let package = Package(
 const defaultRunSwiftPackageResolve = async ({ packageUrl, packageName, product, version }) => {
   const scratchDir = await mkdtemp(resolve(tmpdir(), 'legato-ios-release-verify-'));
   const packageSwiftPath = resolve(scratchDir, 'Package.swift');
-  const packageSwift = makeScratchPackageSwift({ packageUrl, packageName, product, version });
+  const packageSwift = buildVerifyScratchPackageSwift({ packageUrl, packageName, product, version });
   await writeFile(packageSwiftPath, packageSwift, 'utf8');
 
   const result = await new Promise((resolvePromise) => {
@@ -156,6 +159,8 @@ const parseArgs = (argv) => {
     releaseTag: '',
     externalRepo: '',
     externalTag: '',
+    proofType: '',
+    proofValue: '',
     operator: '',
     publishedAt: '',
     attempts: 6,
@@ -164,6 +169,7 @@ const parseArgs = (argv) => {
     handoffPath: '',
     verifyPath: '',
     closeoutPath: '',
+    contractPath: DEFAULT_CONTRACT_PATH,
   };
 
   for (let i = 1; i < argv.length; i += 1) {
@@ -195,6 +201,16 @@ const parseArgs = (argv) => {
     }
     if (arg === '--operator' && argv[i + 1]) {
       options.operator = argv[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--proof-type' && argv[i + 1]) {
+      options.proofType = argv[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--proof-value' && argv[i + 1]) {
+      options.proofValue = argv[i + 1];
       i += 1;
       continue;
     }
@@ -231,6 +247,11 @@ const parseArgs = (argv) => {
     if (arg === '--closeout-path' && argv[i + 1]) {
       options.closeoutPath = argv[i + 1];
       i += 1;
+      continue;
+    }
+    if (arg === '--contract' && argv[i + 1]) {
+      options.contractPath = argv[i + 1];
+      i += 1;
     }
   }
 
@@ -243,16 +264,68 @@ const assertTruthy = (value, message, failures) => {
   }
 };
 
+const isPlaceholderValue = (value) => {
+  const normalized = String(value ?? '').trim();
+  if (!normalized) {
+    return true;
+  }
+  return PLACEHOLDER_VALUE_RE.test(normalized);
+};
+
+const assertNonPlaceholder = (value, message, failures) => {
+  if (isPlaceholderValue(value)) {
+    failures.push(message);
+  }
+};
+
+const normalizeProofType = (value = '') => String(value).trim().toLowerCase();
+
+const buildProofReference = ({ handoff }) => ({
+  proofType: String(handoff.proofType ?? '').trim(),
+  proofValue: String(handoff.proofValue ?? '').trim(),
+  externalRepo: String(handoff.externalRepo ?? '').trim(),
+  externalTag: String(handoff.externalTag ?? '').trim(),
+});
+
+const parseIosContract = (contractJson = {}) => ({
+  packageUrl: String(contractJson?.ios?.packageUrl ?? '').trim(),
+  packageName: String(contractJson?.ios?.packageName ?? '').trim(),
+  product: String(contractJson?.ios?.product ?? '').trim(),
+  version: String(contractJson?.ios?.version ?? '').trim(),
+});
+
+const validateHandoffTruthfulness = ({ handoff, failures }) => {
+  assertNonPlaceholder(handoff.externalRepo, 'manual publish evidence required: externalRepo must be non-placeholder and non-empty.', failures);
+  assertNonPlaceholder(handoff.externalTag, 'manual publish evidence required: externalTag must be non-placeholder and non-empty.', failures);
+  assertNonPlaceholder(handoff.operator, 'manual publish evidence required: operator must be non-placeholder and non-empty.', failures);
+  assertNonPlaceholder(handoff.publishedAt, 'manual publish evidence required: publishedAt must be non-placeholder and non-empty.', failures);
+  assertNonPlaceholder(handoff.preflightPath, 'manual publish evidence required: preflightPath must be non-placeholder and non-empty.', failures);
+  assertNonPlaceholder(handoff.proofValue, 'manual publish evidence required: proofValue must be non-placeholder and non-empty.', failures);
+
+  const proofType = normalizeProofType(handoff.proofType);
+  if (!ALLOWED_PROOF_TYPES.has(proofType)) {
+    failures.push('manual publish evidence required: proofType must be one of tag-release-url or commit-sha.');
+  }
+
+  const publishedAt = String(handoff.publishedAt ?? '').trim();
+  if (publishedAt && Number.isNaN(Date.parse(publishedAt))) {
+    failures.push('manual publish evidence required: publishedAt must be a valid ISO8601 timestamp.');
+  }
+};
+
 export const recordIosPublishHandoff = async ({
   releaseId = DEFAULT_RELEASE_ID,
   artifactsDir = DEFAULT_ARTIFACTS_DIR,
   releaseTag = '',
   externalRepo = '',
   externalTag = '',
+  proofType = '',
+  proofValue = '',
   operator = '',
   publishedAt = '',
   preflightPath,
   handoffPath,
+  contractPath = DEFAULT_CONTRACT_PATH,
   jsonReader = readJson,
   jsonWriter = writeJson,
 } = {}) => {
@@ -279,10 +352,34 @@ export const recordIosPublishHandoff = async ({
     failures.push('manual publish evidence required: preflight must be PASS with readyForManualHandoff=true before handoff.');
   }
 
+  let iosContract = null;
+  try {
+    const contract = await jsonReader(contractPath);
+    iosContract = parseIosContract(contract);
+  } catch (error) {
+    failures.push(`manual publish evidence required: unable to read iOS contract at ${resolve(contractPath)} (${error instanceof Error ? error.message : String(error)})`);
+  }
+
   assertTruthy(externalRepo, 'manual publish evidence required: --external-repo <url> is mandatory.', failures);
   assertTruthy(externalTag, 'manual publish evidence required: --external-tag <tag> is mandatory.', failures);
+  assertTruthy(proofType, 'manual publish evidence required: --proof-type <tag-release-url|commit-sha> is mandatory.', failures);
+  assertTruthy(proofValue, 'manual publish evidence required: --proof-value <value> is mandatory.', failures);
   assertTruthy(operator, 'manual publish evidence required: --operator <name> is mandatory.', failures);
   assertTruthy(publishedAt, 'manual publish evidence required: --published-at <ISO8601> is mandatory.', failures);
+  assertNonPlaceholder(externalRepo, 'manual publish evidence required: externalRepo cannot be placeholder/synthetic.', failures);
+  assertNonPlaceholder(externalTag, 'manual publish evidence required: externalTag cannot be placeholder/synthetic.', failures);
+  assertNonPlaceholder(proofValue, 'manual publish evidence required: proofValue cannot be placeholder/synthetic.', failures);
+  assertNonPlaceholder(operator, 'manual publish evidence required: operator cannot be placeholder/synthetic.', failures);
+  assertNonPlaceholder(publishedAt, 'manual publish evidence required: publishedAt cannot be placeholder/synthetic.', failures);
+
+  const normalizedProofType = normalizeProofType(proofType);
+  if (!ALLOWED_PROOF_TYPES.has(normalizedProofType)) {
+    failures.push('manual publish evidence required: --proof-type must be one of tag-release-url or commit-sha.');
+  }
+
+  if (Number.isNaN(Date.parse(String(publishedAt).trim()))) {
+    failures.push('manual publish evidence required: --published-at must be a valid ISO8601 timestamp.');
+  }
 
   const resolvedReleaseTag = (releaseTag || preflight.releaseTag || '').trim();
   assertTruthy(resolvedReleaseTag, 'manual publish evidence required: release tag is missing; pass --release-tag or provide it in preflight.json.', failures);
@@ -294,6 +391,15 @@ export const recordIosPublishHandoff = async ({
   }
   if (version && normalizeTagVersion(resolvedReleaseTag) !== version) {
     failures.push(`manual publish evidence mismatch: release tag ${resolvedReleaseTag} does not match pinned preflight version ${version}.`);
+  }
+
+  if (iosContract) {
+    if (iosContract.packageUrl && String(externalRepo).trim() !== iosContract.packageUrl) {
+      failures.push(`manual publish evidence mismatch: external repo ${externalRepo || '<missing>'} must equal native-artifacts ios.packageUrl ${iosContract.packageUrl}.`);
+    }
+    if (iosContract.version && normalizeTagVersion(externalTag) !== iosContract.version) {
+      failures.push(`manual publish evidence mismatch: external tag ${externalTag || '<missing>'} must match native-artifacts ios.version ${iosContract.version}.`);
+    }
   }
 
   if (failures.length > 0) {
@@ -314,6 +420,8 @@ export const recordIosPublishHandoff = async ({
     version,
     externalRepo,
     externalTag,
+    proofType: normalizedProofType,
+    proofValue: String(proofValue).trim(),
     normalizedTagVersion: normalizedExternalTagVersion,
     operator,
     publishedAt,
@@ -359,6 +467,7 @@ export const verifyIosPublishHandoff = async ({
   backoffMs = 120000,
   handoffPath,
   verifyPath,
+  contractPath = DEFAULT_CONTRACT_PATH,
   jsonReader = readJson,
   jsonWriter = writeJson,
   runGitLsRemote = defaultRunGitLsRemote,
@@ -406,8 +515,68 @@ export const verifyIosPublishHandoff = async ({
     };
   }
 
+  const proofReference = buildProofReference({ handoff });
   const retries = [];
   const failures = [];
+  validateHandoffTruthfulness({ handoff, failures });
+
+  const preflightVersion = String(preflight.expectedVersion ?? '').trim();
+  const handoffVersion = String(handoff.version ?? '').trim();
+  if (!preflightVersion || preflightVersion !== handoffVersion) {
+    failures.push(`manual publish evidence proof chain mismatch: handoff version ${handoffVersion || '<missing>'} must equal preflight expectedVersion ${preflightVersion || '<missing>'}.`);
+  }
+
+  const normalizedExternalTagVersion = normalizeTagVersion(handoff.externalTag ?? '');
+  if (preflightVersion && normalizedExternalTagVersion !== preflightVersion) {
+    failures.push(`manual publish evidence proof chain mismatch: externalTag ${handoff.externalTag || '<missing>'} must match preflight expectedVersion ${preflightVersion}.`);
+  }
+
+  let iosContract = null;
+  try {
+    const contract = await jsonReader(contractPath);
+    iosContract = parseIosContract(contract);
+  } catch (error) {
+    failures.push(`manual publish evidence proof chain mismatch: unable to read iOS contract at ${resolve(contractPath)} (${error instanceof Error ? error.message : String(error)})`);
+  }
+
+  if (iosContract) {
+    if (iosContract.packageUrl && String(handoff.externalRepo ?? '').trim() !== iosContract.packageUrl) {
+      failures.push(`manual publish evidence proof chain mismatch: handoff externalRepo ${handoff.externalRepo || '<missing>'} must equal ios.packageUrl ${iosContract.packageUrl}.`);
+    }
+    if (iosContract.version && normalizeTagVersion(handoff.externalTag ?? '') !== iosContract.version) {
+      failures.push(`manual publish evidence proof chain mismatch: handoff externalTag ${handoff.externalTag || '<missing>'} must match ios.version ${iosContract.version}.`);
+    }
+  }
+
+  if (preflight.status !== PASS || preflight.readyForManualHandoff !== true) {
+    failures.push('manual publish evidence proof chain mismatch: preflight must be PASS with readyForManualHandoff=true.');
+  }
+
+  if (failures.length > 0) {
+    const artifact = {
+      status: FAIL,
+      releaseId: handoff.releaseId,
+      version: handoff.version,
+      proofReference,
+      attemptsConfigured: attempts,
+      attemptsUsed: 0,
+      checks: {
+        remoteTag: { status: FAIL },
+        swiftPackageResolve: { status: FAIL },
+      },
+      retries,
+      failures,
+      generatedAt: toIsoTimestamp(),
+    };
+    await jsonWriter(resolvedVerifyPath, artifact);
+    return {
+      ...artifact,
+      mode: 'verify',
+      verifyPath: resolvedVerifyPath,
+      exitCode: 1,
+    };
+  }
+
   const expectedTags = [...new Set([
     String(handoff.externalTag ?? '').trim(),
     `v${handoff.version}`,
@@ -458,6 +627,7 @@ export const verifyIosPublishHandoff = async ({
         status: PASS,
         releaseId: handoff.releaseId,
         version: handoff.version,
+        proofReference,
         attemptsConfigured: attempts,
         attemptsUsed,
         checks: finalChecks,
@@ -481,6 +651,12 @@ export const verifyIosPublishHandoff = async ({
 
   if (finalChecks.remoteTag.status !== PASS) {
     failures.push(`remote verification failed: expected tag(s) ${expectedTags.join(', ')} not found in ${handoff.externalRepo}.`);
+    if (finalChecks.remoteTag.stderr) {
+      failures.push(`remote stderr: ${finalChecks.remoteTag.stderr}`);
+    }
+    if (finalChecks.remoteTag.stderr && /auth|permission denied|denied|forbidden|unauthorized/i.test(finalChecks.remoteTag.stderr)) {
+      failures.push(`remote verification auth diagnostics: ${finalChecks.remoteTag.stderr}`);
+    }
   }
   if (finalChecks.swiftPackageResolve.status !== PASS) {
     failures.push('remote verification failed: Swift package resolution did not complete for pinned iOS package/version.');
@@ -493,6 +669,7 @@ export const verifyIosPublishHandoff = async ({
     status: FAIL,
     releaseId: handoff.releaseId,
     version: handoff.version,
+    proofReference,
     attemptsConfigured: attempts,
     attemptsUsed,
     checks: finalChecks,
@@ -579,6 +756,24 @@ export const closeoutIosPublication = async ({
     failures.push(`closeout denied: release id mismatch (expected ${expectedReleaseId}, handoff=${handoffReleaseId || '<missing>'}, verify=${verifyReleaseId || '<missing>'}).`);
   }
 
+  const handoffProofReference = {
+    proofType: String(handoff.proofType ?? '').trim(),
+    proofValue: String(handoff.proofValue ?? '').trim(),
+    externalRepo: String(handoff.externalRepo ?? '').trim(),
+    externalTag: String(handoff.externalTag ?? '').trim(),
+  };
+  const verifyProofReference = verify.proofReference ?? null;
+  if (!verifyProofReference) {
+    failures.push('closeout denied: verify artifact must include proofReference.');
+  } else {
+    const keys = ['proofType', 'proofValue', 'externalRepo', 'externalTag'];
+    for (const key of keys) {
+      if (String(verifyProofReference[key] ?? '').trim() !== handoffProofReference[key]) {
+        failures.push(`closeout denied: proof reference mismatch for ${key}.`);
+      }
+    }
+  }
+
   if (failures.length > 0) {
     return {
       status: FAIL,
@@ -594,6 +789,7 @@ export const closeoutIosPublication = async ({
     status: PASS,
     releaseId: expectedReleaseId,
     version: expectedVersion,
+    proofReference: handoffProofReference,
     artifacts: {
       preflight: resolvedPreflightPath,
       handoff: resolvedHandoffPath,

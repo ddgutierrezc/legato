@@ -8,7 +8,6 @@ const LOCAL_PROJECT_DEPENDENCY_PATTERN = /implementation\s+project\(':native:and
 const ARTIFACT_COORDINATE_PATTERN = /implementation\s+legatoNativeArtifactContract\.coordinate/;
 const HOST_MANUAL_NATIVE_CORE_INCLUDE_PATTERN = /include\s+':native:android:core'/;
 const IOS_LOCAL_PATH_DEPENDENCY_PATTERN = /\.package\(path:\s*"[^"]*LegatoCore[^"]*"\)/;
-const IOS_EXACT_REMOTE_DEPENDENCY_PATTERN = /\.package\(url:\s*"https:\/\/github\.com\/legato\/legato-ios-core\.git",\s*exact:\s*"[^"]+"\)/;
 const IOS_SPM_PRODUCT_MISMATCH_PATTERN = /product\s+'[^']+'\s+required\s+by\s+package.*not\s+found/i;
 const IOS_SPM_MISSING_PRODUCT_PATTERN = /Missing\s+package\s+product/i;
 const IOS_PLUGIN_OBJC_PATTERN = /@objc\(LegatoPlugin\)/;
@@ -88,6 +87,41 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function parseExpectedIosContract(nativeArtifactsContractJson) {
+  if (!nativeArtifactsContractJson) {
+    return null;
+  }
+
+  const parsedContract = JSON.parse(nativeArtifactsContractJson);
+  const packageUrl = parsedContract?.ios?.packageUrl;
+  const packageName = parsedContract?.ios?.packageName;
+  const product = parsedContract?.ios?.product;
+  const version = parsedContract?.ios?.version;
+  if (
+    typeof packageUrl !== 'string'
+    || typeof packageName !== 'string'
+    || typeof product !== 'string'
+    || typeof version !== 'string'
+  ) {
+    return null;
+  }
+
+  return {
+    packageUrl,
+    packageName,
+    product,
+    version,
+  };
+}
+
+function makeIosExactRemoteDependencyPattern(expectedIosContract) {
+  if (!expectedIosContract) {
+    return /\.package\(url:\s*"https:\/\/github\.com\/legato\/legato-ios-core\.git",\s*exact:\s*"[^"]+"\)/;
+  }
+
+  return new RegExp(`\\.package\\(url:\\s*"${escapeRegExp(expectedIosContract.packageUrl)}",\\s*exact:\\s*"${escapeRegExp(expectedIosContract.version)}"\\)`);
+}
+
 function parseExpectedAndroidCoordinate({ nativeArtifactsContractJson, pluginBuildGradle }) {
   if (nativeArtifactsContractJson) {
     const parsedContract = JSON.parse(nativeArtifactsContractJson);
@@ -123,6 +157,7 @@ export const validateNativeArtifacts = ({
 }) => {
   const failures = [];
   let expectedAndroidCoordinate;
+  let expectedIosContract;
 
   try {
     expectedAndroidCoordinate = parseExpectedAndroidCoordinate({
@@ -134,7 +169,15 @@ export const validateNativeArtifacts = ({
     expectedAndroidCoordinate = null;
   }
 
+  try {
+    expectedIosContract = parseExpectedIosContract(nativeArtifactsContractJson);
+  } catch {
+    failures.push('Failed to parse native-artifacts.json for expected iOS package contract.');
+    expectedIosContract = null;
+  }
+
   const unresolvedCoordinatePattern = makeUnresolvedCoordinatePattern(expectedAndroidCoordinate);
+  const iosExactRemoteDependencyPattern = makeIosExactRemoteDependencyPattern(expectedIosContract);
 
   if (LOCAL_PROJECT_DEPENDENCY_PATTERN.test(pluginBuildGradle)) {
     failures.push("Local-project regression detected in plugin dependency graph: remove project(':native:android:core') and keep artifact coordinates only.");
@@ -157,8 +200,18 @@ export const validateNativeArtifacts = ({
     failures.push('iOS local-path regression detected in Package.swift: remove `.package(path: ...)` and keep remote URL + exact pinning.');
   }
 
-  if (pluginPackageSwift && !IOS_EXACT_REMOTE_DEPENDENCY_PATTERN.test(pluginPackageSwift)) {
-    failures.push('iOS remote Swift package dependency is missing: expected `.package(url: "https://github.com/legato/legato-ios-core.git", exact: "<version>")` in Package.swift.');
+  if (pluginPackageSwift && !iosExactRemoteDependencyPattern.test(pluginPackageSwift)) {
+    const expectedSnippet = expectedIosContract
+      ? `.package(url: "${expectedIosContract.packageUrl}", exact: "${expectedIosContract.version}")`
+      : '.package(url: "<ios.packageUrl>", exact: "<ios.version>")';
+    failures.push(`iOS remote Swift package dependency is missing: expected \`${expectedSnippet}\` in Package.swift.`);
+  }
+
+  if (expectedIosContract && pluginPackageSwift) {
+    const expectedProductDependency = new RegExp(`\\.product\\(name:\\s*"${escapeRegExp(expectedIosContract.product)}",\\s*package:\\s*"${escapeRegExp(expectedIosContract.packageName)}"\\)`);
+    if (!expectedProductDependency.test(pluginPackageSwift)) {
+      failures.push(`iOS product identity mismatch: expected .product(name: "${expectedIosContract.product}", package: "${expectedIosContract.packageName}") in Package.swift.`);
+    }
   }
 
   if (capAppSpmPackageSwift && !CAP_APP_SPM_GENERATED_OWNERSHIP_PATTERN.test(capAppSpmPackageSwift)) {
@@ -203,7 +256,7 @@ export const validateNativeArtifacts = ({
       hostManualNativeCoreIncludeAbsent: !HOST_MANUAL_NATIVE_CORE_INCLUDE_PATTERN.test(androidSettingsGradle),
       unresolvedModuleDetected: Boolean(unresolvedMatch),
       iosLocalPathDependencyAbsent: !IOS_LOCAL_PATH_DEPENDENCY_PATTERN.test(pluginPackageSwift),
-      iosExactRemoteDependencyPresent: IOS_EXACT_REMOTE_DEPENDENCY_PATTERN.test(pluginPackageSwift),
+      iosExactRemoteDependencyPresent: iosExactRemoteDependencyPattern.test(pluginPackageSwift),
       capAppSpmOwnershipMarkerPresent: CAP_APP_SPM_GENERATED_OWNERSHIP_PATTERN.test(capAppSpmPackageSwift),
       capAppSpmManualLegatoCorePathAbsent: !CAP_APP_SPM_MANUAL_LEGATO_CORE_PATH_PATTERN.test(capAppSpmPackageSwift),
       iosResolverProductMismatchDetected: Boolean(iosProductMismatch || iosMissingProduct),

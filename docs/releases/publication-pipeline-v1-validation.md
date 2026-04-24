@@ -9,6 +9,8 @@ This checklist documents required audit evidence for both v1 lanes:
 - Android publication automation is CI-driven in v1.
 - iOS publication in `legato-ios-core` remains manual/external.
 - iOS repo-owned gates/evidence are mandatory before closeout.
+- `native-artifacts.json` is the contract authority for iOS repo URL + exact version; validators must be contract-driven (no owner heuristics).
+- Never hand-edit generated `ios/App/CapApp-SPM/Package.swift`; regenerate with `npx cap sync ios`.
 
 ## Required Audit Fields
 
@@ -33,6 +35,7 @@ Record the following for each iOS execution run:
 | `releaseTag` / pinned version | `preflight.json` |
 | External repo reference | `handoff.json.externalRepo` |
 | External publish tag evidence | `handoff.json.externalTag` |
+| Immutable proof reference (`proofType` + `proofValue`) | `handoff.json.proofType`, `handoff.json.proofValue`, `verify.json.proofReference` |
 | Operator identity | `handoff.json.operator` |
 | Publish timestamp | `handoff.json.publishedAt` |
 | Verification retry evidence | `verify.json.attemptsConfigured`, `attemptsUsed`, `retries` |
@@ -61,7 +64,15 @@ For each `<release_id>`, `artifacts/ios-publication-v1/<release_id>/` must inclu
 - `verify.json`
 - `closeout.json`
 
-`closeout.json` is valid only if all previous artifacts are PASS and version/release-id chain is consistent.
+And distribution authority repo `legato-ios-core` must include:
+
+- canonical exported payload (`Package.swift`, `Sources/**`, `Tests/**`)
+- `distribution-provenance.json` matching release tag/version
+- one-way ownership docs (`README.md`) and repo hygiene (`LICENSE`, `.gitignore`)
+
+`closeout.json` is valid only if all previous artifacts are PASS, version/release-id chain is consistent, and immutable proof references match between handoff and verify.
+
+Synthetic/placeholder evidence is rejected (`TBD`, `example`, `placeholder`, angle-bracket templates).
 
 ## Release Outcome Checklist
 
@@ -74,7 +85,7 @@ For each `<release_id>`, `artifacts/ios-publication-v1/<release_id>/` must inclu
 | Evidence bundle retained | downloadable `release-evidence-<release_id>` artifact |
 | iOS boundary documented as manual | runbook text in `publication-pipeline-v1.md` |
 | iOS preflight anti-drift gate passed | `preflight.json.status=PASS`, `readyForManualHandoff=true` |
-| iOS manual handoff evidence captured | `handoff.json` includes repo/tag/operator/timestamp |
+| iOS manual handoff evidence captured | `handoff.json` includes repo/tag/proofType/proofValue/operator/timestamp |
 | iOS remote verification passed | `verify.json.checks.remoteTag=PASS` and `swiftPackageResolve=PASS` |
 | iOS closeout generated from complete chain | `closeout.json` links preflight/handoff/verify artifacts |
 

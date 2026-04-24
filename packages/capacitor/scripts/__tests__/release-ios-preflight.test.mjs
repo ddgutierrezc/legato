@@ -12,7 +12,7 @@ import {
 
 const contract = {
   ios: {
-    packageUrl: 'https://github.com/legato/legato-ios-core.git',
+    packageUrl: 'https://github.com/ddgutierrezc/legato-ios-core.git',
     packageName: 'LegatoCore',
     product: 'LegatoCore',
     version: '0.1.1',
@@ -35,7 +35,7 @@ let package = Package(
 const pluginPackageSwift = `
 // NATIVE_ARTIFACTS:BEGIN
 let legatoNativeArtifactContract = (
-    packageUrl: "https://github.com/legato/legato-ios-core.git",
+    packageUrl: "https://github.com/ddgutierrezc/legato-ios-core.git",
     packageName: "LegatoCore",
     product: "LegatoCore",
     versionPolicy: "exact",
@@ -45,7 +45,7 @@ let legatoNativeArtifactContract = (
 let package = Package(
     name: "LegatoCapacitor",
     dependencies: [
-        .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.1")
+        .package(url: "https://github.com/ddgutierrezc/legato-ios-core.git", exact: "0.1.1")
     ],
     targets: [
         .target(
@@ -61,7 +61,7 @@ let package = Package(
 const pluginPackageSwiftWithMultipleProducts = `
 // NATIVE_ARTIFACTS:BEGIN
 let legatoNativeArtifactContract = (
-    packageUrl: "https://github.com/legato/legato-ios-core.git",
+    packageUrl: "https://github.com/ddgutierrezc/legato-ios-core.git",
     packageName: "LegatoCore",
     product: "LegatoCore",
     versionPolicy: "exact",
@@ -72,7 +72,7 @@ let package = Package(
     name: "LegatoCapacitor",
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "8.0.0"),
-        .package(url: "https://github.com/legato/legato-ios-core.git", exact: "0.1.1")
+        .package(url: "https://github.com/ddgutierrezc/legato-ios-core.git", exact: "0.1.1")
     ],
     targets: [
         .target(
@@ -87,13 +87,65 @@ let package = Package(
 )
 `;
 
+const distributionPackageSwift = nativePackageSwift;
+
+const provenanceJson = JSON.stringify({
+  sourceRepo: 'https://github.com/ddgutierrezc/legato.git',
+  sourceCommit: '1111111111111111111111111111111111111111',
+  packageName: 'LegatoCore',
+  product: 'LegatoCore',
+  version: '0.1.1',
+  releaseTag: 'v0.1.1',
+  exportedAt: '2026-04-24T00:00:00.000Z',
+}, null, 2);
+
+const makeBaseInput = (overrides = {}) => ({
+  contract,
+  releaseTag: 'v0.1.1',
+  nativePackageSwift,
+  pluginPackageSwift,
+  fileReader: async (filePath, encoding) => {
+    if (filePath.endsWith('/distribution-provenance.json')) {
+      return provenanceJson;
+    }
+    if (filePath.endsWith('/distribution-repo/Package.swift')) {
+      return distributionPackageSwift;
+    }
+    if (filePath.endsWith('/distribution-repo/README.md')) {
+      return '# dist';
+    }
+    if (filePath.endsWith('/distribution-repo/LICENSE')) {
+      return 'MIT';
+    }
+    if (filePath.endsWith('/distribution-repo/.gitignore')) {
+      return '.build/';
+    }
+    if (filePath.endsWith('/distribution-repo/distribution-provenance.json')) {
+      return provenanceJson;
+    }
+    if (filePath.endsWith('/distribution-repo/Sources/LegatoCore') || filePath.endsWith('/distribution-repo/Sources/LegatoCoreSessionRuntimeiOS') || filePath.endsWith('/distribution-repo/Tests/LegatoCoreTests') || filePath.endsWith('/distribution-repo/Tests/LegatoCoreSessionRuntimeiOSTests')) {
+      return '';
+    }
+    throw new Error(`Unexpected file read in test fixture: ${filePath} (${encoding})`);
+  },
+  pathStat: async (filePath) => {
+    if (
+      filePath.endsWith('/distribution-repo/Sources/LegatoCore')
+      || filePath.endsWith('/distribution-repo/Sources/LegatoCoreSessionRuntimeiOS')
+      || filePath.endsWith('/distribution-repo/Tests/LegatoCoreTests')
+      || filePath.endsWith('/distribution-repo/Tests/LegatoCoreSessionRuntimeiOSTests')
+    ) {
+      return { isDirectory: () => true };
+    }
+    throw new Error(`Unexpected stat in test fixture: ${filePath}`);
+  },
+  distributionRepoPath: '/tmp/distribution-repo',
+  provenancePath: '/tmp/distribution-provenance.json',
+  ...overrides,
+});
+
 test('iOS preflight passes when contract/native/plugin identity and tag are aligned', async () => {
-  const result = await runIosReleasePreflight({
-    contract,
-    releaseTag: 'v0.1.1',
-    nativePackageSwift,
-    pluginPackageSwift,
-  });
+  const result = await runIosReleasePreflight(makeBaseInput());
 
   assert.equal(result.status, 'PASS');
   assert.equal(result.exitCode, 0);
@@ -101,12 +153,7 @@ test('iOS preflight passes when contract/native/plugin identity and tag are alig
 });
 
 test('iOS preflight fails when release tag does not match contract version', async () => {
-  const result = await runIosReleasePreflight({
-    contract,
-    releaseTag: 'v0.1.0',
-    nativePackageSwift,
-    pluginPackageSwift,
-  });
+  const result = await runIosReleasePreflight(makeBaseInput({ releaseTag: 'v0.1.0' }));
 
   assert.equal(result.status, 'FAIL');
   assert.equal(result.exitCode, 1);
@@ -114,14 +161,11 @@ test('iOS preflight fails when release tag does not match contract version', asy
 });
 
 test('iOS preflight fails when plugin package URL or product identity drifts', async () => {
-  const result = await runIosReleasePreflight({
-    contract,
-    releaseTag: 'v0.1.1',
-    nativePackageSwift,
+  const result = await runIosReleasePreflight(makeBaseInput({
     pluginPackageSwift: pluginPackageSwift
-      .replaceAll('https://github.com/legato/legato-ios-core.git', 'https://github.com/acme/legato-ios-core.git')
+      .replaceAll('https://github.com/ddgutierrezc/legato-ios-core.git', 'https://github.com/acme/legato-ios-core.git')
       .replace('.product(name: "LegatoCore", package: "LegatoCore")', '.product(name: "WrongCore", package: "LegatoCore")'),
-  });
+  }));
 
   assert.equal(result.status, 'FAIL');
   assert.match(result.failures.join('\n'), /package url mismatch/i);
@@ -129,24 +173,16 @@ test('iOS preflight fails when plugin package URL or product identity drifts', a
 });
 
 test('iOS preflight fails when native package name mismatches contract package name', async () => {
-  const result = await runIosReleasePreflight({
-    contract,
-    releaseTag: 'v0.1.1',
+  const result = await runIosReleasePreflight(makeBaseInput({
     nativePackageSwift: nativePackageSwift.replace('name: "LegatoCore"', 'name: "WrongCore"'),
-    pluginPackageSwift,
-  });
+  }));
 
   assert.equal(result.status, 'FAIL');
   assert.match(result.failures.join('\n'), /package identity mismatch/i);
 });
 
 test('iOS preflight summary includes readiness and tag context', async () => {
-  const result = await runIosReleasePreflight({
-    contract,
-    releaseTag: 'v0.1.1',
-    nativePackageSwift,
-    pluginPackageSwift,
-  });
+  const result = await runIosReleasePreflight(makeBaseInput());
 
   const summary = formatIosPreflightSummary(result);
   assert.match(summary, /Mode: ios-preflight/i);
@@ -157,12 +193,7 @@ test('iOS preflight summary includes readiness and tag context', async () => {
 });
 
 test('iOS preflight passes when plugin declares multiple product dependencies including LegatoCore', async () => {
-  const result = await runIosReleasePreflight({
-    contract,
-    releaseTag: 'v0.1.1',
-    nativePackageSwift,
-    pluginPackageSwift: pluginPackageSwiftWithMultipleProducts,
-  });
+  const result = await runIosReleasePreflight(makeBaseInput({ pluginPackageSwift: pluginPackageSwiftWithMultipleProducts }));
 
   assert.equal(result.status, 'PASS');
   assert.equal(result.failures.length, 0);
@@ -173,10 +204,7 @@ test('iOS preflight JSON artifact captures deterministic handoff fields', async 
   const artifactPath = join(tempDir, 'release', 'preflight.json');
 
   const result = await runIosReleasePreflight({
-    contract,
-    releaseTag: 'v0.1.1',
-    nativePackageSwift,
-    pluginPackageSwift,
+    ...makeBaseInput(),
   });
 
   await writeIosPreflightArtifact(result, artifactPath);
@@ -201,10 +229,7 @@ test('iOS preflight JSON artifact includes mismatch failures when contract drift
   const artifactPath = join(tempDir, 'release', 'preflight.json');
 
   const result = await runIosReleasePreflight({
-    contract,
-    releaseTag: 'v0.1.0',
-    nativePackageSwift,
-    pluginPackageSwift,
+    ...makeBaseInput({ releaseTag: 'v0.1.0' }),
   });
 
   await writeIosPreflightArtifact(result, artifactPath);
@@ -220,4 +245,29 @@ test('iOS preflight JSON artifact includes mismatch failures when contract drift
   assert.match(summary, /Manual handoff ready: NO/i);
 
   await rm(tempDir, { recursive: true, force: true });
+});
+
+test('iOS preflight fails fast when contract inputs are missing', async () => {
+  const result = await runIosReleasePreflight({
+    ...makeBaseInput({
+    contract: {
+      ios: {
+        packageUrl: '   ',
+        packageName: '',
+        product: '',
+        version: '',
+        versionPolicy: 'range',
+      },
+    },
+    }),
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.match(result.failures.join('\n'), /Missing ios\.packageUrl/i);
+  assert.match(result.failures.join('\n'), /Missing ios\.packageName/i);
+  assert.match(result.failures.join('\n'), /Missing ios\.product/i);
+  assert.match(result.failures.join('\n'), /Missing ios\.version/i);
+  assert.match(result.failures.join('\n'), /version policy mismatch/i);
+  assert.equal(result.failures.some((failure) => /package identity mismatch/i.test(failure)), false);
+  assert.equal(result.failures.some((failure) => /product identity mismatch/i.test(failure)), false);
 });
