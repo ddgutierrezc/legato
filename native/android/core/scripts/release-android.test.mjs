@@ -366,6 +366,41 @@ test('publish gate accepts SIGNING_KEY_FILE and injects in-memory key for Gradle
   assert.match(publishEnv.ORG_GRADLE_PROJECT_signingInMemoryKey, /BEGIN PGP PRIVATE KEY BLOCK/);
 });
 
+test('publish gate prefers in-memory signing over gnupg when both are configured', async () => {
+  let publishArgs = [];
+  let publishEnv;
+  const result = await runAndroidReleasePublish({
+    contract,
+    env: {
+      MAVEN_CENTRAL_USERNAME: 'u',
+      MAVEN_CENTRAL_PASSWORD: 'p',
+      SIGNING_GNUPG_KEY_NAME: 'B324E2CAC4AF5580',
+      SIGNING_PASSWORD: 'sp',
+      SIGNING_KEY: '-----BEGIN PGP PRIVATE KEY BLOCK-----\nabc\n-----END PGP PRIVATE KEY BLOCK-----',
+    },
+    execCommand: async (_command, args, options = {}) => {
+      if (args.includes('--version')) {
+        return { exitCode: 0, stdout: 'Gradle 8.14.1', stderr: '' };
+      }
+      if (args.includes('printPublicationCoordinate')) {
+        return {
+          exitCode: 0,
+          stdout: 'publication-coordinate=dev.dgutierrez:legato-android-core:0.1.1',
+          stderr: '',
+        };
+      }
+      publishArgs = args;
+      publishEnv = options.env;
+      return { exitCode: 0, stdout: 'published', stderr: '' };
+    },
+  });
+
+  assert.equal(result.status, 'PASS');
+  assert.equal(publishArgs.includes('publishAndReleaseToMavenCentral'), true);
+  assert.equal(publishArgs.some((arg) => arg.startsWith('-Psigning.gnupg.keyName=')), false);
+  assert.match(publishEnv.ORG_GRADLE_PROJECT_signingInMemoryKey, /BEGIN PGP PRIVATE KEY BLOCK/);
+});
+
 test('publish summary includes coordinate and operator hints when publish fails', () => {
   const summary = formatReleaseSummary({
     status: 'FAIL',

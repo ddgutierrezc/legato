@@ -303,23 +303,6 @@ const firstPresentAlias = (aliases, env = process.env) => {
 };
 
 const resolvePublishSigningConfig = async ({ env = process.env, fileReader = readFile, requireSigningBackend = true }) => {
-  const gnupgKeyName = firstPresentAlias(signingGnupgKeyNameAliases, env);
-  if (gnupgKeyName) {
-    const gnupgPassphrase = firstPresentAlias(signingGnupgPassphraseAliases, env);
-    const gnupgExecutable = firstPresentAlias(signingGnupgExecutableAliases, env);
-    const gnupgHomeDir = firstPresentAlias(signingGnupgHomeDirAliases, env);
-    return {
-      backend: 'gnupg',
-      gradleProperties: {
-        'signing.gnupg.keyName': gnupgKeyName.value,
-        ...(gnupgPassphrase ? { 'signing.gnupg.passphrase': gnupgPassphrase.value } : {}),
-        ...(gnupgExecutable ? { 'signing.gnupg.executable': gnupgExecutable.value } : {}),
-        ...(gnupgHomeDir ? { 'signing.gnupg.homeDir': gnupgHomeDir.value } : {}),
-      },
-      failure: null,
-    };
-  }
-
   const directKey = firstPresentAlias(signingKeyValueAliases, env);
   const signingPassword = firstPresentAlias(signingKeyPasswordAliases, env);
   if (directKey) {
@@ -335,6 +318,23 @@ const resolvePublishSigningConfig = async ({ env = process.env, fileReader = rea
       backend: 'in-memory',
       gradleProperties: {
         signingInMemoryKey: directKey.value,
+      },
+      failure: null,
+    };
+  }
+
+  const gnupgKeyName = firstPresentAlias(signingGnupgKeyNameAliases, env);
+  if (gnupgKeyName) {
+    const gnupgPassphrase = firstPresentAlias(signingGnupgPassphraseAliases, env);
+    const gnupgExecutable = firstPresentAlias(signingGnupgExecutableAliases, env);
+    const gnupgHomeDir = firstPresentAlias(signingGnupgHomeDirAliases, env);
+    return {
+      backend: 'gnupg',
+      gradleProperties: {
+        'signing.gnupg.keyName': gnupgKeyName.value,
+        ...(gnupgPassphrase ? { 'signing.gnupg.passphrase': gnupgPassphrase.value } : {}),
+        ...(gnupgExecutable ? { 'signing.gnupg.executable': gnupgExecutable.value } : {}),
+        ...(gnupgHomeDir ? { 'signing.gnupg.homeDir': gnupgHomeDir.value } : {}),
       },
       failure: null,
     };
