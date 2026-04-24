@@ -1,17 +1,25 @@
 {
   "name": "@legato/contract",
   "version": "0.1.1",
-  "private": true,
   "description": "Canonical contract types and constants for Legato.",
   "license": "MIT",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "files": [
-    "src"
+    "dist"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "readiness:entries": "node ../capacitor/scripts/assert-package-entries.mjs --package-root .",
+    "pack:check": "npm run build && npm run readiness:entries && node ../capacitor/scripts/inspect-tarball.mjs --package-root . --profile contract"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

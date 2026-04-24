@@ -23,6 +23,7 @@ Run from `apps/capacitor-demo`:
 - `apps/capacitor-demo/artifacts/external-consumer-validation-v1/summary.json`
 - `apps/capacitor-demo/artifacts/external-consumer-validation-v1/run-manifest.json`
 - `apps/capacitor-demo/artifacts/external-consumer-validation-v1/install-metadata.json`
+- `apps/capacitor-demo/artifacts/external-consumer-validation-v1/tarball-entrypoint-check.json`
 - `apps/capacitor-demo/artifacts/external-consumer-validation-v1/cap-sync.log`
 - `apps/capacitor-demo/artifacts/external-consumer-validation-v1/validator-summary.txt`
 - `apps/capacitor-demo/artifacts/release-native-artifact-foundation-v1/manifest.json`
@@ -33,6 +34,7 @@ Run from `apps/capacitor-demo`:
 
 - `isolation`
 - `installability`
+- `packedEntrypoints`
 - `typecheckAndSync`
 - `validatorReuse`
 
