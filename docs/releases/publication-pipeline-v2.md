@@ -6,7 +6,7 @@ This runbook defines the v2 control plane in `.github/workflows/release-control.
 
 - Android publish authority remains `.github/workflows/release-android.yml` with `release` environment approval.
 - iOS publish authority is CI-owned and scoped to the distribution repository (`legato-ios-core`) via GitHub App token.
-- npm `protected-publish` performs real `npm publish --access public --provenance` and verifies release visibility with `npm view`.
+- npm `protected-publish` uses npm Trusted Publishing (OIDC) from GitHub Actions, performs real `npm publish --access public`, and verifies release visibility with `npm view`.
 - All selected lanes use one immutable `release_id` and produce a single terminal summary.
 
 ## Dispatch contract
@@ -52,7 +52,11 @@ Terminal states:
 
 `release-npm.yml` keeps readiness/policy checks and delegates protected execution to `release-npm-execution.mjs`.
 
-- publish command: `npm publish --access public --provenance`
+- trusted publisher source of truth: `release-control.yml` caller + `release-npm.yml` reusable lane
+- npm CLI requirement: `npm >= 11.5.1`
+- publish command: `npm publish --access public`
+- authentication: GitHub Actions OIDC (`id-token: write`), no long-lived publish token
+- provenance: generated automatically by npm Trusted Publishing for this public package/repository
 - verification: `npm view <name>@<version> version --json`
 - fail-closed behavior: registry rejection maps lane to `failed` with artifact reference.
 

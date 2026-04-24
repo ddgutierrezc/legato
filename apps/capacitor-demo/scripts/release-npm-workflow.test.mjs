@@ -18,8 +18,11 @@ test('release npm workflow supports workflow_call and protected publish executio
   assert.match(workflow, /environment:[\s\S]*release/i);
   assert.match(workflow, /permissions:[\s\S]*id-token:\s*write/i);
   assert.match(workflow, /registry-url:\s*https:\/\/registry\.npmjs\.org/i);
-  assert.match(workflow, /NODE_AUTH_TOKEN:\s*\$\{\{ secrets\.NPM_TOKEN \}\}/i);
+  assert.match(workflow, /actions\/checkout@v6/i);
+  assert.match(workflow, /actions\/setup-node@v6/i);
+  assert.match(workflow, /npm install --global npm@11\.5\.1/i);
   assert.match(workflow, /release:npm:policy/i);
   assert.doesNotMatch(workflow, /Execute protected npm publish lane/i);
-  assert.match(workflow, /npm publish --access public --provenance/i);
+  assert.match(workflow, /npm publish --access public/i);
+  assert.doesNotMatch(workflow, /NODE_AUTH_TOKEN:\s*\$\{\{ secrets\.NPM_TOKEN \}\}/i);
 });

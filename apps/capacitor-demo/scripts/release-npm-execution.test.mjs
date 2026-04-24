@@ -32,5 +32,5 @@ test('npm execution maps publish failure to failed terminal status', async () =>
   assert.equal(result.terminal_status, 'failed');
   assert.equal(result.publish_attempted, true);
   assert.match(result.failures.join('\n'), /already exists/i);
-  assert.ok(calls.some((entry) => /npm publish --access public --provenance/i.test(entry)));
+  assert.ok(calls.some((entry) => /npm publish --access public/i.test(entry)));
 });
