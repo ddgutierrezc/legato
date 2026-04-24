@@ -71,7 +71,7 @@ export const runNpmReleaseExecution = async ({
   }
 
   const identity = await readPackageIdentity(commandRunner);
-  const publishResult = await commandRunner({ command: 'npm', args: ['publish', '--provenance'] });
+  const publishResult = await commandRunner({ command: 'npm', args: ['publish', '--access', 'public', '--provenance'] });
   if (publishResult.exitCode !== 0) {
     const errorPath = await writeJson(
       resolve(artifactsDir, normalizedReleaseId || 'missing-release-id', 'publish.json'),
@@ -79,7 +79,7 @@ export const runNpmReleaseExecution = async ({
         status: 'FAIL',
         terminal_status: 'failed',
         publish_attempted: true,
-        publish_command: 'npm publish --provenance',
+        publish_command: 'npm publish --access public --provenance',
         package_name: identity.packageName,
         package_version: identity.packageVersion,
         failures: [publishResult.stderr || publishResult.stdout || 'npm publish failed'],
@@ -91,7 +91,7 @@ export const runNpmReleaseExecution = async ({
       status: 'FAIL',
       terminal_status: 'failed',
       publish_attempted: true,
-      publish_command: 'npm publish --provenance',
+      publish_command: 'npm publish --access public --provenance',
       error_reference: errorPath,
       failures: [publishResult.stderr || publishResult.stdout || 'npm publish failed'],
     };
@@ -109,7 +109,7 @@ export const runNpmReleaseExecution = async ({
       status: verifyPass ? 'PASS' : 'FAIL',
       terminal_status: verifyPass ? 'published' : 'failed',
       publish_attempted: true,
-      publish_command: 'npm publish --provenance',
+      publish_command: 'npm publish --access public --provenance',
       package_name: identity.packageName,
       package_version: identity.packageVersion,
       verify: {
@@ -125,7 +125,7 @@ export const runNpmReleaseExecution = async ({
     status: verifyPass ? 'PASS' : 'FAIL',
     terminal_status: verifyPass ? 'published' : 'failed',
     publish_attempted: true,
-    publish_command: 'npm publish --provenance',
+    publish_command: 'npm publish --access public --provenance',
     verify: { npm_view: verifyPass ? 'PASS' : 'FAIL' },
     failures: verifyPass ? [] : [npmViewResult.stderr || 'npm view failed after publish'],
     error_reference: verifyPass ? '' : summaryPath,

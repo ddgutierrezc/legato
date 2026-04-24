@@ -43,7 +43,7 @@ test('npm policy protected-publish mode accepts explicit intent and keeps eviden
       status: 'PASS',
       terminal_status: 'published',
       publish_attempted: true,
-      publish_command: 'npm publish --provenance',
+      publish_command: 'npm publish --access public --provenance',
       verify: { npm_view: 'PASS' },
     }),
   });
@@ -51,7 +51,7 @@ test('npm policy protected-publish mode accepts explicit intent and keeps eviden
   assert.equal(result.status, 'PASS');
   assert.equal(result.terminal_status, 'published');
   assert.equal(result.publish_attempted, true);
-  assert.equal(result.publish_command, 'npm publish --provenance');
+  assert.equal(result.publish_command, 'npm publish --access public --provenance');
   assert.equal(result.publish_intent_evidence, 'https://github.com/org/repo/actions/runs/123#approval');
 });
 

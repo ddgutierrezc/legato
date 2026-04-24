@@ -79,7 +79,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo 'npm publish --provenance' > ./artifacts/npm-release-v1/${{ inputs.release_id }}/publish-command.txt
+          echo 'npm publish --access public --provenance' > ./artifacts/npm-release-v1/${{ inputs.release_id }}/publish-command.txt
 
       - name: Upload npm lane evidence
         uses: actions/upload-artifact@v4

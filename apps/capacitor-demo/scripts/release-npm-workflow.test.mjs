@@ -21,5 +21,5 @@ test('release npm workflow supports workflow_call and protected publish executio
   assert.match(workflow, /NODE_AUTH_TOKEN:\s*\$\{\{ secrets\.NPM_TOKEN \}\}/i);
   assert.match(workflow, /release:npm:policy/i);
   assert.doesNotMatch(workflow, /Execute protected npm publish lane/i);
-  assert.match(workflow, /npm publish --provenance/i);
+  assert.match(workflow, /npm publish --access public --provenance/i);
 });

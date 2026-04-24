@@ -13,7 +13,7 @@ test('publication pipeline v2 runbook documents GitHub App iOS authority and npm
   assert.match(runbook, /release-control\.yml/i);
   assert.match(runbook, /GitHub App token/i);
   assert.match(runbook, /already_published/i);
-  assert.match(runbook, /npm publish --provenance/i);
+  assert.match(runbook, /npm publish --access public --provenance/i);
   assert.match(runbook, /npm view/i);
 });
 
