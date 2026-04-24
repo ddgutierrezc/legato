@@ -14,12 +14,14 @@ test('package scripts expose android preflight/publish/verify release gates', as
   assert.equal(typeof packageJson.scripts?.['release:android:preflight'], 'string');
   assert.equal(typeof packageJson.scripts?.['release:android:publish'], 'string');
   assert.equal(typeof packageJson.scripts?.['release:android:verify'], 'string');
+  assert.equal(typeof packageJson.scripts?.['release:android:verify:ci'], 'string');
   assert.equal(typeof packageJson.scripts?.['release:scope:check'], 'string');
   assert.equal(typeof packageJson.scripts?.['validate:external:consumer'], 'string');
 
   assert.match(packageJson.scripts['release:android:preflight'], /release-android\.mjs\s+preflight/i);
   assert.match(packageJson.scripts['release:android:publish'], /release-android\.mjs\s+publish/i);
   assert.match(packageJson.scripts['release:android:verify'], /release-android\.mjs\s+verify/i);
+  assert.match(packageJson.scripts['release:android:verify:ci'], /retry-android-release-verify\.mjs/i);
   assert.match(packageJson.scripts['release:android:preflight'], /native-artifacts\.json/i);
   assert.match(packageJson.scripts['release:scope:check'], /check-publication-scope\.mjs/i);
   assert.match(packageJson.scripts['validate:external:consumer'], /run-external-consumer-validation\.mjs/i);

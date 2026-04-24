@@ -1,0 +1,313 @@
+name: Release Android (v1)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Release target (v1 supports android only)'
+        required: true
+        type: choice
+        options:
+          - android
+      mode:
+        description: 'Execution mode'
+        required: true
+        type: choice
+        options:
+          - preflight-only
+          - publish
+      release_id:
+        description: 'Unique release identifier for evidence/audit tracking'
+        required: true
+        type: string
+
+concurrency:
+  group: release-android-${{ inputs.release_id }}
+  cancel-in-progress: false
+
+jobs:
+  validate-dispatch:
+    name: Validate dispatch contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate target/mode and persist dispatch payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/release-ci
+
+          if [[ "${{ inputs.target }}" != "android" ]]; then
+            echo "v1 is Android-only; unsupported target: ${{ inputs.target }}" >&2
+            exit 1
+          fi
+
+          if [[ "${{ inputs.mode }}" != "preflight-only" && "${{ inputs.mode }}" != "publish" ]]; then
+            echo "Unsupported mode: ${{ inputs.mode }}" >&2
+            exit 1
+          fi
+
+          cat > artifacts/release-ci/dispatch.json <<'JSON'
+          {
+            "target": "${{ inputs.target }}",
+            "mode": "${{ inputs.mode }}",
+            "release_id": "${{ inputs.release_id }}",
+            "run_id": "${{ github.run_id }}",
+            "run_attempt": "${{ github.run_attempt }}",
+            "actor": "${{ github.actor }}"
+          }
+          JSON
+
+      - name: Upload dispatch payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dispatch
+          path: artifacts/release-ci/dispatch.json
+
+  android-preflight:
+    name: Android preflight
+    runs-on: ubuntu-latest
+    needs: validate-dispatch
+    defaults:
+      run:
+        working-directory: apps/capacitor-demo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: apps/capacitor-demo/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run scope check
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ./artifacts
+          npm run release:scope:check 2>&1 | tee ./artifacts/release-ci-scope.log
+
+      - name: Run Android preflight
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ./artifacts/release-ci
+          npm run release:android:preflight 2>&1 | tee ./artifacts/release-ci/preflight.log
+
+      - name: Upload preflight log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-preflight
+          path: |
+            apps/capacitor-demo/artifacts/release-ci/preflight.log
+            apps/capacitor-demo/artifacts/release-ci-scope.log
+
+  android-publish:
+    name: Android publish (protected)
+    runs-on: ubuntu-latest
+    needs: android-preflight
+    if: ${{ inputs.mode == 'publish' }}
+    environment: release
+    defaults:
+      run:
+        working-directory: apps/capacitor-demo
+    env:
+      ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralUsername || secrets.MAVEN_CENTRAL_USERNAME }}
+      ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralPassword || secrets.MAVEN_CENTRAL_PASSWORD }}
+      ORG_GRADLE_PROJECT_signingGnupgKeyName: ${{ secrets.ORG_GRADLE_PROJECT_signingGnupgKeyName || secrets.SIGNING_GNUPG_KEY_NAME || secrets.SIGNING_GNUPG_KEYNAME }}
+      ORG_GRADLE_PROJECT_signingGnupgPassphrase: ${{ secrets.ORG_GRADLE_PROJECT_signingGnupgPassphrase || secrets.SIGNING_GNUPG_PASSPHRASE }}
+      ORG_GRADLE_PROJECT_signingGnupgExecutable: ${{ secrets.ORG_GRADLE_PROJECT_signingGnupgExecutable || secrets.SIGNING_GNUPG_EXECUTABLE }}
+      ORG_GRADLE_PROJECT_signingGnupgHomeDir: ${{ secrets.ORG_GRADLE_PROJECT_signingGnupgHomeDir || secrets.SIGNING_GNUPG_HOME_DIR }}
+      ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKey || secrets.SIGNING_KEY }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyFile: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyFile || secrets.SIGNING_KEY_FILE }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyPassword || secrets.SIGNING_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: apps/capacitor-demo/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish Android artifact
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ./artifacts/release-ci
+          npm run release:android:publish 2>&1 | tee ./artifacts/release-ci/publish.log
+
+      - name: Upload publish log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-publish
+          path: apps/capacitor-demo/artifacts/release-ci/publish.log
+
+  android-verify:
+    name: Android verify
+    runs-on: ubuntu-latest
+    needs:
+      - android-preflight
+      - android-publish
+    if: ${{ always() && needs.android-preflight.result == 'success' && (inputs.mode == 'preflight-only' || needs.android-publish.result == 'success') }}
+    defaults:
+      run:
+        working-directory: apps/capacitor-demo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: apps/capacitor-demo/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Android release (with bounded retries)
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ./artifacts/release-ci
+          npm run release:android:verify:ci -- --attempts 6 --backoff-ms 120000 --summary-file ./artifacts/release-ci/verify-summary.json 2>&1 | tee ./artifacts/release-ci/verify.log
+
+      - name: Upload verify log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-verify
+          path: |
+            apps/capacitor-demo/artifacts/release-ci/verify.log
+            apps/capacitor-demo/artifacts/release-ci/verify-summary.json
+
+  evidence:
+    name: Evidence and summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - validate-dispatch
+      - android-preflight
+      - android-publish
+      - android-verify
+    steps:
+      - name: Download dispatch artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-dispatch
+          path: artifacts/release-ci
+
+      - name: Download preflight artifact
+        if: ${{ needs.android-preflight.result != 'skipped' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: release-preflight
+          path: artifacts/release-ci
+
+      - name: Download publish artifact
+        if: ${{ needs.android-publish.result != 'skipped' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: release-publish
+          path: artifacts/release-ci
+
+      - name: Download verify artifact
+        if: ${{ needs.android-verify.result != 'skipped' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: release-verify
+          path: artifacts/release-ci
+
+      - name: Ensure expected evidence files exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/release-ci
+
+          [[ -f artifacts/release-ci/preflight.log ]] || printf 'preflight stage did not produce a log.\n' > artifacts/release-ci/preflight.log
+          [[ -f artifacts/release-ci/publish.log ]] || printf 'publish stage was skipped (mode=%s).\n' "${{ inputs.mode }}" > artifacts/release-ci/publish.log
+          [[ -f artifacts/release-ci/verify.log ]] || printf 'verify stage was skipped due to upstream failure/skip.\n' > artifacts/release-ci/verify.log
+
+      - name: Build release summary payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > artifacts/release-ci/summary.json <<'JSON'
+          {
+            "release_id": "${{ inputs.release_id }}",
+            "target": "${{ inputs.target }}",
+            "mode": "${{ inputs.mode }}",
+            "run_id": "${{ github.run_id }}",
+            "run_attempt": "${{ github.run_attempt }}",
+            "actor": "${{ github.actor }}",
+            "environment": {
+              "name": "release",
+              "required_for_mode": "publish",
+              "publish_job_result": "${{ needs.android-publish.result }}"
+            },
+            "stages": {
+              "validate_dispatch": "${{ needs.validate-dispatch.result }}",
+              "android_preflight": "${{ needs.android-preflight.result }}",
+              "android_publish": "${{ needs.android-publish.result }}",
+              "android_verify": "${{ needs.android-verify.result }}"
+            },
+            "artifacts": [
+              "dispatch.json",
+              "preflight.log",
+              "publish.log",
+              "verify.log",
+              "summary.json",
+              "summary.md"
+            ]
+          }
+          JSON
+
+          cat > artifacts/release-ci/summary.md <<'MARKDOWN'
+          # Android Release v1 Summary
+
+          - Release ID: `${{ inputs.release_id }}`
+          - Target: `${{ inputs.target }}`
+          - Mode: `${{ inputs.mode }}`
+          - Run: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+          - Actor: `${{ github.actor }}`
+          - Protected Environment: `release` (required for `publish`)
+          - Android preflight: `${{ needs.android-preflight.result }}`
+          - Android publish: `${{ needs.android-publish.result }}`
+          - Android verify: `${{ needs.android-verify.result }}`
+          - iOS status: `manual/preflight-only in v1 (not auto-published by CI)`
+          MARKDOWN
+
+          {
+            echo '## Android Release v1'
+            echo "- Release ID: \`${{ inputs.release_id }}\`"
+            echo "- Mode: \`${{ inputs.mode }}\`"
+            echo "- Preflight: \`${{ needs.android-preflight.result }}\`"
+            echo "- Publish: \`${{ needs.android-publish.result }}\`"
+            echo "- Verify: \`${{ needs.android-verify.result }}\`"
+            echo "- Evidence artifact: \`release-evidence-${{ inputs.release_id }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload evidence bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ inputs.release_id }}
+          path: |
+            artifacts/release-ci/dispatch.json
+            artifacts/release-ci/preflight.log
+            artifacts/release-ci/publish.log
+            artifacts/release-ci/verify.log
+            artifacts/release-ci/summary.json
+            artifacts/release-ci/summary.md
