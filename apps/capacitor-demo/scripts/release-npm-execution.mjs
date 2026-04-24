@@ -7,6 +7,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ARTIFACTS_DIR = resolve(scriptDir, '../artifacts/npm-release-v2');
 
 const toIsoTimestamp = () => new Date().toISOString();
+const wait = (ms) => new Promise((resolveDelay) => { setTimeout(resolveDelay, ms); });
 
 const writeJson = async (filePath, payload) => {
   const absolutePath = resolve(filePath);
@@ -54,6 +55,23 @@ const readPackageIdentity = async (commandRunner) => {
   };
 };
 
+const verifyPublishedVersion = async ({ commandRunner, packageName, packageVersion, attempts = 5, delayMs = 3000 }) => {
+  let lastResult = { exitCode: 1, stdout: '', stderr: 'npm view not executed' };
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    lastResult = await commandRunner({
+      command: 'npm',
+      args: ['view', `${packageName}@${packageVersion}`, 'version', '--json'],
+    });
+    if (lastResult.exitCode === 0) {
+      return { ...lastResult, attemptsUsed: attempt };
+    }
+    if (attempt < attempts) {
+      await wait(delayMs);
+    }
+  }
+  return { ...lastResult, attemptsUsed: attempts };
+};
+
 export const runNpmReleaseExecution = async ({
   releaseId,
   mode,
@@ -97,9 +115,10 @@ export const runNpmReleaseExecution = async ({
     };
   }
 
-  const npmViewResult = await commandRunner({
-    command: 'npm',
-    args: ['view', `${identity.packageName}@${identity.packageVersion}`, 'version', '--json'],
+  const npmViewResult = await verifyPublishedVersion({
+    commandRunner,
+    packageName: identity.packageName,
+    packageVersion: identity.packageVersion,
   });
 
   const verifyPass = npmViewResult.exitCode === 0;
@@ -114,6 +133,7 @@ export const runNpmReleaseExecution = async ({
       package_version: identity.packageVersion,
       verify: {
         npm_view: verifyPass ? 'PASS' : 'FAIL',
+        attempts: npmViewResult.attemptsUsed,
         stdout: npmViewResult.stdout,
         stderr: npmViewResult.stderr,
       },
@@ -126,7 +146,7 @@ export const runNpmReleaseExecution = async ({
     terminal_status: verifyPass ? 'published' : 'failed',
     publish_attempted: true,
     publish_command: 'npm publish --access public',
-    verify: { npm_view: verifyPass ? 'PASS' : 'FAIL' },
+    verify: { npm_view: verifyPass ? 'PASS' : 'FAIL', attempts: npmViewResult.attemptsUsed },
     failures: verifyPass ? [] : [npmViewResult.stderr || 'npm view failed after publish'],
     error_reference: verifyPass ? '' : summaryPath,
   };

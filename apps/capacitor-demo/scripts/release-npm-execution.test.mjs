@@ -34,3 +34,29 @@ test('npm execution maps publish failure to failed terminal status', async () =>
   assert.match(result.failures.join('\n'), /already exists/i);
   assert.ok(calls.some((entry) => /npm publish --access public/i.test(entry)));
 });
+
+test('npm execution retries npm view until registry visibility catches up', async () => {
+  let viewAttempts = 0;
+  const result = await runNpmReleaseExecution({
+    releaseId: 'R-2026.04.24.2',
+    mode: 'protected-publish',
+    commandRunner: async ({ args }) => {
+      if (args.includes('name')) return { exitCode: 0, stdout: '"@ddgutierrezc/legato-capacitor"', stderr: '' };
+      if (args.includes('version') && args[0] !== 'view') return { exitCode: 0, stdout: '"0.1.2"', stderr: '' };
+      if (args[0] === 'publish') return { exitCode: 0, stdout: 'published', stderr: '' };
+      if (args[0] === 'view') {
+        viewAttempts += 1;
+        if (viewAttempts < 3) {
+          return { exitCode: 1, stdout: '', stderr: 'npm ERR! 404 not found yet' };
+        }
+        return { exitCode: 0, stdout: '"0.1.2"', stderr: '' };
+      }
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  assert.equal(result.status, 'PASS');
+  assert.equal(result.terminal_status, 'published');
+  assert.equal(result.verify.npm_view, 'PASS');
+  assert.equal(result.verify.attempts, 3);
+});
