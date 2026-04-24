@@ -56,22 +56,18 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: apps/capacitor-demo/package-lock.json
+          registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run npm release policy lane
         shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           npm run release:npm:policy -- --release-id "${{ inputs.release_id }}" --mode "${{ inputs.mode }}" --publish-intent-evidence "${{ inputs.publish_intent_evidence }}"
-
-      - name: Execute protected npm publish lane
-        if: ${{ inputs.mode == 'protected-publish' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run release:npm:execute -- --release-id "${{ inputs.release_id }}" --mode "${{ inputs.mode }}"
 
       - name: Document protected publish command
         if: ${{ inputs.mode == 'protected-publish' }}
