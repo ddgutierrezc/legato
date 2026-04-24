@@ -36,6 +36,11 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
 jobs:
   npm-policy:
     runs-on: ubuntu-latest
