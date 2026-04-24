@@ -11,6 +11,7 @@ test('release control workflow exposes unified dispatch with release_id, targets
   const workflow = await readFile(workflowPath, 'utf8');
 
   assert.match(workflow, /workflow_dispatch:/i);
+  assert.match(workflow, /permissions:[\s\S]*id-token:\s*write/i);
   assert.match(workflow, /release_id:/i);
   assert.match(workflow, /targets:/i);
   assert.match(workflow, /target_modes:/i);

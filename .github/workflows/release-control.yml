@@ -31,6 +31,11 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
 concurrency:
   group: release-control-${{ inputs.release_id }}
   cancel-in-progress: false
