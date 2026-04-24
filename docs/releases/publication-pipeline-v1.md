@@ -1,11 +1,12 @@
-# Publication Pipeline V1 — CI Android Release Runbook
+# Publication Pipeline V1 — Android CI + iOS Manual-Execution Runbook
 
-This runbook defines change `ci-publication-release-automation-v1`.
+This runbook defines release execution for Android CI automation plus iOS manual publication execution hardening (`ios-publication-execution-v1`).
 
 ## Scope Boundary
 
 - Android publication is CI-driven through GitHub Actions in v1.
-- iOS remains preflight/manual-handoff only in v1.
+- iOS publication action in `legato-ios-core` remains manual/external in v1.
+- iOS in-repo work covers preflight, handoff evidence, remote verification, and closeout gates only.
 - **Do not implement automated iOS publication in this v1 milestone.**
 
 ## Workflow Entry Point (manual dispatch only)
@@ -94,11 +95,46 @@ Validation checklist and audit template: [`publication-pipeline-v1-validation.md
 - Required: `release` environment approval and valid environment secrets.
 - Expected order: preflight → approved publish → verify → evidence.
 
-## iOS boundary (unchanged in v1)
+## iOS manual-execution lane (repo-owned gates)
 
-iOS remains outside CI publication automation:
+iOS remains outside CI publication automation, but v1 requires a complete auditable lane:
 
-- iOS Preflight (automatable): `IOS_RELEASE_TAG=vX.Y.Z npm run release:ios:preflight`
-- Manual Handoff (non-automated in v1): publish in the external iOS release authority (`legato-ios-core`) after preflight PASS.
+1. **Preflight gate** (repo-owned)
+   - Command: `IOS_RELEASE_ID=<id> IOS_RELEASE_TAG=vX.Y.Z npm run release:ios:preflight`
+   - Output: `artifacts/ios-publication-v1/<release_id>/preflight.json`
+   - Gate must pass anti-drift checks and set `readyForManualHandoff=true`.
+
+2. **Manual external publish** (outside this repo)
+   - Operator publishes in external authority repo: `legato-ios-core`.
+   - This repo does **not** create tags/publish remotely.
+
+3. **Handoff evidence capture** (repo-owned)
+   - Command:
+     - `IOS_RELEASE_ID=<id> IOS_RELEASE_TAG=vX.Y.Z IOS_EXTERNAL_TAG=vX.Y.Z IOS_OPERATOR=<operator> IOS_PUBLISHED_AT=<ISO8601> npm run release:ios:handoff`
+   - Output: `artifacts/ios-publication-v1/<release_id>/handoff.json`
+   - Required fields: pinned version/tag, external repo ref, operator, timestamp, linked preflight artifact.
+
+4. **Remote verification gate** (repo-owned, read-only)
+   - Command:
+     - `IOS_RELEASE_ID=<id> IOS_VERIFY_ATTEMPTS=6 IOS_VERIFY_BACKOFF_MS=120000 npm run release:ios:verify`
+   - Output: `artifacts/ios-publication-v1/<release_id>/verify.json`
+   - Checks:
+     - `git ls-remote --tags` confirms pinned tag propagation.
+     - scratch SwiftPM resolve confirms pinned package URL/version is installable.
+   - Retry is bounded and idempotent; diagnostics are captured in `verify.json`.
+
+5. **Closeout gate** (repo-owned)
+   - Command: `IOS_RELEASE_ID=<id> npm run release:ios:closeout`
+   - Output: `artifacts/ios-publication-v1/<release_id>/closeout.json`
+   - Allowed only when `preflight + handoff + verify` are all PASS and version/release-id chain is consistent.
+
+### iOS artifacts (required evidence chain)
+
+For a valid iOS closeout, the same `<release_id>` directory must include:
+
+- `preflight.json`
+- `handoff.json`
+- `verify.json`
+- `closeout.json`
 
 This workflow intentionally does not auto-publish iOS artifacts.

@@ -14,5 +14,22 @@ test('package scripts expose iOS preflight release gate with explicit release ta
   assert.equal(typeof packageJson.scripts?.['release:ios:preflight'], 'string');
   assert.match(packageJson.scripts['release:ios:preflight'], /release-ios-preflight\.mjs/i);
   assert.match(packageJson.scripts['release:ios:preflight'], /--release-tag/i);
+  assert.match(packageJson.scripts['release:ios:preflight'], /--json-out/i);
   assert.match(packageJson.scripts['release:ios:preflight'], /native-artifacts\.json/i);
+});
+
+test('package scripts expose iOS handoff/verify/closeout execution commands', async () => {
+  const packageJsonRaw = await readFile(packageJsonPath, 'utf8');
+  const packageJson = JSON.parse(packageJsonRaw);
+
+  assert.equal(typeof packageJson.scripts?.['release:ios:handoff'], 'string');
+  assert.equal(typeof packageJson.scripts?.['release:ios:verify'], 'string');
+  assert.equal(typeof packageJson.scripts?.['release:ios:closeout'], 'string');
+
+  assert.match(packageJson.scripts['release:ios:handoff'], /release-ios-execution\.mjs\s+handoff/i);
+  assert.match(packageJson.scripts['release:ios:verify'], /release-ios-execution\.mjs\s+verify/i);
+  assert.match(packageJson.scripts['release:ios:closeout'], /release-ios-execution\.mjs\s+closeout/i);
+  assert.match(packageJson.scripts['release:ios:verify'], /--attempts/i);
+  assert.match(packageJson.scripts['release:ios:verify'], /--backoff-ms/i);
+  assert.match(packageJson.scripts['release:ios:handoff'], /--artifacts-dir/i);
 });
