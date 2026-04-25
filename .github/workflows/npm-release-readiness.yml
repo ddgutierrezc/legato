@@ -5,9 +5,11 @@ on:
     paths:
       - 'packages/contract/**'
       - 'packages/capacitor/**'
+      - 'README.md'
       - 'apps/capacitor-demo/scripts/**'
       - 'apps/capacitor-demo/package.json'
       - 'apps/capacitor-demo/package-lock.json'
+      - 'docs/maintainers/**'
       - 'docs/releases/npm-tech-preview-checklist.md'
       - '.github/workflows/npm-release-readiness.yml'
   workflow_dispatch:

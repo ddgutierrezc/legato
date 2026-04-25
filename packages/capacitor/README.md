@@ -2,23 +2,36 @@
 
 Modern Capacitor binding MVP for Legato.
 
+This package provides Capacitor-native integration and is not a replacement for contract-only consumers.
+
 ## npm quickstart
 
 ```bash
 npm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract
 ```
 
-First invocation:
+## First-use flow
+
+First health check:
 
 ```bash
 npx legato native doctor
 ```
 
+Minimal API start:
+
+```ts
+import { audioPlayer, mediaSession } from '@ddgutierrezc/legato-capacitor';
+
+await audioPlayer.setup();
+await mediaSession.setup();
+```
+
 Audience and prerequisites:
 
-- Intended audience: maintainers/integrators working in the Legato repository layout.
+- Intended audience: Capacitor integrators adding Legato playback to host apps.
 - Requires a supported Node.js + npm toolchain and a Capacitor project context.
-- `legato native` is a repo-owned maintainer helper, not a generic consumer bootstrap CLI.
+- `legato native` is a repo-owned maintainer helper; consumer onboarding should start with install + API usage.
 - Unsupported environment disclosure: non-LTS or end-of-life Node.js runtimes are not supported for this onboarding path.
 - Remediation: use a supported Node.js LTS release (and matching npm), then rerun install + `npx legato native doctor`.
 
@@ -100,79 +113,18 @@ await remoteHandle.remove();
 await sync.stop();
 ```
 
+## Package role boundary
+
+- Choose `@ddgutierrezc/legato-contract` when you only need shared contracts/types.
+- Choose `@ddgutierrezc/legato-capacitor` when you need Capacitor plugin runtime integration.
+
+## Maintainer operations
+
+Maintainer-heavy CLI/release/SPM operational details are documented in [`../../docs/maintainers/legato-capacitor-operator-guide.md`](../../docs/maintainers/legato-capacitor-operator-guide.md).
+
 ## MVP limitations
 
 - Native runtime playback wiring (ExoPlayer/AVPlayer) is still pending in core.
 - This binding only bridges the current native core semantics/state/events.
 - Behavior is intentionally minimal and contract-first.
 - Android background playback/service wiring is groundwork-only in Milestone 1 (contract + stub service), not production parity.
-
-## Local repo integration notes
-
-- Publish-facing entrypoints (`main`/`types`/`exports` + `legato` CLI bin) resolve to built artifacts in `dist/**`.
-- Build before packing/publishing so `dist` is complete (`npm run build`).
-- Tarball readiness checks are available via `npm run pack:check` in `packages/capacitor`.
-- `@ddgutierrezc/legato-contract` is a peer dependency and should be installed by host apps.
-- This package can be validated in a packed external-consumer flow through `apps/capacitor-demo` (`npm run validate:npm:readiness`).
-
-## iOS Swift Package Manager integration
-
-This package now includes a root `Package.swift` for Capacitor iOS SPM hosts.
-
-- Package name/product: `DdgutierrezcLegatoCapacitor`
-- Plugin target: `LegatoPlugin`
-- Transitive native dependency: `LegatoCore` (resolved via remote Swift package URL + exact version pin in `Package.swift`)
-
-When this package is consumed by Capacitor-generated iOS SPM integration, the expected product name is `DdgutierrezcLegatoCapacitor`.
-
-To keep iOS SPM integration clean and compatible with `npx cap sync ios` generated files:
-
-- Do not modify `ios/App/CapApp-SPM` generated sources/packages.
-- The plugin package itself provides the standard Capacitor SPM linkage shape (`Capacitor` + `Cordova`) through the `DdgutierrezcLegatoCapacitor` product so `npx cap sync ios` generated wiring can remain the source of truth.
-
-### iOS artifact mirror/tag expectations (release)
-
-For `legato-ios-core` distribution, release tags must satisfy these minimum expectations:
-
-- `https://github.com/ddgutierrezc/legato-ios-core.git` contains a valid root `Package.swift` exposing product `LegatoCore`.
-- Every version consumed by `@ddgutierrezc/legato-capacitor` is published as an immutable semver tag (example: `0.1.1`).
-- `packages/capacitor/native-artifacts.json` remains the single source of truth for the exact iOS version pin.
-- Any product/package identity mismatch discovered in SwiftPM resolver logs must block release until fixed.
-
-## Native setup CLI (Milestone 1 foundation)
-
-This package now ships a repo-owned CLI entrypoint: `legato`.
-
-Current supported commands:
-
-- `legato native doctor` → inspect required native host setup, no file writes.
-- `legato native configure --dry-run` → print the planned idempotent mutations without applying them.
-- `legato native configure --apply` → apply only safe mutations in the supported repo-owned patch set.
-
-Ownership/safety boundaries:
-
-- The CLI never mutates Capacitor-generated artifacts (for example, `ios/App/CapApp-SPM/**`).
-- `--apply` is intentionally conservative: unsupported file shapes are reported as `SKIP` for manual review.
-
-Android values used by CLI checks/templates are centralized in:
-
-- `src/cli/android-groundwork-contract.mjs`
-
-This contract currently covers:
-- playback service class identity,
-- required Android permissions,
-- baseline audio-focus policy intent.
-
-It exists to reduce drift across CLI and manifest scaffolding while full runtime parity is still pending.
-
-<!-- NATIVE_ARTIFACTS:BEGIN -->
-### Native artifact distribution contract (foundation)
-
-| Platform | Policy | Source of truth |
-|---|---|---|
-| Android | Maven Central coordinate `dev.dgutierrez:legato-android-core:0.1.1` | `native-artifacts.json` |
-| iOS | SwiftPM remote package `LegatoCore` at `https://github.com/ddgutierrezc/legato-ios-core.git` pinned with `exact(0.1.1)` | `native-artifacts.json` |
-
-> This section is generated by `scripts/sync-native-artifacts.mjs`.
-> Android adapter switch-over is active (artifact coordinates only). iOS adapter switch-over is active (remote Swift package + exact pinning).
-<!-- NATIVE_ARTIFACTS:END -->

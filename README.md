@@ -1,67 +1,41 @@
 # legato
-La metáfora es perfecta: en música, legato significa tocar notas de forma suave y continua, sin interrupciones entre ellas — exactamente lo que hace tu librería: audio que fluye sin interrupciones entre frameworks.
 
-## Demo apps
+Legato provides a contract package and a Capacitor integration package for continuous audio playback flows.
 
-- `apps/capacitor-demo`: minimal Capacitor v8 host scaffold showing TypeScript-level wiring for `@ddgutierrezc/legato-capacitor`.
+## Package decision matrix
 
-## npm packages: which package should I install?
+| If you need... | Install | Read first |
+|---|---|---|
+| Shared playback types/events/contracts with no Capacitor runtime | `@ddgutierrezc/legato-contract` | [`packages/contract/README.md`](packages/contract/README.md) |
+| Capacitor plugin runtime + namespaced APIs (`audioPlayer`, `mediaSession`) | `@ddgutierrezc/legato-capacitor` + `@ddgutierrezc/legato-contract` | [`packages/capacitor/README.md`](packages/capacitor/README.md) |
 
-- `@ddgutierrezc/legato-capacitor` → install this in Capacitor host apps that need the Legato plugin bridge.
-- `@ddgutierrezc/legato-contract` → install this in library/tooling code that only needs shared Legato types/contracts (no Capacitor plugin runtime).
+## Install
 
-Quick links:
+```bash
+npm install @ddgutierrezc/legato-contract
+```
 
-- Capacitor package docs: `packages/capacitor/README.md`
-- Contract package docs: `packages/contract/README.md`
+or
 
-## npm ergonomics non-goals (scope lock)
+```bash
+npm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract
+```
+
+## Usage
+
+- Contract-only consumers: use shared symbols like `LEGATO_EVENT_NAMES` from `@ddgutierrezc/legato-contract`.
+- Capacitor consumers: start from `@ddgutierrezc/legato-capacitor` and use `audioPlayer` / `mediaSession`.
+
+## Maintainers
+
+Maintainer-only scope and operational boundaries are documented in [`docs/maintainers/package-documentation-foundation-v1-scope.md`](docs/maintainers/package-documentation-foundation-v1-scope.md).
+
+## Non-goals for package-documentation-foundation-v1
 
 - Non-goal: runtime behavior expansion in native/player engines.
 - Non-goal: release-lane redesign.
-- Non-goal: platform bootstrap automation beyond current maintainer-safe patch set.
+- Non-goal: platform bootstrap automation.
 
-## Milestones
+## Contributing
 
-- 2026-04-19: first successful **Android Capacitor smoke** in a real host app for `@ddgutierrezc/legato-capacitor` minimal flow.
-  - See: `specs/milestones/2026-04-19-android-capacitor-smoke.md`
-- 2026-04-19: generated **iOS Capacitor host scaffold** for `apps/capacitor-demo` with Capacitor-managed SPM plugin wiring (`CapacitorLegato`, no direct host `LegatoCore` link required).
-
-## Architecture decisions
-
-### Native dependency composition
-
-Legato currently uses **manual dependency composition** on both Android and iOS:
-
-- **Android**: `LegatoAndroidCoreDependencies` + `LegatoAndroidCoreFactory.create(...)`
-- **iOS**: `LegatoiOSCoreDependencies` + `LegatoiOSCoreFactory.make(...)`
-
-This means the project relies on:
-
-- constructor injection,
-- explicit dependency bags,
-- manual composition roots/factories,
-- and a small number of explicit shared coordinators where lifecycle sharing is required.
-
-### Why we are not using DI containers today
-
-For the current size and lifecycle shape of the project, we are **not** adopting Koin/Swinject/Factory as runtime containers yet.
-
-Rationale:
-
-- the native graph is still relatively small and explicit,
-- the current factories are readable and predictable,
-- Capacitor plugin lifecycle is bridge/service-driven and does not automatically become simpler with a container,
-- most recent bugs were runtime/lifecycle issues, not missing-container issues,
-- constructor injection is already in place, so testability and future migration remain possible.
-
-### Re-evaluation trigger
-
-We should revisit DI containers only if one or more of these become true:
-
-- composition roots become large enough that manual factories stop being readable,
-- shared scopes/lifecycles multiply beyond plugin + service coordination,
-- test setup cost becomes dominated by manual graph assembly,
-- we start adding many environment-specific implementations that are hard to wire explicitly.
-
-Until then, **manual composition is the project standard**.
+If you update README/package docs, also run docs drift checks from `apps/capacitor-demo`.
