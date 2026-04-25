@@ -57,8 +57,10 @@ function printUsage(stderr) {
       '  legato native configure --apply [--json]',
       '',
       'Notes:',
+      '  - This is a repo-owned maintainer CLI, not a general consumer bootstrap CLI.',
       '  - configure defaults to no-op unless one of --dry-run/--apply is passed.',
       '  - apply only touches the repo-owned safe patch set.',
+      '  - It does not mutate Capacitor-generated files (for example, ios/App/CapApp-SPM/**).',
     ].join('\n'),
   );
   stderr.write('\n');

@@ -52,35 +52,55 @@ const normalizePackageTarget = (packageTarget) => {
   return normalized;
 };
 
-export const runNpmReadiness = async ({ packageTarget = 'capacitor' } = {}) => {
+export const runNpmReadiness = async ({ packageTarget = 'capacitor', commandRunner = runCommand } = {}) => {
   const normalizedPackageTarget = normalizePackageTarget(packageTarget);
   await mkdir(tarballDir, { recursive: true });
 
-  await runCommand({
+  await commandRunner({
     command: 'npm',
     args: ['install', '--no-package-lock'],
     cwd: resolve(repoRoot, 'packages/contract'),
   });
 
-  await runCommand({
+  await commandRunner({
     command: 'npm',
     args: ['install', '--no-package-lock'],
     cwd: resolve(repoRoot, 'packages/capacitor'),
   });
 
-  await runCommand({
+  await commandRunner({
     command: 'npm',
     args: ['run', 'build'],
     cwd: resolve(repoRoot, 'packages/contract'),
   });
 
-  await runCommand({
+  await commandRunner({
     command: 'npm',
     args: ['run', 'build'],
     cwd: resolve(repoRoot, 'packages/capacitor'),
   });
 
-  const contractInspection = await runCommand({
+  await commandRunner({
+    command: 'node',
+    args: [
+      resolve(repoRoot, 'packages/capacitor/scripts/assert-package-entries.mjs'),
+      '--package-root', resolve(repoRoot, 'packages/contract'),
+      '--profile', 'contract',
+    ],
+    cwd: repoRoot,
+  });
+
+  await commandRunner({
+    command: 'node',
+    args: [
+      resolve(repoRoot, 'packages/capacitor/scripts/assert-package-entries.mjs'),
+      '--package-root', resolve(repoRoot, 'packages/capacitor'),
+      '--profile', 'capacitor',
+    ],
+    cwd: repoRoot,
+  });
+
+  const contractInspection = await commandRunner({
     command: 'node',
     args: [
       resolve(repoRoot, 'packages/capacitor/scripts/inspect-tarball.mjs'),
@@ -92,7 +112,7 @@ export const runNpmReadiness = async ({ packageTarget = 'capacitor' } = {}) => {
     cwd: repoRoot,
   });
 
-  const capacitorInspection = await runCommand({
+  const capacitorInspection = await commandRunner({
     command: 'node',
     args: [
       resolve(repoRoot, 'packages/capacitor/scripts/inspect-tarball.mjs'),
@@ -122,11 +142,12 @@ export const runNpmReadiness = async ({ packageTarget = 'capacitor' } = {}) => {
 
   const capacitorResult = parseJsonOutput(capacitorInspection.stdout);
 
-  const externalValidation = await runCommand({
+  const externalValidation = await commandRunner({
     command: 'node',
     args: [
       resolve(scriptDir, 'run-external-consumer-validation.mjs'),
       '--skip-pack',
+      '--proof-mode', 'npm-readiness',
       '--tarball-contract', contractResult.tarballPath,
       '--tarball-capacitor', capacitorResult.tarballPath,
       '--artifacts-dir', resolve(artifactsRoot, 'external-consumer'),

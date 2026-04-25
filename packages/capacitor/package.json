@@ -1,9 +1,9 @@
 {
   "name": "@ddgutierrezc/legato-capacitor",
   "version": "0.1.2",
-  "description": "Capacitor binding MVP for Legato.",
+  "description": "Capacitor bridge package for Legato host apps, including the repo-owned `legato native` maintainer CLI.",
   "author": "Legato",
-  "homepage": "https://github.com/legato/legato",
+  "homepage": "https://github.com/ddgutierrezc/legato/tree/main/packages/capacitor#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/ddgutierrezc/legato.git",
@@ -11,6 +11,13 @@
   },
   "license": "MIT",
   "type": "module",
+  "keywords": [
+    "legato",
+    "capacitor",
+    "audio",
+    "media-session",
+    "plugin"
+  ],
   "bin": {
     "legato": "./dist/cli/index.mjs"
   },
@@ -35,7 +42,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && node ./scripts/copy-cli-to-dist.mjs && npm run readiness:entries",
     "typecheck": "tsc --noEmit",
-    "readiness:entries": "node ./scripts/assert-package-entries.mjs --package-root .",
+    "readiness:entries": "node ./scripts/assert-package-entries.mjs --package-root . --profile capacitor",
     "pack:check": "npm run build && node ./scripts/inspect-tarball.mjs --package-root . --profile capacitor",
     "promote:ios-distribution": "node ./scripts/promote-ios-distribution.mjs",
     "sync:native-artifacts": "node ./scripts/sync-native-artifacts.mjs",
@@ -47,7 +54,7 @@
   },
   "devDependencies": {
     "@capacitor/core": "^8.0.0",
-    "@ddgutierrezc/legato-contract": "file:../contract",
+    "@ddgutierrezc/legato-contract": "^0.1.2",
     "typescript": "^5.6.3"
   },
   "capacitor": {

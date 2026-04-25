@@ -5,6 +5,22 @@ La metáfora es perfecta: en música, legato significa tocar notas de forma suav
 
 - `apps/capacitor-demo`: minimal Capacitor v8 host scaffold showing TypeScript-level wiring for `@ddgutierrezc/legato-capacitor`.
 
+## npm packages: which package should I install?
+
+- `@ddgutierrezc/legato-capacitor` → install this in Capacitor host apps that need the Legato plugin bridge.
+- `@ddgutierrezc/legato-contract` → install this in library/tooling code that only needs shared Legato types/contracts (no Capacitor plugin runtime).
+
+Quick links:
+
+- Capacitor package docs: `packages/capacitor/README.md`
+- Contract package docs: `packages/contract/README.md`
+
+## npm ergonomics non-goals (scope lock)
+
+- Non-goal: runtime behavior expansion in native/player engines.
+- Non-goal: release-lane redesign.
+- Non-goal: platform bootstrap automation beyond current maintainer-safe patch set.
+
 ## Milestones
 
 - 2026-04-19: first successful **Android Capacitor smoke** in a real host app for `@ddgutierrezc/legato-capacitor` minimal flow.
