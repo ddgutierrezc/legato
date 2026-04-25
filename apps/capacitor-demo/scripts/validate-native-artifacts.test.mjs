@@ -179,7 +179,19 @@ const capacitorConfigWithPluginClass = `
 
 const pluginSwiftDiscoverableShape = `
 @objc(LegatoPlugin)
-public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {}
+public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "LegatoPlugin"
+    public let jsName = "Legato"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "setup", returnType: CAPPluginReturnPromise)
+    ]
+}
+`;
+
+const pluginSwiftMissingBridgeContract = `
+@objc(LegatoPlugin)
+public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
+}
 `;
 
 const unresolvedLog = `
@@ -445,6 +457,57 @@ test('validator accepts iOS product package identity based on contract packageNa
 
   assert.equal(result.status, 'PASS');
   assert.equal(result.failures.length, 0);
+});
+
+test('validator fails when bridged plugin identifier/jsName/pluginMethods contract is missing', () => {
+  const result = validateNativeArtifacts({
+    pluginBuildGradle: buildGradleArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContract,
+    androidSettingsGradle: androidSettingsWithoutNativeCore,
+    capAppSpmPackageSwift: capAppSpmGenerated,
+    pluginPackageSwift: packageSwiftArtifactOnly,
+    capacitorConfigJson: capacitorConfigWithPluginClass,
+    pluginSwiftSource: pluginSwiftMissingBridgeContract,
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.match(result.failures.join('\n'), /identifier/i);
+  assert.match(result.failures.join('\n'), /jsName/i);
+  assert.match(result.failures.join('\n'), /pluginMethods/i);
+});
+
+test('validator reports generated-file boundary failures with sync remediation', () => {
+  const result = validateNativeArtifacts({
+    pluginBuildGradle: buildGradleArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContract,
+    androidSettingsGradle: androidSettingsWithoutNativeCore,
+    capAppSpmPackageSwift: capAppSpmWithoutGeneratedMarker,
+    pluginPackageSwift: packageSwiftArtifactOnly,
+    capacitorConfigJson: capacitorConfigWithPluginClass,
+    pluginSwiftSource: pluginSwiftDiscoverableShape,
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.match(result.failures.join('\n'), /\[generated-file-boundary\]/i);
+  assert.match(result.failures.join('\n'), /npm run cap:sync/i);
+  assert.match(result.failures.join('\n'), /npm run validate:native:artifacts/i);
+});
+
+test('validator reports package-wiring drift failures with sync remediation', () => {
+  const result = validateNativeArtifacts({
+    pluginBuildGradle: buildGradleArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContract,
+    androidSettingsGradle: androidSettingsWithoutNativeCore,
+    capAppSpmPackageSwift: capAppSpmGenerated,
+    pluginPackageSwift: packageSwiftArtifactOnly.replace('.product(name: "LegatoCore", package: "LegatoCore")', '.product(name: "WrongCore", package: "LegatoCore")'),
+    capacitorConfigJson: capacitorConfigWithPluginClass,
+    pluginSwiftSource: pluginSwiftDiscoverableShape,
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.match(result.failures.join('\n'), /\[package-wiring\]/i);
+  assert.match(result.failures.join('\n'), /npm run cap:sync/i);
+  assert.match(result.failures.join('\n'), /npm run validate:native:artifacts/i);
 });
 
 test('fixture mode path validator fails when host/plugin paths are coupled to monorepo app path', () => {

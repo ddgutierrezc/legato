@@ -188,6 +188,19 @@ Never hand-edit `ios/App/CapApp-SPM/Package.swift`; refresh via `npm run cap:syn
 
 See `ios/README.md` for the minimal iOS package-integration checklist before first iOS smoke.
 
+#### Post-sync iOS package verification checklist (required before smoke)
+
+This is a **post-sync iOS package verification checklist** and is **required before smoke** runs:
+
+1. Run `npm run cap:sync` before opening Xcode.
+2. Open `ios/App/App.xcodeproj`.
+3. Keep `CapApp-SPM` as the only generated package wiring source for the host target.
+4. Remove duplicate manual plugin/local package references if they appear.
+5. Avoid direct `LegatoCore` host linkage; keep it transitive through the plugin package.
+6. Verify `ios/App/App/capacitor.config.json` keeps `packageClassList` with `LegatoPlugin`.
+
+Out of scope: generic Apple signing/provisioning ownership and team/bundle management.
+
 ## Future iOS smoke path (first attempt)
 
 1. Ensure iOS host exists (`npm run cap:add:ios`, already done once in repo).

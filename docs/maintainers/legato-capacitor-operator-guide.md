@@ -15,9 +15,21 @@ Maintainer-only operational details for `@ddgutierrezc/legato-capacitor`.
 - Plugin target: `LegatoPlugin`.
 - Transitive native dependency: `LegatoCore` (remote Swift package URL + exact version in `Package.swift`).
 
+### iOS host polish v1 scope contract
+
+This maintainer contract covers **package-specific iOS integration/onboarding/guardrails only**.
+
+Explicit non-goals:
+
+- no generic bundle-ID ownership workflow
+- no signing/provisioning automation
+- no provisioning-profile lifecycle ownership
+
 Safety boundary:
 
-- Never hand-edit `ios/App/CapApp-SPM/Package.swift`; regenerate with `npx cap sync ios`.
+- Never hand-edit `apps/capacitor-demo/ios/App/CapApp-SPM/Package.swift`.
+- Regenerate generated iOS package wiring only through `npm run cap:sync` (or `npx cap sync ios`).
+- After sync, re-check generated surfaces (`CapApp-SPM/Package.swift`, `ios/App/App/capacitor.config.json`) before trusting host wiring state.
 
 ## Native setup CLI (repo-owned maintainer CLI)
 
