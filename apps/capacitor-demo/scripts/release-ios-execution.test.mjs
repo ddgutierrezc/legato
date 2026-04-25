@@ -68,7 +68,7 @@ const makeVerify = (overrides = {}) => ({
   ...overrides,
 });
 
-test('verify scratch Package.swift pins package identity using contract packageName', () => {
+test('verify scratch Package.swift pins remote URL and uses derived Swift package identity', () => {
   const packageSwift = buildVerifyScratchPackageSwift({
     packageUrl: 'https://github.com/ddgutierrezc/legato-ios-core.git',
     packageName: 'LegatoCore',
@@ -76,8 +76,8 @@ test('verify scratch Package.swift pins package identity using contract packageN
     version: '0.1.1',
   });
 
-  assert.match(packageSwift, /\.package\(name:\s*"LegatoCore",\s*url:\s*"https:\/\/github\.com\/ddgutierrezc\/legato-ios-core\.git",\s*\.exact\("0\.1\.1"\)\)/i);
-  assert.match(packageSwift, /\.product\(name:\s*"LegatoCore",\s*package:\s*"LegatoCore"\)/i);
+  assert.match(packageSwift, /\.package\(url:\s*"https:\/\/github\.com\/ddgutierrezc\/legato-ios-core\.git",\s*\.exact\("0\.1\.1"\)\)/i);
+  assert.match(packageSwift, /\.product\(name:\s*"LegatoCore",\s*package:\s*"legato-ios-core"\)/i);
 });
 
 test('handoff fails when preflight artifact is missing', async () => {

@@ -66,7 +66,7 @@ apply from: 'capacitor.settings.gradle'
 
 const packageSwiftArtifactOnly = `
 let package = Package(
-    name: "LegatoCapacitor",
+    name: "DdgutierrezcLegatoCapacitor",
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "8.0.0"),
         .package(url: "https://github.com/ddgutierrezc/legato-ios-core.git", exact: "0.1.1")
@@ -75,7 +75,7 @@ let package = Package(
         .target(
             name: "LegatoPlugin",
             dependencies: [
-                .product(name: "LegatoCore", package: "LegatoCore")
+                .product(name: "LegatoCore", package: "legato-ios-core")
             ]
         )
     ]
@@ -102,7 +102,7 @@ const nativeArtifactsContractNonDefaultOwner = `
 
 const packageSwiftArtifactOnlyNonDefaultOwner = `
 let package = Package(
-    name: "LegatoCapacitor",
+    name: "DdgutierrezcLegatoCapacitor",
     dependencies: [
         .package(url: "https://github.com/acme/legato-ios-core.git", exact: "0.1.1")
     ],
@@ -110,7 +110,7 @@ let package = Package(
         .target(
             name: "LegatoPlugin",
             dependencies: [
-                .product(name: "LegatoCore", package: "LegatoCore")
+                .product(name: "LegatoCore", package: "legato-ios-core")
             ]
         )
     ]
@@ -119,7 +119,7 @@ let package = Package(
 
 const packageSwiftLocalPath = `
 let package = Package(
-    name: "LegatoCapacitor",
+    name: "DdgutierrezcLegatoCapacitor",
     dependencies: [
         .package(path: "../../../../../native/ios/LegatoCore")
     ]
@@ -131,13 +131,13 @@ const capAppSpmGenerated = `
 let package = Package(
     name: "CapApp-SPM",
     dependencies: [
-        .package(name: "LegatoCapacitor", path: "../../../node_modules/@ddgutierrezc/legato-capacitor")
+        .package(name: "DdgutierrezcLegatoCapacitor", path: "../../../node_modules/@ddgutierrezc/legato-capacitor")
     ],
     targets: [
         .target(
             name: "CapApp-SPM",
             dependencies: [
-                .product(name: "LegatoCapacitor", package: "LegatoCapacitor")
+                .product(name: "DdgutierrezcLegatoCapacitor", package: "DdgutierrezcLegatoCapacitor")
             ]
         )
     ]
@@ -159,7 +159,7 @@ const capAppSpmWithoutLegatoPluginProduct = `
 let package = Package(
     name: "CapApp-SPM",
     dependencies: [
-        .package(name: "LegatoCapacitor", path: "../../../node_modules/@ddgutierrezc/legato-capacitor")
+        .package(name: "DdgutierrezcLegatoCapacitor", path: "../../../node_modules/@ddgutierrezc/legato-capacitor")
     ],
     targets: [
         .target(name: "CapApp-SPM")
@@ -423,7 +423,7 @@ test('validator fails when iOS product identity diverges from contract', () => {
     nativeArtifactsContractJson: nativeArtifactsContract,
     androidSettingsGradle: androidSettingsWithoutNativeCore,
     capAppSpmPackageSwift: capAppSpmGenerated,
-    pluginPackageSwift: packageSwiftArtifactOnly.replace('.product(name: "LegatoCore", package: "LegatoCore")', '.product(name: "WrongCore", package: "LegatoCore")'),
+    pluginPackageSwift: packageSwiftArtifactOnly.replace('.product(name: "LegatoCore", package: "legato-ios-core")', '.product(name: "WrongCore", package: "legato-ios-core")'),
     capacitorConfigJson: capacitorConfigWithPluginClass,
     pluginSwiftSource: pluginSwiftDiscoverableShape,
   });

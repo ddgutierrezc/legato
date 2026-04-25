@@ -114,6 +114,8 @@ const defaultRunGit = async ({ args, cwd }) => new Promise((resolvePromise) => {
   });
 });
 
+const deriveSwiftPackageIdentity = (packageUrl) => String(packageUrl ?? '').trim().replace(/\/+$/, '').split('/').pop()?.replace(/\.git$/i, '') ?? '';
+
 export const buildVerifyScratchPackageSwift = ({ packageUrl, packageName, product, version }) => `// swift-tools-version: 5.9
 import PackageDescription
 
@@ -126,13 +128,13 @@ let package = Package(
         .library(name: "LegatoReleaseVerifyScratch", targets: ["LegatoReleaseVerifyScratch"])
     ],
     dependencies: [
-        .package(name: "${packageName}", url: "${packageUrl}", .exact("${version}"))
+        .package(url: "${packageUrl}", .exact("${version}"))
     ],
     targets: [
         .target(
             name: "LegatoReleaseVerifyScratch",
             dependencies: [
-                .product(name: "${product}", package: "${packageName}")
+                .product(name: "${product}", package: "${deriveSwiftPackageIdentity(packageUrl)}")
             ]
         )
     ]

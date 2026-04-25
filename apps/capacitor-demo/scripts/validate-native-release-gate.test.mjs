@@ -14,7 +14,7 @@ dependencies {
 
 const pluginPackageSwiftArtifactOnly = `
 let package = Package(
-    name: "LegatoCapacitor",
+    name: "DdgutierrezcLegatoCapacitor",
     dependencies: [
         .package(url: "https://github.com/ddgutierrezc/legato-ios-core.git", exact: "0.1.1")
     ],
@@ -22,7 +22,7 @@ let package = Package(
         .target(
             name: "LegatoPlugin",
             dependencies: [
-                .product(name: "LegatoCore", package: "LegatoCore")
+                .product(name: "LegatoCore", package: "legato-ios-core")
             ]
         )
     ]
@@ -68,7 +68,7 @@ const capAppSpm = `
 let package = Package(
     name: "CapApp-SPM",
     dependencies: [
-        .package(name: "LegatoCapacitor", path: "../../../node_modules/@ddgutierrezc/legato-capacitor")
+        .package(name: "DdgutierrezcLegatoCapacitor", path: "../../../node_modules/@ddgutierrezc/legato-capacitor")
     ]
 )
 `;

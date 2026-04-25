@@ -119,16 +119,16 @@ await sync.stop();
 
 This package now includes a root `Package.swift` for Capacitor iOS SPM hosts.
 
-- Package name/product: `LegatoCapacitor`
+- Package name/product: `DdgutierrezcLegatoCapacitor`
 - Plugin target: `LegatoPlugin`
 - Transitive native dependency: `LegatoCore` (resolved via remote Swift package URL + exact version pin in `Package.swift`)
 
-When this package is consumed by Capacitor-generated iOS SPM integration, the expected product name is `LegatoCapacitor`.
+When this package is consumed by Capacitor-generated iOS SPM integration, the expected product name is `DdgutierrezcLegatoCapacitor`.
 
 To keep iOS SPM integration clean and compatible with `npx cap sync ios` generated files:
 
 - Do not modify `ios/App/CapApp-SPM` generated sources/packages.
-- The plugin package itself provides the standard Capacitor SPM linkage shape (`Capacitor` + `Cordova`) through the `LegatoCapacitor` product so `npx cap sync ios` generated wiring can remain the source of truth.
+- The plugin package itself provides the standard Capacitor SPM linkage shape (`Capacitor` + `Cordova`) through the `DdgutierrezcLegatoCapacitor` product so `npx cap sync ios` generated wiring can remain the source of truth.
 
 ### iOS artifact mirror/tag expectations (release)
 

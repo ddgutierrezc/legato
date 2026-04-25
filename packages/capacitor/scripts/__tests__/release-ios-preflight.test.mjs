@@ -43,7 +43,7 @@ let legatoNativeArtifactContract = (
 )
 // NATIVE_ARTIFACTS:END
 let package = Package(
-    name: "LegatoCapacitor",
+    name: "DdgutierrezcLegatoCapacitor",
     dependencies: [
         .package(url: "https://github.com/ddgutierrezc/legato-ios-core.git", exact: "0.1.1")
     ],
@@ -51,7 +51,7 @@ let package = Package(
         .target(
             name: "LegatoPlugin",
             dependencies: [
-                .product(name: "LegatoCore", package: "LegatoCore")
+                .product(name: "LegatoCore", package: "legato-ios-core")
             ]
         )
     ]
@@ -69,7 +69,7 @@ let legatoNativeArtifactContract = (
 )
 // NATIVE_ARTIFACTS:END
 let package = Package(
-    name: "LegatoCapacitor",
+    name: "DdgutierrezcLegatoCapacitor",
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "8.0.0"),
         .package(url: "https://github.com/ddgutierrezc/legato-ios-core.git", exact: "0.1.1")
@@ -80,7 +80,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Capacitor", package: "capacitor-swift-pm"),
                 .product(name: "Cordova", package: "capacitor-swift-pm"),
-                .product(name: "LegatoCore", package: "LegatoCore")
+                .product(name: "LegatoCore", package: "legato-ios-core")
             ]
         )
     ]
@@ -184,7 +184,7 @@ test('iOS preflight fails when plugin package URL or product identity drifts', a
   const result = await runIosReleasePreflight(makeBaseInput({
     pluginPackageSwift: pluginPackageSwift
       .replaceAll('https://github.com/ddgutierrezc/legato-ios-core.git', 'https://github.com/acme/legato-ios-core.git')
-      .replace('.product(name: "LegatoCore", package: "LegatoCore")', '.product(name: "WrongCore", package: "LegatoCore")'),
+      .replace('.product(name: "LegatoCore", package: "legato-ios-core")', '.product(name: "WrongCore", package: "legato-ios-core")'),
   }));
 
   assert.equal(result.status, 'FAIL');

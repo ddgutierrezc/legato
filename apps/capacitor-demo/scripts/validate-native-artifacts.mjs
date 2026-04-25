@@ -87,6 +87,15 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function deriveSwiftPackageIdentity(packageUrl) {
+  return String(packageUrl ?? '')
+    .trim()
+    .replace(/\/+$/, '')
+    .split('/')
+    .pop()
+    ?.replace(/\.git$/i, '') ?? '';
+}
+
 function parseExpectedIosContract(nativeArtifactsContractJson) {
   if (!nativeArtifactsContractJson) {
     return null;
@@ -116,10 +125,10 @@ function parseExpectedIosContract(nativeArtifactsContractJson) {
 
 function makeIosExactRemoteDependencyPattern(expectedIosContract) {
   if (!expectedIosContract) {
-    return /\.package\(url:\s*"https:\/\/github\.com\/legato\/legato-ios-core\.git",\s*exact:\s*"[^"]+"\)/;
+    return /\.package\((?:name:\s*"[^"]+",\s*)?url:\s*"https:\/\/github\.com\/legato\/legato-ios-core\.git",\s*exact:\s*"[^"]+"\)/;
   }
 
-  return new RegExp(`\\.package\\(url:\\s*"${escapeRegExp(expectedIosContract.packageUrl)}",\\s*exact:\\s*"${escapeRegExp(expectedIosContract.version)}"\\)`);
+  return new RegExp(`\\.package\\((?:name:\\s*"${escapeRegExp(expectedIosContract.packageName)}",\\s*)?url:\\s*"${escapeRegExp(expectedIosContract.packageUrl)}",\\s*exact:\\s*"${escapeRegExp(expectedIosContract.version)}"\\)`);
 }
 
 function parseExpectedAndroidCoordinate({ nativeArtifactsContractJson, pluginBuildGradle }) {
@@ -219,9 +228,10 @@ export const validateNativeArtifacts = ({
   }
 
   if (expectedIosContract && pluginPackageSwift) {
-    const expectedProductDependency = new RegExp(`\\.product\\(name:\\s*"${escapeRegExp(expectedIosContract.product)}",\\s*package:\\s*"${escapeRegExp(expectedIosContract.packageName)}"\\)`);
+    const expectedSwiftPackageIdentity = deriveSwiftPackageIdentity(expectedIosContract.packageUrl);
+    const expectedProductDependency = new RegExp(`\\.product\\(name:\\s*"${escapeRegExp(expectedIosContract.product)}",\\s*package:\\s*"${escapeRegExp(expectedSwiftPackageIdentity)}"\\)`);
     if (!expectedProductDependency.test(pluginPackageSwift)) {
-      failures.push(`iOS product identity mismatch: expected .product(name: "${expectedIosContract.product}", package: "${expectedIosContract.packageName}") in Package.swift.`);
+      failures.push(`iOS product identity mismatch: expected .product(name: "${expectedIosContract.product}", package: "${expectedSwiftPackageIdentity}") in Package.swift.`);
     }
   }
 
