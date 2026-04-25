@@ -33,6 +33,7 @@ const DEFAULT_ALLOWED_PATHS = Object.freeze([
   'packages/capacitor/README.md',
   'docs/releases/android-maven-central-operator-guide.md',
   'docs/releases/publication-pipeline-v1-validation.md',
+  'docs/maintainers/legato-capacitor-operator-guide.md',
   'apps/capacitor-demo/scripts/check-publication-scope.mjs',
 ]);
 
