@@ -64,6 +64,14 @@
       "sessions": 82,
       "memories": 347,
       "prompts": 209
+    },
+    {
+      "id": "b634bda6",
+      "created_by": "davidgutierrez",
+      "created_at": "2026-04-25T02:49:02Z",
+      "sessions": 8,
+      "memories": 26,
+      "prompts": 32
     }
   ]
 }
