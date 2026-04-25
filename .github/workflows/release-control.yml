@@ -30,6 +30,14 @@ on:
         description: Optional protected-publish approval proof URL
         required: false
         type: string
+      npm_package_target:
+        description: npm package target for npm lane
+        required: false
+        type: choice
+        default: capacitor
+        options:
+          - capacitor
+          - contract
 
 permissions:
   contents: read
@@ -205,6 +213,7 @@ jobs:
       release_id: ${{ inputs.release_id }}
       mode: ${{ needs.validate-dispatch.outputs.npm_mode }}
       publish_intent_evidence: ${{ inputs.npm_publish_intent_evidence }}
+      package_target: ${{ inputs.npm_package_target }}
     secrets: inherit
 
   aggregate-release-summary:

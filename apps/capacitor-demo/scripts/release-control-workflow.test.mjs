@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const workflowPath = resolve(currentDir, '../../../.github/workflows/release-control.yml');
 
-test('release control workflow exposes unified dispatch with release_id, targets, and target modes', async () => {
+test('release control workflow exposes unified dispatch with release_id, targets, target modes, and npm package target', async () => {
   const workflow = await readFile(workflowPath, 'utf8');
 
   assert.match(workflow, /workflow_dispatch:/i);
@@ -18,6 +18,9 @@ test('release control workflow exposes unified dispatch with release_id, targets
   assert.match(workflow, /release_id:/i);
   assert.match(workflow, /targets:/i);
   assert.match(workflow, /target_modes:/i);
+  assert.match(workflow, /npm_package_target:/i);
+  assert.match(workflow, /default:\s*capacitor/i);
+  assert.match(workflow, /options:[\s\S]*-\s*capacitor[\s\S]*-\s*contract/i);
   assert.match(workflow, /release-control-contract\.mjs/i);
 });
 
@@ -38,6 +41,7 @@ test('release control workflow orchestrates android, ios, and npm with honest bo
   assert.doesNotMatch(workflow, /testflight|app store|deliver/i);
   assert.match(workflow, /npm-lane:/i);
   assert.match(workflow, /uses:\s*\.\/\.github\/workflows\/release-npm\.yml/i);
+  assert.match(workflow, /package_target:\s*\$\{\{\s*inputs\.npm_package_target\s*\}\}/i);
 });
 
 test('release control workflow emits release_id keyed final summary artifact', async () => {
