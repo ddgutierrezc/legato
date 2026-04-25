@@ -1,14 +1,31 @@
-plugins {
-    id 'com.android.library'
-    id 'org.jetbrains.kotlin.android'
+ext {
+    junitVersion = project.hasProperty('junitVersion') ? rootProject.ext.junitVersion : '4.13.2'
 }
+
+buildscript {
+    ext.kotlinVersion = rootProject.ext.has('kotlinVersion')
+        ? rootProject.ext.kotlinVersion
+        : (rootProject.ext.has('kotlin_version') ? rootProject.ext.kotlin_version : '1.9.25')
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}"
+    }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
 
 android {
     namespace 'io.legato.capacitor'
-    compileSdk 34
+    compileSdk = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 34
 
     defaultConfig {
-        minSdk 24
+        minSdkVersion project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 24
     }
 
     compileOptions {
@@ -31,6 +48,7 @@ ext.legatoNativeArtifactContract = [
 // NATIVE_ARTIFACTS:END
 
 repositories {
+    google()
     maven {
         url = uri(legatoNativeArtifactContract.repositoryUrl)
     }
@@ -46,5 +64,5 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1'
     implementation 'androidx.media3:media3-exoplayer:1.4.1'
 
-    testImplementation 'junit:junit:4.13.2'
+    testImplementation "junit:junit:$junitVersion"
 }

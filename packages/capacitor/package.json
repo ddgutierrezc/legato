@@ -1,6 +1,6 @@
 {
   "name": "@ddgutierrezc/legato-capacitor",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Capacitor bridge package for Legato host apps, including the repo-owned `legato native` maintainer CLI.",
   "author": "Legato",
   "homepage": "https://github.com/ddgutierrezc/legato/tree/main/packages/capacitor#readme",
@@ -46,7 +46,7 @@
     "pack:check": "npm run build && node ./scripts/inspect-tarball.mjs --package-root . --profile capacitor",
     "promote:ios-distribution": "node ./scripts/promote-ios-distribution.mjs",
     "sync:native-artifacts": "node ./scripts/sync-native-artifacts.mjs",
-    "test:native-artifacts": "node --test ./scripts/__tests__/sync-native-artifacts.test.mjs ./scripts/__tests__/promote-ios-distribution.test.mjs ./scripts/__tests__/release-ios-preflight.test.mjs ./scripts/__tests__/inspect-tarball.test.mjs"
+    "test:native-artifacts": "node --test ./scripts/__tests__/sync-native-artifacts.test.mjs ./scripts/__tests__/promote-ios-distribution.test.mjs ./scripts/__tests__/release-ios-preflight.test.mjs ./scripts/__tests__/inspect-tarball.test.mjs ./scripts/__tests__/android-build-gradle.test.mjs"
   },
   "peerDependencies": {
     "@capacitor/core": "^8.0.0",
