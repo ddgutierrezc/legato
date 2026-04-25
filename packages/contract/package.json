@@ -1,7 +1,12 @@
 {
   "name": "@ddgutierrezc/legato-contract",
-  "version": "0.1.2",
+  "version": "0.1.1",
   "description": "Canonical contract types and constants for Legato.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ddgutierrezc/legato.git",
+    "directory": "packages/contract"
+  },
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
