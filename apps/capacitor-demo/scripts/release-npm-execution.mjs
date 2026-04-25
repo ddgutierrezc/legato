@@ -5,6 +5,10 @@ import { spawn } from 'node:child_process';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ARTIFACTS_DIR = resolve(scriptDir, '../artifacts/npm-release-v2');
+const PACKAGE_TARGET_CWD = {
+  capacitor: resolve(scriptDir, '../../../packages/capacitor'),
+  contract: resolve(scriptDir, '../../../packages/contract'),
+};
 
 const toIsoTimestamp = () => new Date().toISOString();
 const wait = (ms) => new Promise((resolveDelay) => { setTimeout(resolveDelay, ms); });
@@ -76,26 +80,47 @@ const verifyPublishedVersion = async ({ commandRunner, packageName, packageVersi
 export const runNpmReleaseExecution = async ({
   releaseId,
   mode,
+  packageTarget = 'capacitor',
   artifactsDir = DEFAULT_ARTIFACTS_DIR,
   commandRunner = runCommand,
 } = {}) => {
   const normalizedReleaseId = String(releaseId ?? '').trim();
+  const normalizedPackageTarget = String(packageTarget ?? '').trim() || 'capacitor';
+  const publishCwd = PACKAGE_TARGET_CWD[normalizedPackageTarget];
   if (String(mode ?? '').trim() !== 'protected-publish') {
     return {
       status: 'PASS',
       terminal_status: 'not_selected',
       publish_attempted: false,
+      package_target: normalizedPackageTarget,
       failures: [],
     };
   }
 
-  const identity = await readPackageIdentity(commandRunner);
-  const publishResult = await commandRunner({ command: 'npm', args: ['publish', '--access', 'public'] });
+  if (!publishCwd) {
+    return {
+      status: 'FAIL',
+      terminal_status: 'blocked',
+      publish_attempted: false,
+      package_target: normalizedPackageTarget,
+      failures: ['package_target must be one of capacitor, contract.'],
+    };
+  }
+
+  const scopedCommandRunner = ({ command, args, env }) => commandRunner({
+    command,
+    args,
+    cwd: publishCwd,
+    env,
+  });
+
+  const identity = await readPackageIdentity(scopedCommandRunner);
+  const publishResult = await scopedCommandRunner({ command: 'npm', args: ['publish', '--access', 'public'] });
   if (publishResult.exitCode !== 0) {
     const publishFailureText = publishResult.stderr || publishResult.stdout || 'npm publish failed';
     if (IMMUTABLE_VERSION_PATTERN.test(publishFailureText)) {
       const npmViewResult = await verifyPublishedVersion({
-        commandRunner,
+        commandRunner: scopedCommandRunner,
         packageName: identity.packageName,
         packageVersion: identity.packageVersion,
       });
@@ -108,6 +133,8 @@ export const runNpmReleaseExecution = async ({
             terminal_status: 'already_published',
             publish_attempted: true,
             publish_command: 'npm publish --access public',
+            package_target: normalizedPackageTarget,
+            package_path: publishCwd,
             package_name: identity.packageName,
             package_version: identity.packageVersion,
             verify: {
@@ -126,6 +153,7 @@ export const runNpmReleaseExecution = async ({
           terminal_status: 'already_published',
           publish_attempted: true,
           publish_command: 'npm publish --access public',
+          package_target: normalizedPackageTarget,
           verify: { npm_view: 'PASS', attempts: npmViewResult.attemptsUsed },
           failures: [],
           error_reference: alreadyPublishedPath,
@@ -140,6 +168,8 @@ export const runNpmReleaseExecution = async ({
         terminal_status: 'failed',
         publish_attempted: true,
         publish_command: 'npm publish --access public',
+        package_target: normalizedPackageTarget,
+        package_path: publishCwd,
         package_name: identity.packageName,
         package_version: identity.packageVersion,
         failures: [publishFailureText],
@@ -152,13 +182,14 @@ export const runNpmReleaseExecution = async ({
       terminal_status: 'failed',
       publish_attempted: true,
       publish_command: 'npm publish --access public',
+      package_target: normalizedPackageTarget,
       error_reference: errorPath,
       failures: [publishFailureText],
     };
   }
 
   const npmViewResult = await verifyPublishedVersion({
-    commandRunner,
+    commandRunner: scopedCommandRunner,
     packageName: identity.packageName,
     packageVersion: identity.packageVersion,
   });
@@ -171,6 +202,8 @@ export const runNpmReleaseExecution = async ({
       terminal_status: verifyPass ? 'published' : 'failed',
       publish_attempted: true,
       publish_command: 'npm publish --access public',
+      package_target: normalizedPackageTarget,
+      package_path: publishCwd,
       package_name: identity.packageName,
       package_version: identity.packageVersion,
       verify: {
@@ -188,6 +221,7 @@ export const runNpmReleaseExecution = async ({
     terminal_status: verifyPass ? 'published' : 'failed',
     publish_attempted: true,
     publish_command: 'npm publish --access public',
+    package_target: normalizedPackageTarget,
     verify: { npm_view: verifyPass ? 'PASS' : 'FAIL', attempts: npmViewResult.attemptsUsed },
     failures: verifyPass ? [] : [npmViewResult.stderr || 'npm view failed after publish'],
     error_reference: verifyPass ? '' : summaryPath,
@@ -211,6 +245,11 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     }
     if (arg === '--artifacts-dir' && args[i + 1]) {
       options.artifactsDir = args[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--package-target' && args[i + 1]) {
+      options.packageTarget = args[i + 1];
       i += 1;
     }
   }

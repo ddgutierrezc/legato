@@ -6,6 +6,7 @@ import { runNpmReleaseExecution } from './release-npm-execution.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ARTIFACTS_DIR = resolve(scriptDir, '../artifacts/npm-release-v1');
+const VALID_PACKAGE_TARGETS = new Set(['capacitor', 'contract']);
 
 const toIsoTimestamp = () => new Date().toISOString();
 
@@ -19,6 +20,7 @@ const writeJson = async (filePath, payload) => {
 export const runNpmReleasePolicy = async ({
   releaseId,
   mode,
+  packageTarget = 'capacitor',
   artifactsDir = DEFAULT_ARTIFACTS_DIR,
   publishIntentEvidence = '',
   runReadiness = runNpmReadiness,
@@ -26,6 +28,7 @@ export const runNpmReleasePolicy = async ({
 } = {}) => {
   const normalizedReleaseId = String(releaseId ?? '').trim();
   const normalizedMode = String(mode ?? '').trim();
+  const normalizedPackageTarget = String(packageTarget ?? '').trim() || 'capacitor';
   const failures = [];
 
   if (!normalizedReleaseId) {
@@ -33,6 +36,9 @@ export const runNpmReleasePolicy = async ({
   }
   if (!['readiness', 'release-candidate', 'protected-publish'].includes(normalizedMode)) {
     failures.push('mode must be one of readiness, release-candidate, protected-publish.');
+  }
+  if (!VALID_PACKAGE_TARGETS.has(normalizedPackageTarget)) {
+    failures.push('package_target must be one of capacitor, contract.');
   }
 
   if (normalizedMode === 'protected-publish' && !String(publishIntentEvidence).trim()) {
@@ -52,6 +58,7 @@ export const runNpmReleasePolicy = async ({
     status: failures.length === 0 ? 'PASS' : 'FAIL',
     release_id: normalizedReleaseId,
     mode: normalizedMode,
+    package_target: normalizedPackageTarget,
     terminal_status: failures.length === 0 ? (normalizedMode === 'protected-publish' ? 'published' : 'blocked') : 'blocked',
     publish_attempted: false,
     publish_intent_evidence: String(publishIntentEvidence ?? '').trim(),
@@ -64,6 +71,7 @@ export const runNpmReleasePolicy = async ({
     const execution = await runExecution({
       releaseId: normalizedReleaseId,
       mode: normalizedMode,
+      packageTarget: normalizedPackageTarget,
       artifactsDir,
     });
     result.publish_attempted = Boolean(execution.publish_attempted);
@@ -101,6 +109,11 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     }
     if (arg === '--publish-intent-evidence' && args[i + 1]) {
       options.publishIntentEvidence = args[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--package-target' && args[i + 1]) {
+      options.packageTarget = args[i + 1];
       i += 1;
       continue;
     }

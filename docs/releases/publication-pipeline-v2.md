@@ -53,6 +53,7 @@ Terminal states:
 `release-npm.yml` keeps readiness/policy checks and delegates protected execution to `release-npm-execution.mjs`.
 
 - trusted publisher source of truth: `release-control.yml` caller + `release-npm.yml` reusable lane
+- package selection: `package_target` supports `capacitor` (default) or `contract` and maps publish cwd to `packages/<target>`
 - npm CLI requirement: `npm >= 11.5.1`
 - publish command: `npm publish --access public`
 - authentication: GitHub Actions OIDC (`id-token: write`), no long-lived publish token

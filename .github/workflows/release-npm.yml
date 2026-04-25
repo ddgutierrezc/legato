@@ -12,6 +12,10 @@ on:
       publish_intent_evidence:
         required: false
         type: string
+      package_target:
+        required: false
+        type: string
+        default: capacitor
     outputs:
       artifact_name:
         value: ${{ jobs.npm-policy.outputs.artifact_name }}
@@ -35,6 +39,14 @@ on:
         description: Approval/evidence URL for protected publish intent
         required: false
         type: string
+      package_target:
+        description: npm package target to publish
+        required: false
+        type: choice
+        default: capacitor
+        options:
+          - capacitor
+          - contract
 
 permissions:
   contents: read
@@ -73,7 +85,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm run release:npm:policy -- --release-id "${{ inputs.release_id }}" --mode "${{ inputs.mode }}" --publish-intent-evidence "${{ inputs.publish_intent_evidence }}"
+          npm run release:npm:policy -- --release-id "${{ inputs.release_id }}" --mode "${{ inputs.mode }}" --publish-intent-evidence "${{ inputs.publish_intent_evidence }}" --package-target "${{ inputs.package_target }}"
 
       - name: Document protected publish command
         if: ${{ inputs.mode == 'protected-publish' }}

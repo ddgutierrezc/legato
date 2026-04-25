@@ -3,6 +3,62 @@ import assert from 'node:assert/strict';
 
 import { runNpmReleaseExecution } from './release-npm-execution.mjs';
 
+test('npm execution defaults publish cwd to capacitor package target', async () => {
+  const callCwds = [];
+  const result = await runNpmReleaseExecution({
+    releaseId: 'R-2026.04.24.4',
+    mode: 'protected-publish',
+    commandRunner: async ({ args, cwd }) => {
+      callCwds.push({ command: args[0], cwd });
+      if (args.includes('name')) return { exitCode: 0, stdout: '"@ddgutierrezc/legato-capacitor"', stderr: '' };
+      if (args.includes('version') && args[0] !== 'view') return { exitCode: 0, stdout: '"0.1.2"', stderr: '' };
+      if (args[0] === 'publish') return { exitCode: 0, stdout: 'published', stderr: '' };
+      if (args[0] === 'view') return { exitCode: 0, stdout: '"0.1.2"', stderr: '' };
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  const publishCall = callCwds.find((entry) => entry.command === 'publish');
+  assert.ok(publishCall);
+  assert.match(publishCall.cwd, /packages[\\/]capacitor$/i);
+  assert.equal(result.status, 'PASS');
+});
+
+test('npm execution uses contract package target cwd when explicitly selected', async () => {
+  const callCwds = [];
+  const result = await runNpmReleaseExecution({
+    releaseId: 'R-2026.04.24.5',
+    mode: 'protected-publish',
+    packageTarget: 'contract',
+    commandRunner: async ({ args, cwd }) => {
+      callCwds.push({ command: args[0], cwd });
+      if (args.includes('name')) return { exitCode: 0, stdout: '"@ddgutierrezc/legato-contract"', stderr: '' };
+      if (args.includes('version') && args[0] !== 'view') return { exitCode: 0, stdout: '"0.1.2"', stderr: '' };
+      if (args[0] === 'publish') return { exitCode: 0, stdout: 'published', stderr: '' };
+      if (args[0] === 'view') return { exitCode: 0, stdout: '"0.1.2"', stderr: '' };
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  const publishCall = callCwds.find((entry) => entry.command === 'publish');
+  assert.ok(publishCall);
+  assert.match(publishCall.cwd, /packages[\\/]contract$/i);
+  assert.equal(result.status, 'PASS');
+});
+
+test('npm execution fails fast when package target is unsupported', async () => {
+  const result = await runNpmReleaseExecution({
+    releaseId: 'R-2026.04.24.6',
+    mode: 'protected-publish',
+    packageTarget: 'unknown-package',
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.terminal_status, 'blocked');
+  assert.match(result.failures.join('\n'), /package_target/i);
+  assert.equal(result.publish_attempted, false);
+});
+
 test('npm execution returns not_selected for non-protected mode', async () => {
   const result = await runNpmReleaseExecution({
     releaseId: 'R-2026.04.24.1',

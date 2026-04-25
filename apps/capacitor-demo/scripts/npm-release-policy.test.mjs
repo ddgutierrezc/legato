@@ -18,7 +18,48 @@ test('npm policy readiness mode runs checks only and never attempts publish', as
   assert.equal(result.status, 'PASS');
   assert.equal(result.terminal_status, 'blocked');
   assert.equal(result.publish_attempted, false);
+  assert.equal(result.package_target, 'capacitor');
   assert.deepEqual(executions, []);
+});
+
+test('npm policy forwards explicit contract package target to execution phase', async () => {
+  const executions = [];
+  const result = await runNpmReleasePolicy({
+    releaseId: 'R-2026.04.24.7',
+    mode: 'protected-publish',
+    packageTarget: 'contract',
+    publishIntentEvidence: 'https://github.com/org/repo/actions/runs/123#approval',
+    runReadiness: async () => ({ status: 'PASS' }),
+    runExecution: async (options) => {
+      executions.push(options);
+      return {
+        status: 'PASS',
+        terminal_status: 'published',
+        publish_attempted: true,
+        publish_command: 'npm publish --access public',
+        verify: { npm_view: 'PASS' },
+      };
+    },
+  });
+
+  assert.equal(result.status, 'PASS');
+  assert.equal(result.package_target, 'contract');
+  assert.equal(executions.length, 1);
+  assert.equal(executions[0].packageTarget, 'contract');
+});
+
+test('npm policy rejects unsupported package target values', async () => {
+  const result = await runNpmReleasePolicy({
+    releaseId: 'R-2026.04.24.8',
+    mode: 'protected-publish',
+    packageTarget: 'not-real',
+    publishIntentEvidence: 'https://github.com/org/repo/actions/runs/123#approval',
+    runReadiness: async () => ({ status: 'PASS' }),
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.terminal_status, 'blocked');
+  assert.match(result.failures.join('\n'), /package_target/i);
 });
 
 test('npm policy protected-publish mode blocks without explicit publish intent evidence', async () => {

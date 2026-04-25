@@ -15,6 +15,9 @@ test('publication pipeline v2 runbook documents GitHub App iOS authority and npm
   assert.match(runbook, /already_published/i);
   assert.match(runbook, /Trusted Publisher/i);
   assert.match(runbook, /release-npm\.yml/i);
+  assert.match(runbook, /package_target/i);
+  assert.match(runbook, /contract/i);
+  assert.match(runbook, /capacitor/i);
   assert.match(runbook, /npm publish --access public/i);
   assert.match(runbook, /npm view/i);
 });
