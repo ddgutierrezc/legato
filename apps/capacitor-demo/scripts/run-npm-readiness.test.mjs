@@ -68,7 +68,7 @@ test('npm readiness propagates ergonomics validator failures', async () => {
   );
 });
 
-test('npm readiness contract target runs external runtime validation with contract tarball only', async () => {
+test('npm readiness contract target validates contract tarball without external cross-package fixture', async () => {
   const calls = [];
   const commandRunner = async ({ command, args }) => {
     const call = [command, ...args].join(' ');
@@ -87,8 +87,14 @@ test('npm readiness contract target runs external runtime validation with contra
       return { stdout: JSON.stringify({ status: 'PASS' }), stderr: '', exitCode: 0 };
     }
 
-    if (command === 'node' && args.some((arg) => /run-external-consumer-validation\.mjs$/i.test(arg))) {
-      return { stdout: JSON.stringify({ status: 'PASS', exitCode: 0 }), stderr: '', exitCode: 0 };
+    if (command === 'node' && args.includes('--input-type=module') && args.includes('-e')) {
+      if (args.some((arg) => /unexpected deep import success/i.test(arg))) {
+        const error = new Error('deep import blocked');
+        error.stdout = '';
+        error.stderr = 'Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath is not defined by "exports"';
+        throw error;
+      }
+      return { stdout: 'documented import ok\n', stderr: '', exitCode: 0 };
     }
 
     return { stdout: '', stderr: '', exitCode: 0 };
@@ -105,14 +111,13 @@ test('npm readiness contract target runs external runtime validation with contra
   assert.equal(calls.some((call) => /packages\/capacitor/i.test(call) && /npm install|npm run build/i.test(call)), false);
   assert.equal(calls.some((call) => /inspect-tarball\.mjs.*--profile capacitor/i.test(call)), false);
   assert.equal(calls.some((call) => /assert-package-entries\.mjs.*--profile capacitor/i.test(call)), false);
-  const externalValidationCall = calls.find((call) => /run-external-consumer-validation\.mjs/i.test(call));
-  assert.match(externalValidationCall ?? '', /--proof-mode npm-readiness/i);
-  assert.match(externalValidationCall ?? '', /--tarball-contract \/tmp\/contract\.tgz/i);
-  assert.match(externalValidationCall ?? '', /--registry-capacitor @ddgutierrezc\/legato-capacitor@0\.1\.1/i);
-  assert.match(externalValidationCall ?? '', /--registry-contract @ddgutierrezc\/legato-contract@0\.1\.1/i);
+  assert.equal(calls.some((call) => /run-external-consumer-validation\.mjs/i.test(call)), false);
+  assert.equal(calls.some((call) => /npm install --no-audit --no-fund \/tmp\/contract\.tgz/i.test(call)), true);
+  assert.equal(calls.some((call) => /import\('@ddgutierrezc\/legato-contract'\)/i.test(call)), true);
+  assert.equal(calls.some((call) => /import\('@ddgutierrezc\/legato-contract\/dist\/state\.js'\)/i.test(call)), true);
 });
 
-test('npm readiness contract target bubbles external runtime-validation failures', async () => {
+test('npm readiness contract target bubbles contract-only runtime validation failures', async () => {
   const commandRunner = async ({ command, args }) => {
     if (command === 'node' && args.some((arg) => /inspect-tarball\.mjs$/i.test(arg))) {
       return {
@@ -126,8 +131,20 @@ test('npm readiness contract target bubbles external runtime-validation failures
       return { stdout: JSON.stringify({ status: 'PASS' }), stderr: '', exitCode: 0 };
     }
 
-    if (command === 'node' && args.some((arg) => /run-external-consumer-validation\.mjs$/i.test(arg))) {
-      return { stdout: JSON.stringify({ status: 'FAIL', exitCode: 1, failures: ['Documented import runtime proof failed'] }), stderr: '', exitCode: 0 };
+    if (command === 'node' && args.includes('--input-type=module') && args.includes('-e')
+      && args.some((arg) => /import\('@ddgutierrezc\/legato-contract'\)/i.test(arg))) {
+      const error = new Error('root import failed');
+      error.stdout = '';
+      error.stderr = 'Error: Cannot find package';
+      throw error;
+    }
+
+    if (command === 'node' && args.includes('--input-type=module') && args.includes('-e')
+      && args.some((arg) => /import\('@ddgutierrezc\/legato-contract\/dist\/state\.js'\)/i.test(arg))) {
+      const error = new Error('deep import blocked');
+      error.stdout = '';
+      error.stderr = 'Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath is not defined by "exports"';
+      throw error;
     }
 
     return { stdout: '', stderr: '', exitCode: 0 };
@@ -135,6 +152,6 @@ test('npm readiness contract target bubbles external runtime-validation failures
 
   await assert.rejects(
     runNpmReadiness({ packageTarget: 'contract', commandRunner }),
-    /Documented import runtime proof failed|external consumer validation failed/i,
+    /Documented import runtime proof failed|contract-only validation failed/i,
   );
 });
