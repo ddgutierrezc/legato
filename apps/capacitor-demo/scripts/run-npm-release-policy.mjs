@@ -48,7 +48,7 @@ export const runNpmReleasePolicy = async ({
   let readiness = null;
   if (failures.length === 0) {
     try {
-      readiness = await runReadiness();
+      readiness = await runReadiness({ packageTarget: normalizedPackageTarget });
     } catch (error) {
       failures.push(`readiness failed: ${error instanceof Error ? error.message : String(error)}`);
     }

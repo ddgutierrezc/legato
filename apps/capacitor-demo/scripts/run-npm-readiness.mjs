@@ -7,6 +7,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '../../..');
 const artifactsRoot = resolve(scriptDir, '../artifacts/npm-release-readiness-v1');
 const tarballDir = resolve(artifactsRoot, 'tarballs');
+const VALID_PACKAGE_TARGETS = new Set(['capacitor', 'contract']);
 
 const runCommand = async ({ command, args, cwd }) => new Promise((resolveResult, rejectResult) => {
   const child = spawn(command, args, {
@@ -43,7 +44,16 @@ const runCommand = async ({ command, args, cwd }) => new Promise((resolveResult,
 
 const parseJsonOutput = (stdout) => JSON.parse(stdout.trim());
 
-export const runNpmReadiness = async () => {
+const normalizePackageTarget = (packageTarget) => {
+  const normalized = String(packageTarget ?? '').trim() || 'capacitor';
+  if (!VALID_PACKAGE_TARGETS.has(normalized)) {
+    throw new Error(`package_target must be one of capacitor, contract. Received: ${normalized}`);
+  }
+  return normalized;
+};
+
+export const runNpmReadiness = async ({ packageTarget = 'capacitor' } = {}) => {
+  const normalizedPackageTarget = normalizePackageTarget(packageTarget);
   await mkdir(tarballDir, { recursive: true });
 
   await runCommand({
@@ -95,6 +105,21 @@ export const runNpmReadiness = async () => {
   });
 
   const contractResult = parseJsonOutput(contractInspection.stdout);
+
+  if (normalizedPackageTarget === 'contract') {
+    return {
+      package_target: normalizedPackageTarget,
+      readiness_profile: 'contract-only',
+      contractResult,
+      capacitorResult: null,
+      externalValidation: null,
+      cross_package_validation: {
+        status: 'SKIPPED',
+        reason: 'contract publish readiness validates contract tarball quality without requiring capacitor+contract pair installability.',
+      },
+    };
+  }
+
   const capacitorResult = parseJsonOutput(capacitorInspection.stdout);
 
   const externalValidation = await runCommand({
@@ -110,6 +135,8 @@ export const runNpmReadiness = async () => {
   });
 
   return {
+    package_target: normalizedPackageTarget,
+    readiness_profile: 'capacitor-cross-package',
     contractResult,
     capacitorResult,
     externalValidation: parseJsonOutput(externalValidation.stdout),
@@ -117,5 +144,14 @@ export const runNpmReadiness = async () => {
 };
 
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
-  await runNpmReadiness();
+  const [, , ...args] = process.argv;
+  const options = {};
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === '--package-target' && args[i + 1]) {
+      options.packageTarget = args[i + 1];
+      i += 1;
+    }
+  }
+  await runNpmReadiness(options);
 }

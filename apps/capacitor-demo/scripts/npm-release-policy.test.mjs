@@ -5,10 +5,14 @@ import { runNpmReleasePolicy } from './run-npm-release-policy.mjs';
 
 test('npm policy readiness mode runs checks only and never attempts publish', async () => {
   const executions = [];
+  const readinessTargets = [];
   const result = await runNpmReleasePolicy({
     releaseId: 'R-2026.04.24.1',
     mode: 'readiness',
-    runReadiness: async () => ({ status: 'PASS' }),
+    runReadiness: async ({ packageTarget }) => {
+      readinessTargets.push(packageTarget);
+      return { status: 'PASS' };
+    },
     runExecution: async (options) => {
       executions.push(options.mode);
       return { status: 'PASS', terminal_status: 'not_selected', publish_attempted: false };
@@ -19,17 +23,26 @@ test('npm policy readiness mode runs checks only and never attempts publish', as
   assert.equal(result.terminal_status, 'blocked');
   assert.equal(result.publish_attempted, false);
   assert.equal(result.package_target, 'capacitor');
+  assert.deepEqual(readinessTargets, ['capacitor']);
   assert.deepEqual(executions, []);
 });
 
 test('npm policy forwards explicit contract package target to execution phase', async () => {
   const executions = [];
+  const readinessTargets = [];
   const result = await runNpmReleasePolicy({
     releaseId: 'R-2026.04.24.7',
     mode: 'protected-publish',
     packageTarget: 'contract',
     publishIntentEvidence: 'https://github.com/org/repo/actions/runs/123#approval',
-    runReadiness: async () => ({ status: 'PASS' }),
+    runReadiness: async ({ packageTarget }) => {
+      readinessTargets.push(packageTarget);
+      return {
+        status: 'PASS',
+        readiness_profile: 'contract-only',
+        package_target: packageTarget,
+      };
+    },
     runExecution: async (options) => {
       executions.push(options);
       return {
@@ -44,8 +57,34 @@ test('npm policy forwards explicit contract package target to execution phase', 
 
   assert.equal(result.status, 'PASS');
   assert.equal(result.package_target, 'contract');
+  assert.equal(result.readiness.readiness_profile, 'contract-only');
+  assert.deepEqual(readinessTargets, ['contract']);
   assert.equal(executions.length, 1);
   assert.equal(executions[0].packageTarget, 'contract');
+});
+
+test('npm policy keeps stricter capacitor readiness gate and blocks on mismatch failures', async () => {
+  const executions = [];
+  const result = await runNpmReleasePolicy({
+    releaseId: 'R-2026.04.24.9',
+    mode: 'protected-publish',
+    packageTarget: 'capacitor',
+    publishIntentEvidence: 'https://github.com/org/repo/actions/runs/123#approval',
+    runReadiness: async ({ packageTarget }) => {
+      assert.equal(packageTarget, 'capacitor');
+      throw new Error('external consumer install failed for capacitor+contract pair');
+    },
+    runExecution: async (options) => {
+      executions.push(options);
+      return { status: 'PASS', terminal_status: 'published', publish_attempted: true };
+    },
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.terminal_status, 'blocked');
+  assert.match(result.failures.join('\n'), /readiness failed/i);
+  assert.match(result.failures.join('\n'), /capacitor\+contract pair/i);
+  assert.equal(executions.length, 0);
 });
 
 test('npm policy rejects unsupported package target values', async () => {
