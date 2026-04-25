@@ -64,20 +64,8 @@ export const runNpmReadiness = async ({ packageTarget = 'capacitor', commandRunn
 
   await commandRunner({
     command: 'npm',
-    args: ['install', '--no-package-lock'],
-    cwd: resolve(repoRoot, 'packages/capacitor'),
-  });
-
-  await commandRunner({
-    command: 'npm',
     args: ['run', 'build'],
     cwd: resolve(repoRoot, 'packages/contract'),
-  });
-
-  await commandRunner({
-    command: 'npm',
-    args: ['run', 'build'],
-    cwd: resolve(repoRoot, 'packages/capacitor'),
   });
 
   await commandRunner({
@@ -86,16 +74,6 @@ export const runNpmReadiness = async ({ packageTarget = 'capacitor', commandRunn
       resolve(repoRoot, 'packages/capacitor/scripts/assert-package-entries.mjs'),
       '--package-root', resolve(repoRoot, 'packages/contract'),
       '--profile', 'contract',
-    ],
-    cwd: repoRoot,
-  });
-
-  await commandRunner({
-    command: 'node',
-    args: [
-      resolve(repoRoot, 'packages/capacitor/scripts/assert-package-entries.mjs'),
-      '--package-root', resolve(repoRoot, 'packages/capacitor'),
-      '--profile', 'capacitor',
     ],
     cwd: repoRoot,
   });
@@ -108,18 +86,6 @@ export const runNpmReadiness = async ({ packageTarget = 'capacitor', commandRunn
       '--profile', 'contract',
       '--pack-destination', tarballDir,
       '--json-out', resolve(artifactsRoot, 'contract-pack-summary.json'),
-    ],
-    cwd: repoRoot,
-  });
-
-  const capacitorInspection = await commandRunner({
-    command: 'node',
-    args: [
-      resolve(repoRoot, 'packages/capacitor/scripts/inspect-tarball.mjs'),
-      '--package-root', resolve(repoRoot, 'packages/capacitor'),
-      '--profile', 'capacitor',
-      '--pack-destination', tarballDir,
-      '--json-out', resolve(artifactsRoot, 'capacitor-pack-summary.json'),
     ],
     cwd: repoRoot,
   });
@@ -139,6 +105,40 @@ export const runNpmReadiness = async ({ packageTarget = 'capacitor', commandRunn
       },
     };
   }
+
+  await commandRunner({
+    command: 'npm',
+    args: ['install', '--no-package-lock'],
+    cwd: resolve(repoRoot, 'packages/capacitor'),
+  });
+
+  await commandRunner({
+    command: 'npm',
+    args: ['run', 'build'],
+    cwd: resolve(repoRoot, 'packages/capacitor'),
+  });
+
+  await commandRunner({
+    command: 'node',
+    args: [
+      resolve(repoRoot, 'packages/capacitor/scripts/assert-package-entries.mjs'),
+      '--package-root', resolve(repoRoot, 'packages/capacitor'),
+      '--profile', 'capacitor',
+    ],
+    cwd: repoRoot,
+  });
+
+  const capacitorInspection = await commandRunner({
+    command: 'node',
+    args: [
+      resolve(repoRoot, 'packages/capacitor/scripts/inspect-tarball.mjs'),
+      '--package-root', resolve(repoRoot, 'packages/capacitor'),
+      '--profile', 'capacitor',
+      '--pack-destination', tarballDir,
+      '--json-out', resolve(artifactsRoot, 'capacitor-pack-summary.json'),
+    ],
+    cwd: repoRoot,
+  });
 
   const capacitorResult = parseJsonOutput(capacitorInspection.stdout);
 
