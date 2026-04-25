@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { validatePackageErgonomics } from '../assert-package-entries.mjs';
+import { validatePackageEntrypoints, validatePackageErgonomics } from '../assert-package-entries.mjs';
 
 const writeJson = (path, value) => writeFile(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 
@@ -92,6 +92,35 @@ test('ergonomics validator fails when README is missing from files and package r
     const result = await validatePackageErgonomics({ packageRoot, profile: 'contract' });
     assert.equal(result.status, 'FAIL');
     assert.match(result.failures.join('\n'), /README\.md/i);
+  } finally {
+    await rm(packageRoot, { recursive: true, force: true });
+  }
+});
+
+test('entrypoint validator fails contract profile when deep subpath exports are declared', async () => {
+  const packageRoot = await createPackageRoot({
+    packageJson: {
+      name: '@ddgutierrezc/legato-contract',
+      description: 'Contract package for Legato.',
+      homepage: 'https://github.com/ddgutierrezc/legato#readme',
+      repository: { type: 'git', url: 'https://github.com/ddgutierrezc/legato.git' },
+      main: './dist/index.js',
+      types: './dist/index.d.ts',
+      exports: {
+        '.': { default: './dist/index.js', types: './dist/index.d.ts' },
+        './dist/state.js': './dist/state.js',
+      },
+      keywords: ['legato', 'contract'],
+      files: ['dist', 'README.md'],
+    },
+    readme: '# @ddgutierrezc/legato-contract\n\nLibrary-only package.\n',
+  });
+
+  try {
+    await writeFile(join(packageRoot, 'dist', 'state.js'), 'export const state = true;\n', 'utf8');
+    const result = await validatePackageEntrypoints({ packageRoot, profile: 'contract' });
+    assert.equal(result.status, 'FAIL');
+    assert.match(result.failures.join('\n'), /must not expose deep subpath exports/i);
   } finally {
     await rm(packageRoot, { recursive: true, force: true });
   }

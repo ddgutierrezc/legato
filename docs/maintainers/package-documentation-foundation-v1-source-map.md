@@ -17,6 +17,16 @@ Source: `packages/contract/src/events.ts`
 - `LEGACY_PLAYER_EVENT_NAMES` union set
 - `LEGATO_EVENT_NAMES` alias of `LEGACY_PLAYER_EVENT_NAMES`
 
+Source: `packages/contract/package.json`
+
+- Public package boundary is root-only via `exports["."]`.
+- Undocumented deep import subpaths are intentionally unsupported.
+
+Source: `apps/capacitor-demo/scripts/run-external-consumer-validation.mjs`
+
+- Packed/runtime proof executes `import('@ddgutierrezc/legato-contract')` and requires success.
+- Packed/runtime proof executes deep import attempts and requires export-map rejection (`ERR_PACKAGE_PATH_NOT_EXPORTED`).
+
 ## Capacitor package export map
 
 Source: `packages/capacitor/src/index.ts`

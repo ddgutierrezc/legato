@@ -1,6 +1,6 @@
-import type { QueueSnapshot } from './queue';
-import type { PlaybackState } from './state';
-import type { Track } from './track';
+import type { QueueSnapshot } from './queue.js';
+import type { PlaybackState } from './state.js';
+import type { Track } from './track.js';
 
 export interface PlaybackSnapshot {
   state: PlaybackState;

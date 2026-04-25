@@ -518,7 +518,7 @@ test('orchestrator accepts help text runtime proof even when CLI exits non-zero'
   }
 });
 
-test('npm-readiness mode records documented import runtime mismatch without blocking pass', async () => {
+test('npm-readiness mode fails when documented root import runtime check fails', async () => {
   const tempDir = await mkdtemp(join(tmpdir(), 'legato-external-orchestrator-runtime-proof-readiness-'));
   const artifactsDir = join(tempDir, 'artifacts');
   const fixtureRoot = join(tempDir, 'fixture');
@@ -635,15 +635,15 @@ test('npm-readiness mode records documented import runtime mismatch without bloc
       proofMode: 'npm-readiness',
     });
 
-    assert.equal(result.status, 'PASS');
+    assert.equal(result.status, 'FAIL');
     assert.equal(result.runtimeProof?.documentedImport?.status, 'FAIL');
-    assert.equal(result.failures.some((failure) => /Documented import runtime proof failed/i.test(failure)), false);
+    assert.equal(result.failures.some((failure) => /Documented import runtime proof failed/i.test(failure)), true);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
 });
 
-test('consumer-adoption mode does not block on known contract root-import packaging mismatch', async () => {
+test('consumer-adoption mode fails on known contract root-import packaging mismatch', async () => {
   const tempDir = await mkdtemp(join(tmpdir(), 'legato-external-orchestrator-runtime-proof-consumer-known-mismatch-'));
   const artifactsDir = join(tempDir, 'artifacts');
   const fixtureRoot = join(tempDir, 'fixture');
@@ -735,9 +735,9 @@ test('consumer-adoption mode does not block on known contract root-import packag
       proofMode: 'consumer-adoption',
     });
 
-    assert.equal(result.status, 'PASS');
+    assert.equal(result.status, 'FAIL');
     assert.equal(result.runtimeProof?.documentedImport?.status, 'FAIL');
-    assert.equal(result.failures.some((failure) => /Documented import runtime proof failed/i.test(failure)), false);
+    assert.equal(result.failures.some((failure) => /Documented import runtime proof failed/i.test(failure)), true);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

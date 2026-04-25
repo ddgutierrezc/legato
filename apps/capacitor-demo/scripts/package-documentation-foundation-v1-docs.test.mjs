@@ -58,6 +58,9 @@ test('maintainer docs enforce scope non-goals and source-of-truth references', a
   assert.match(scopeDoc, /packages\/capacitor\/src\/index\.ts/i);
 
   assert.match(sourceMap, /packages\/contract\/src\/events\.ts/i);
+  assert.match(sourceMap, /packages\/contract\/package\.json/i);
+  assert.match(sourceMap, /root-only exports|exports\["\."\]/i);
+  assert.match(sourceMap, /run-external-consumer-validation\.mjs/i);
   assert.match(sourceMap, /packages\/capacitor\/src\/cli\/native-setup-cli\.mjs/i);
   assert.match(sourceMap, /legato native doctor/i);
 
