@@ -93,15 +93,36 @@ export const runNpmReadiness = async ({ packageTarget = 'capacitor', commandRunn
   const contractResult = parseJsonOutput(contractInspection.stdout);
 
   if (normalizedPackageTarget === 'contract') {
+    const externalValidation = await commandRunner({
+      command: 'node',
+      args: [
+        resolve(scriptDir, 'run-external-consumer-validation.mjs'),
+        '--skip-pack',
+        '--proof-mode', 'npm-readiness',
+        '--tarball-contract', contractResult.tarballPath,
+        '--registry-contract', '@ddgutierrezc/legato-contract@0.1.1',
+        '--registry-capacitor', '@ddgutierrezc/legato-capacitor@0.1.1',
+        '--artifacts-dir', resolve(artifactsRoot, 'external-consumer'),
+      ],
+      cwd: resolve(repoRoot, 'apps/capacitor-demo'),
+    });
+    const externalValidationResult = parseJsonOutput(externalValidation.stdout);
+    if (externalValidationResult?.status !== 'PASS') {
+      const combined = Array.isArray(externalValidationResult?.failures)
+        ? externalValidationResult.failures.join('; ')
+        : 'external consumer validation failed';
+      throw new Error(`external consumer validation failed for contract target: ${combined}`);
+    }
+
     return {
       package_target: normalizedPackageTarget,
       readiness_profile: 'contract-only',
       contractResult,
       capacitorResult: null,
-      externalValidation: null,
+      externalValidation: externalValidationResult,
       cross_package_validation: {
         status: 'SKIPPED',
-        reason: 'contract publish readiness validates contract tarball quality without requiring capacitor+contract pair installability.',
+        reason: 'contract publish readiness skips capacitor tarball build/install but still executes runtime validation against the packed contract artifact.',
       },
     };
   }

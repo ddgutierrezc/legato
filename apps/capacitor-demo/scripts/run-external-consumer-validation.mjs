@@ -13,13 +13,6 @@ const VALID_PROOF_MODES = new Set([
   PROOF_MODE_NPM_READINESS,
 ]);
 
-const isKnownContractRootImportPackagingMismatch = (output) => {
-  const normalized = String(output ?? '');
-  return /ERR_MODULE_NOT_FOUND/i.test(normalized)
-    && /@ddgutierrezc\/legato-contract\/dist\/[a-z0-9_-]+/i.test(normalized)
-    && /@ddgutierrezc\/legato-contract\/dist\/index\.js/i.test(normalized);
-};
-
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const defaultRepoRoot = resolve(scriptDir, '../../..');
 const defaultTemplateRoot = resolve(scriptDir, 'external-consumer-template');
@@ -417,7 +410,7 @@ const runRuntimeProof = async ({
   };
 
   const didCliHelpMatch = (output) => /usage:|legato\s+native|legato\s+\[|legato\s+<|legato\s+--help/i.test(output);
-  const documentedImportIsBlocking = proofMode === PROOF_MODE_CONSUMER_ADOPTION;
+  const documentedImportIsBlocking = true;
 
   try {
     const cliHelp = await commandRunner({
@@ -452,15 +445,13 @@ const runRuntimeProof = async ({
     runtimeProof.documentedImport.output = output;
     if (/documented import ok/i.test(output)) {
       runtimeProof.documentedImport.status = PASS;
-    } else if (documentedImportIsBlocking && !isKnownContractRootImportPackagingMismatch(output)) {
-      failures.push('Documented import runtime proof failed: package root import did not report success.');
     } else if (documentedImportIsBlocking) {
-      // Known published-contract packaging mismatch (extensionless dist re-exports) — record evidence without failing.
+      failures.push('Documented import runtime proof failed: package root import did not report success.');
     }
   } catch (error) {
     const output = `${error?.stdout ?? ''}${error?.stderr ?? ''}`;
     runtimeProof.documentedImport.output = output;
-    if (documentedImportIsBlocking && !isKnownContractRootImportPackagingMismatch(output)) {
+    if (documentedImportIsBlocking) {
       failures.push('Documented import runtime proof failed: package root import threw unexpectedly.');
     }
   }

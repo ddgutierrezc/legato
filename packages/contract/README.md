@@ -22,6 +22,11 @@ Use this package when you need shared contract primitives only.
 import { LEGATO_EVENT_NAMES } from '@ddgutierrezc/legato-contract';
 ```
 
+Supported import contract:
+
+- ✅ Supported: root import from `@ddgutierrezc/legato-contract`
+- ❌ Unsupported: undocumented deep imports such as `@ddgutierrezc/legato-contract/dist/*`
+
 ## Public surface
 
 `packages/contract/src/index.ts` exports the following groups:
@@ -38,6 +43,7 @@ Maintainer verification map: [`../../docs/maintainers/package-documentation-foun
 
 - This package is library-only and does not ship a CLI.
 - If you need the `legato` command, install `@ddgutierrezc/legato-capacitor` instead.
+- Public exports are intentionally root-only via `packages/contract/package.json` (`exports["."]`).
 
 ## Runtime prerequisites
 

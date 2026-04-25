@@ -1,8 +1,8 @@
-import type { LegatoError } from './errors';
-import type { PlaybackSnapshot } from './snapshot';
-import type { PlaybackState } from './state';
-import type { QueueSnapshot } from './queue';
-import type { Track } from './track';
+import type { LegatoError } from './errors.js';
+import type { PlaybackSnapshot } from './snapshot.js';
+import type { PlaybackState } from './state.js';
+import type { QueueSnapshot } from './queue.js';
+import type { Track } from './track.js';
 
 export const PLAYER_EVENT_NAMES = [
   'playback-state-changed',

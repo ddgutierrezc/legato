@@ -41,6 +41,11 @@ const readPackageJson = async (packageRoot) => {
   return JSON.parse(raw);
 };
 
+const isContractDeepExportKey = (key) => {
+  const normalized = String(key ?? '').trim();
+  return normalized.startsWith('./') && normalized !== './package.json';
+};
+
 const hasString = (value) => typeof value === 'string' && value.trim().length > 0;
 
 const normalizeKeyword = (value) => String(value ?? '').trim().toLowerCase();
@@ -170,6 +175,7 @@ export const validatePackageEntrypoints = async ({ packageRoot, requireDistPrefi
   const packageJson = await readPackageJson(resolvedPackageRoot);
   const failures = [];
   const entrypoints = collectDeclaredEntrypoints(packageJson);
+  const resolvedProfile = detectProfile({ profile, packageJson });
 
   if (entrypoints.length === 0) {
     failures.push('No publish-facing entrypoints declared (main/types/exports/bin are empty).');
@@ -189,6 +195,24 @@ export const validatePackageEntrypoints = async ({ packageRoot, requireDistPrefi
     const targetPath = resolve(resolvedPackageRoot, entry);
     if (!await pathExists(targetPath)) {
       failures.push(`Entrypoint target does not exist: ${entry}`);
+    }
+  }
+
+  if (resolvedProfile === 'contract') {
+    const exportsField = packageJson.exports;
+    if (!exportsField || typeof exportsField !== 'object' || Array.isArray(exportsField)) {
+      failures.push('Contract profile must define exports as an object with root-only "exports[\".\"]".');
+    } else {
+      const exportKeys = Object.keys(exportsField);
+      const hasRootExport = exportKeys.includes('.');
+      if (!hasRootExport) {
+        failures.push('Contract profile must define root-only "exports[\".\"]".');
+      }
+      for (const exportKey of exportKeys) {
+        if (isContractDeepExportKey(exportKey)) {
+          failures.push(`Contract profile must not expose deep subpath exports (found: exports["${exportKey}"]).`);
+        }
+      }
     }
   }
 
