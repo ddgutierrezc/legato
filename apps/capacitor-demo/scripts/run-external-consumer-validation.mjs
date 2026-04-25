@@ -45,26 +45,103 @@ const collectStringValues = (value, into = []) => {
   return into;
 };
 
+const parseSemver = (value) => {
+  const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(String(value).trim());
+  if (!match) {
+    return null;
+  }
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+  };
+};
+
+const compareSemver = (left, right) => {
+  if (left.major !== right.major) {
+    return left.major - right.major;
+  }
+  if (left.minor !== right.minor) {
+    return left.minor - right.minor;
+  }
+  return left.patch - right.patch;
+};
+
+const isSemverInRange = (version, range) => {
+  const parsedVersion = parseSemver(version);
+  if (!parsedVersion) {
+    return false;
+  }
+
+  const normalizedRange = String(range ?? '').trim();
+  if (normalizedRange === '') {
+    return false;
+  }
+
+  if (normalizedRange.startsWith('^')) {
+    const base = parseSemver(normalizedRange.slice(1));
+    if (!base) {
+      return false;
+    }
+
+    if (parsedVersion.major !== base.major) {
+      return false;
+    }
+    return compareSemver(parsedVersion, base) >= 0;
+  }
+
+  const exact = parseSemver(normalizedRange);
+  if (!exact) {
+    return false;
+  }
+  return compareSemver(parsedVersion, exact) === 0;
+};
+
+export const evaluateRegistryPeerAlignment = ({
+  packageName,
+  packageVersion,
+  peerDependencies,
+  availableVersionsByPackage,
+}) => {
+  const failures = [];
+  const peerEntries = Object.entries(peerDependencies ?? {});
+  for (const [peerName, peerRange] of peerEntries) {
+    if (peerName !== '@ddgutierrezc/legato-contract') {
+      continue;
+    }
+
+    const availableVersions = Array.isArray(availableVersionsByPackage?.[peerName])
+      ? availableVersionsByPackage[peerName]
+      : [];
+
+    const hasCompatible = availableVersions.some((version) => isSemverInRange(version, peerRange));
+    if (!hasCompatible) {
+      failures.push(`Registry compatibility blocker: ${packageName}@${packageVersion} requires ${peerName}@${peerRange}, but npm does not contain a compatible ${peerName} version.`);
+    }
+  }
+
+  const status = failures.length === 0 ? PASS : FAIL;
+  return {
+    status,
+    exitCode: status === PASS ? 0 : 1,
+    failures,
+  };
+};
+
 export const inspectIsolationLeaks = ({ packageLockRaw = '', installManifestRaw = '' }) => {
   const failures = [];
   const haystacks = [packageLockRaw, installManifestRaw];
   for (const haystack of haystacks) {
     if (/workspace:/i.test(haystack)) {
       failures.push('Isolation breach: workspace: reference detected in dependency metadata.');
-      break;
+    }
+    if (/\bfile:/i.test(haystack)) {
+      failures.push('Isolation breach: tarball/path file: dependency detected. Registry-only proof is required.');
+    }
+    if (/\blink:/i.test(haystack)) {
+      failures.push('Isolation breach: link: reference detected in dependency metadata.');
     }
   }
-
-  const scanDirectoryFileRefs = (text) => {
-    const refs = text.match(/file:[^"\s,}]+/gi) ?? [];
-    for (const ref of refs) {
-      if (!/\.tgz$/i.test(ref)) {
-        failures.push(`Isolation breach: directory file: dependency detected (${ref}). Only .tgz file: refs are allowed.`);
-      }
-    }
-  };
-  scanDirectoryFileRefs(packageLockRaw);
-  scanDirectoryFileRefs(installManifestRaw);
 
   try {
     if (packageLockRaw.trim().length > 0) {
@@ -74,8 +151,11 @@ export const inspectIsolationLeaks = ({ packageLockRaw = '', installManifestRaw 
         if (/^workspace:/i.test(value)) {
           failures.push(`Isolation breach: workspace protocol detected (${value}).`);
         }
-        if (/^file:/i.test(value) && !/\.tgz$/i.test(value)) {
-          failures.push(`Isolation breach: directory file: protocol detected (${value}).`);
+        if (/^file:/i.test(value)) {
+          failures.push(`Isolation breach: file: protocol detected (${value}).`);
+        }
+        if (/^link:/i.test(value)) {
+          failures.push(`Isolation breach: link: protocol detected (${value}).`);
         }
       }
     }
@@ -215,13 +295,161 @@ const validateTarballSource = ({ installedPackage, expectedTarballPath }) => {
   return installedPackage.resolved.endsWith(basename(expectedTarballPath));
 };
 
+const validateRegistrySource = ({ installedPackage }) => {
+  if (!installedPackage || typeof installedPackage.resolved !== 'string') {
+    return false;
+  }
+  return /^https?:\/\/registry\.npmjs\.org\//i.test(installedPackage.resolved);
+};
+
+const parsePackageSpecifierName = (specifier) => {
+  const raw = String(specifier ?? '').trim();
+  if (!raw.startsWith('@')) {
+    const [name] = raw.split('@');
+    return name;
+  }
+
+  const lastAt = raw.lastIndexOf('@');
+  if (lastAt <= 0) {
+    return raw;
+  }
+  const maybeName = raw.slice(0, lastAt);
+  return maybeName.includes('/') ? maybeName : raw;
+};
+
+const parseJsonFromStdout = (stdout) => {
+  try {
+    return JSON.parse(stdout);
+  } catch {
+    return null;
+  }
+};
+
+const runRegistryPreflight = async ({ commandRunner, cwd, capacitorSpecifier, contractSpecifier }) => {
+  const capacitorTarget = String(capacitorSpecifier ?? '').trim();
+  const contractTarget = String(contractSpecifier ?? '').trim();
+  const capacitorPackage = parsePackageSpecifierName(capacitorSpecifier);
+  const contractPackage = parsePackageSpecifierName(contractSpecifier);
+
+  const capacitorView = await commandRunner({
+    command: 'npm',
+    args: ['view', capacitorTarget || capacitorPackage, 'version', 'peerDependencies', '--json'],
+    cwd,
+  });
+  const contractView = await commandRunner({
+    command: 'npm',
+    args: ['view', contractTarget || contractPackage, 'version', '--json'],
+    cwd,
+  });
+  const contractVersionsView = await commandRunner({
+    command: 'npm',
+    args: ['view', contractPackage, 'versions', '--json'],
+    cwd,
+  });
+
+  const capacitorMeta = parseJsonFromStdout(capacitorView.stdout) ?? {};
+  const contractPinnedVersionRaw = parseJsonFromStdout(contractView.stdout);
+  const contractVersionsRaw = parseJsonFromStdout(contractVersionsView.stdout);
+  const contractVersions = [
+    ...(Array.isArray(contractVersionsRaw)
+      ? contractVersionsRaw
+      : (typeof contractVersionsRaw === 'string' ? [contractVersionsRaw] : [])),
+    ...(typeof contractPinnedVersionRaw === 'string' ? [contractPinnedVersionRaw] : []),
+  ];
+
+  return evaluateRegistryPeerAlignment({
+    packageName: capacitorPackage,
+    packageVersion: capacitorMeta.version ?? 'unknown',
+    peerDependencies: capacitorMeta.peerDependencies ?? {},
+    availableVersionsByPackage: {
+      [contractPackage]: contractVersions,
+    },
+  });
+};
+
+const runRuntimeProof = async ({ commandRunner, cwd }) => {
+  const failures = [];
+  const runtimeProof = {
+    cliHelp: { status: FAIL, output: '' },
+    documentedImport: { status: FAIL, output: '' },
+    deepImportRejection: { status: FAIL, output: '' },
+  };
+
+  try {
+    const cliHelp = await commandRunner({
+      command: 'npx',
+      args: ['legato', '--help'],
+      cwd,
+    });
+    const output = `${cliHelp.stdout ?? ''}${cliHelp.stderr ?? ''}`;
+    runtimeProof.cliHelp.output = output;
+    if (/usage:|legato\s+native/i.test(output)) {
+      runtimeProof.cliHelp.status = PASS;
+    } else {
+      failures.push('Installed CLI runtime proof failed: `npx legato --help` output did not contain expected usage text.');
+    }
+  } catch (error) {
+    const output = `${error?.stdout ?? ''}${error?.stderr ?? ''}`;
+    runtimeProof.cliHelp.output = output;
+    failures.push('Installed CLI runtime proof failed: `npx legato --help` did not execute successfully.');
+  }
+
+  try {
+    const documentedImport = await commandRunner({
+      command: 'node',
+      args: ['--input-type=module', '-e', "import('@ddgutierrezc/legato-contract').then(() => process.stdout.write('documented import ok\\n'))"],
+      cwd,
+    });
+    const output = `${documentedImport.stdout ?? ''}${documentedImport.stderr ?? ''}`;
+    runtimeProof.documentedImport.output = output;
+    if (/documented import ok/i.test(output)) {
+      runtimeProof.documentedImport.status = PASS;
+    } else {
+      failures.push('Documented import runtime proof failed: package root import did not report success.');
+    }
+  } catch (error) {
+    const output = `${error?.stdout ?? ''}${error?.stderr ?? ''}`;
+    runtimeProof.documentedImport.output = output;
+    failures.push('Documented import runtime proof failed: package root import threw unexpectedly.');
+  }
+
+  try {
+    const deepImport = await commandRunner({
+      command: 'node',
+      args: ['--input-type=module', '-e', "import('@ddgutierrezc/legato-contract/dist/state.js').then(() => process.stdout.write('unexpected deep import success\\n'))"],
+      cwd,
+    });
+    runtimeProof.deepImportRejection.output = `${deepImport.stdout ?? ''}${deepImport.stderr ?? ''}`;
+    failures.push('Undocumented deep import resolved unexpectedly: expected package exports to reject @ddgutierrezc/legato-contract/dist/state.js.');
+  } catch (error) {
+    const output = `${error?.stdout ?? ''}${error?.stderr ?? ''}`;
+    runtimeProof.deepImportRejection.output = output;
+    if (/ERR_PACKAGE_PATH_NOT_EXPORTED|Package subpath .* not defined by "exports"/i.test(output)) {
+      runtimeProof.deepImportRejection.status = PASS;
+    } else {
+      failures.push('Undocumented deep import rejection proof failed: expected ERR_PACKAGE_PATH_NOT_EXPORTED evidence.');
+    }
+  }
+
+  return {
+    status: failures.length === 0 ? PASS : FAIL,
+    failures,
+    runtimeProof,
+  };
+};
+
 const parseArgs = (argv) => {
   const options = {
     repoRoot: defaultRepoRoot,
     artifactsDir: defaultArtifactsDir,
+    consumerRoot: undefined,
     keepFixture: false,
     skipPack: false,
     tarballs: {},
+    registrySpecs: {
+      contract: '@ddgutierrezc/legato-contract@0.1.1',
+      capacitor: '@ddgutierrezc/legato-capacitor@0.1.1',
+    },
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -233,6 +461,11 @@ const parseArgs = (argv) => {
     }
     if (arg === '--artifacts-dir' && argv[i + 1]) {
       options.artifactsDir = resolve(argv[i + 1]);
+      i += 1;
+      continue;
+    }
+    if (arg === '--consumer-root' && argv[i + 1]) {
+      options.consumerRoot = resolve(argv[i + 1]);
       i += 1;
       continue;
     }
@@ -252,6 +485,16 @@ const parseArgs = (argv) => {
     if (arg === '--tarball-capacitor' && argv[i + 1]) {
       options.tarballs.capacitor = resolve(argv[i + 1]);
       i += 1;
+      continue;
+    }
+    if (arg === '--registry-contract' && argv[i + 1]) {
+      options.registrySpecs.contract = argv[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--registry-capacitor' && argv[i + 1]) {
+      options.registrySpecs.capacitor = argv[i + 1];
+      i += 1;
     }
   }
 
@@ -263,13 +506,19 @@ export const runExternalConsumerValidation = async ({
   templateRoot = defaultTemplateRoot,
   artifactsDir = defaultArtifactsDir,
   fixtureRoot,
+  consumerRoot,
   keepFixture = false,
   commandRunner = runCommand,
   skipPack = false,
   tarballs: providedTarballs,
+  registrySpecs = {
+    contract: '@ddgutierrezc/legato-contract@0.1.1',
+    capacitor: '@ddgutierrezc/legato-capacitor@0.1.1',
+  },
 } = {}) => {
   const failures = [];
   const areas = {
+    registryPreflight: FAIL,
     isolation: FAIL,
     installability: FAIL,
     packedEntrypoints: FAIL,
@@ -279,11 +528,15 @@ export const runExternalConsumerValidation = async ({
 
   await mkdir(artifactsDir, { recursive: true });
 
-  const resolvedFixtureRoot = fixtureRoot ?? await mkdtemp(join(tmpdir(), 'legato-external-consumer-'));
+  const useConsumerOwnedRoot = typeof consumerRoot === 'string' && consumerRoot.trim().length > 0;
+  const resolvedFixtureRoot = useConsumerOwnedRoot
+    ? resolve(consumerRoot)
+    : (fixtureRoot ?? await mkdtemp(join(tmpdir(), 'legato-external-consumer-')));
   const tarballs = {
     capacitor: providedTarballs?.capacitor,
     contract: providedTarballs?.contract,
   };
+  const usingTarballMode = Boolean(tarballs.contract || tarballs.capacitor || !skipPack);
 
   const runManifest = {
     repoRoot,
@@ -301,11 +554,27 @@ export const runExternalConsumerValidation = async ({
   const dependencyScanPath = join(artifactsDir, 'dependency-scan.json');
   const tarballEntrypointCheckPath = join(artifactsDir, 'tarball-entrypoint-check.json');
   const summaryPath = join(artifactsDir, 'summary.json');
+  let packageEvidence = null;
+  let runtimeProof = null;
 
   try {
     ensureFixtureOutsideRepo({ repoRoot, fixtureRoot: resolvedFixtureRoot });
-    await cp(templateRoot, resolvedFixtureRoot, { recursive: true, force: true });
-    await ensureFixtureScaffold(resolvedFixtureRoot);
+    if (!useConsumerOwnedRoot) {
+      await cp(templateRoot, resolvedFixtureRoot, { recursive: true, force: true });
+      await ensureFixtureScaffold(resolvedFixtureRoot);
+    }
+
+    const preflight = await runRegistryPreflight({
+      commandRunner,
+      cwd: resolvedFixtureRoot,
+      capacitorSpecifier: registrySpecs.capacitor,
+      contractSpecifier: registrySpecs.contract,
+    });
+    if (preflight.status !== PASS) {
+      failures.push(...preflight.failures);
+      throw new Error('Registry preflight failed: published peer ranges are not satisfiable.');
+    }
+    areas.registryPreflight = PASS;
 
     if (!skipPack) {
       const contractPack = await commandRunner({
@@ -324,13 +593,19 @@ export const runExternalConsumerValidation = async ({
       tarballs.capacitor = resolve(artifactsDir, capacitorTarball ?? '');
     }
 
-    if (!tarballs.contract || !tarballs.capacitor) {
-      throw new Error('Tarball generation/injection failed: missing capacitor or contract tarball path.');
+    const installArgs = ['install', '--no-audit', '--no-fund'];
+    if (usingTarballMode) {
+      if (!tarballs.contract || !tarballs.capacitor) {
+        throw new Error('Tarball generation/injection failed: missing capacitor or contract tarball path.');
+      }
+      installArgs.push(tarballs.contract, tarballs.capacitor);
+    } else {
+      installArgs.push(registrySpecs.contract, registrySpecs.capacitor);
     }
 
     await commandRunner({
       command: 'npm',
-      args: ['install', '--no-audit', '--no-fund', tarballs.contract, tarballs.capacitor],
+      args: installArgs,
       cwd: resolvedFixtureRoot,
     });
 
@@ -345,34 +620,73 @@ export const runExternalConsumerValidation = async ({
     };
     await writeFile(installMetadataPath, stringify(installManifest), 'utf8');
 
-    const installabilityOk = validateTarballSource({ installedPackage: capacitorInstall, expectedTarballPath: tarballs.capacitor })
-      && validateTarballSource({ installedPackage: contractInstall, expectedTarballPath: tarballs.contract });
+    const installabilityOk = usingTarballMode
+      ? (validateTarballSource({ installedPackage: capacitorInstall, expectedTarballPath: tarballs.capacitor })
+        && validateTarballSource({ installedPackage: contractInstall, expectedTarballPath: tarballs.contract }))
+      : (validateRegistrySource({ installedPackage: capacitorInstall })
+        && validateRegistrySource({ installedPackage: contractInstall }));
     if (!installabilityOk) {
-      failures.push('Installability contract breach: @legato packages were not resolved from provided tarballs.');
+      const breach = usingTarballMode
+        ? 'Installability contract breach: @legato packages were not resolved from provided tarballs.'
+        : 'Installability contract breach: @legato packages were not resolved from npm registry URLs.';
+      failures.push(breach);
     } else {
       areas.installability = PASS;
     }
 
     const installedCapacitorPackageJson = await readJsonIfPresent(join(resolvedFixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor/package.json'));
     const installedContractPackageJson = await readJsonIfPresent(join(resolvedFixtureRoot, 'node_modules/@ddgutierrezc/legato-contract/package.json'));
+    packageEvidence = {
+      capacitor: {
+        name: installedCapacitorPackageJson?.name ?? null,
+        description: installedCapacitorPackageJson?.description ?? null,
+        hasBin: Boolean(installedCapacitorPackageJson?.bin && Object.keys(installedCapacitorPackageJson.bin).length > 0),
+        bin: installedCapacitorPackageJson?.bin ?? null,
+      },
+      contract: {
+        name: installedContractPackageJson?.name ?? null,
+        description: installedContractPackageJson?.description ?? null,
+        hasBin: Boolean(installedContractPackageJson?.bin && Object.keys(installedContractPackageJson.bin).length > 0),
+        bin: installedContractPackageJson?.bin ?? null,
+      },
+    };
+
+    if (!packageEvidence.capacitor.hasBin) {
+      failures.push('Installed package evidence breach: capacitor package must expose bin metadata for `legato`.');
+    }
+    if (packageEvidence.contract.hasBin) {
+      failures.push('Installed package evidence breach: contract package must remain library-only (no bin metadata).');
+    }
+
+    const runtimeProofResult = await runRuntimeProof({ commandRunner, cwd: resolvedFixtureRoot });
+    runtimeProof = runtimeProofResult.runtimeProof;
+    if (runtimeProofResult.status !== PASS) {
+      failures.push(...runtimeProofResult.failures);
+    }
+
+    const consumerPackageJson = await readJsonIfPresent(join(resolvedFixtureRoot, 'package.json'));
     const capacitorEntrypoints = collectDeclaredEntrypoints(installedCapacitorPackageJson ?? {});
     const contractEntrypoints = collectDeclaredEntrypoints(installedContractPackageJson ?? {});
-    const capacitorTarEntries = await listTarballEntries({ tarballPath: tarballs.capacitor, commandRunner });
-    const contractTarEntries = await listTarballEntries({ tarballPath: tarballs.contract, commandRunner });
-    const missingEntrypoints = [
-      ...verifyEntrypointsInTarball({
-        entrypoints: capacitorEntrypoints,
-        tarballEntries: capacitorTarEntries,
-        packageName: '@ddgutierrezc/legato-capacitor',
-      }),
-      ...verifyEntrypointsInTarball({
-        entrypoints: contractEntrypoints,
-        tarballEntries: contractTarEntries,
-        packageName: '@ddgutierrezc/legato-contract',
-      }),
-    ];
+    const missingEntrypoints = [];
+    if (usingTarballMode) {
+      const capacitorTarEntries = await listTarballEntries({ tarballPath: tarballs.capacitor, commandRunner });
+      const contractTarEntries = await listTarballEntries({ tarballPath: tarballs.contract, commandRunner });
+      missingEntrypoints.push(
+        ...verifyEntrypointsInTarball({
+          entrypoints: capacitorEntrypoints,
+          tarballEntries: capacitorTarEntries,
+          packageName: '@ddgutierrezc/legato-capacitor',
+        }),
+        ...verifyEntrypointsInTarball({
+          entrypoints: contractEntrypoints,
+          tarballEntries: contractTarEntries,
+          packageName: '@ddgutierrezc/legato-contract',
+        }),
+      );
+    }
 
     await writeFile(tarballEntrypointCheckPath, stringify({
+      mode: usingTarballMode ? 'tarball' : 'registry',
       status: missingEntrypoints.length === 0 ? PASS : FAIL,
       capacitorEntrypoints,
       contractEntrypoints,
@@ -408,7 +722,10 @@ export const runExternalConsumerValidation = async ({
       failures.push(...leakScan.failures);
     }
 
-    const typecheckResult = await commandRunner({ command: 'npm', args: ['run', 'typecheck'], cwd: resolvedFixtureRoot });
+    const compileArgs = consumerPackageJson?.scripts?.typecheck
+      ? ['run', 'typecheck']
+      : ['run', 'build'];
+    const typecheckResult = await commandRunner({ command: 'npm', args: compileArgs, cwd: resolvedFixtureRoot });
     await writeFile(typecheckLogPath, `${typecheckResult.stdout}${typecheckResult.stderr}`, 'utf8');
 
     await ensureCapacitorPlatform({
@@ -474,6 +791,8 @@ export const runExternalConsumerValidation = async ({
     exitCode: status === PASS ? 0 : 1,
     areas,
     failures,
+    packageEvidence,
+    runtimeProof,
     artifacts: {
       runManifestPath,
       installMetadataPath,
@@ -488,7 +807,7 @@ export const runExternalConsumerValidation = async ({
 
   await writeFile(summaryPath, stringify(summary), 'utf8');
 
-  if (!keepFixture) {
+  if (!keepFixture && !useConsumerOwnedRoot) {
     await rm(resolvedFixtureRoot, { recursive: true, force: true });
   }
 

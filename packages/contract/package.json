@@ -1,7 +1,8 @@
 {
   "name": "@ddgutierrezc/legato-contract",
   "version": "0.1.2",
-  "description": "Canonical contract types and constants for Legato.",
+  "description": "Library-only contract package for Legato types, events, and invariants.",
+  "homepage": "https://github.com/ddgutierrezc/legato/tree/main/packages/contract#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/ddgutierrezc/legato.git",
@@ -9,6 +10,12 @@
   },
   "license": "MIT",
   "type": "module",
+  "keywords": [
+    "legato",
+    "contract",
+    "typescript",
+    "events"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -18,12 +25,13 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "readiness:entries": "node ../capacitor/scripts/assert-package-entries.mjs --package-root .",
+    "readiness:entries": "node ../capacitor/scripts/assert-package-entries.mjs --package-root . --profile contract",
     "pack:check": "npm run build && npm run readiness:entries && node ../capacitor/scripts/inspect-tarball.mjs --package-root . --profile contract"
   },
   "devDependencies": {

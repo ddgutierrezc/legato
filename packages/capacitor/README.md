@@ -2,6 +2,32 @@
 
 Modern Capacitor binding MVP for Legato.
 
+## npm quickstart
+
+```bash
+npm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract
+```
+
+First invocation:
+
+```bash
+npx legato native doctor
+```
+
+Audience and prerequisites:
+
+- Intended audience: maintainers/integrators working in the Legato repository layout.
+- Requires a supported Node.js + npm toolchain and a Capacitor project context.
+- `legato native` is a repo-owned maintainer helper, not a generic consumer bootstrap CLI.
+- Unsupported environment disclosure: non-LTS or end-of-life Node.js runtimes are not supported for this onboarding path.
+- Remediation: use a supported Node.js LTS release (and matching npm), then rerun install + `npx legato native doctor`.
+
+## Non-goals for npm ergonomics v1
+
+- Non-goal: runtime behavior expansion.
+- Non-goal: release-lane redesign.
+- Non-goal: platform bootstrap automation beyond current safe patch checks.
+
 ## API surface (v1 boundary split, additive)
 
 `@ddgutierrezc/legato-capacitor` now exposes three public entry points over the same Capacitor plugin instance:
