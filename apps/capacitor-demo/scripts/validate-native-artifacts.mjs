@@ -12,8 +12,16 @@ const IOS_SPM_PRODUCT_MISMATCH_PATTERN = /product\s+'[^']+'\s+required\s+by\s+pa
 const IOS_SPM_MISSING_PRODUCT_PATTERN = /Missing\s+package\s+product/i;
 const IOS_PLUGIN_OBJC_PATTERN = /@objc\(LegatoPlugin\)/;
 const IOS_PLUGIN_BRIDGE_PATTERN = /class\s+LegatoPlugin\s*:\s*CAPPlugin,\s*CAPBridgedPlugin/;
+const IOS_PLUGIN_IDENTIFIER_PATTERN = /let\s+identifier\s*=\s*"LegatoPlugin"/;
+const IOS_PLUGIN_JS_NAME_PATTERN = /let\s+jsName\s*=\s*"Legato"/;
+const IOS_PLUGIN_METHODS_PATTERN = /let\s+pluginMethods\s*:\s*\[CAPPluginMethod\]\s*=\s*\[/;
 const CAP_APP_SPM_GENERATED_OWNERSHIP_PATTERN = /DO NOT MODIFY THIS FILE - managed by Capacitor CLI commands/;
 const CAP_APP_SPM_MANUAL_LEGATO_CORE_PATH_PATTERN = /\.package\(path:\s*"[^"]*LegatoCore[^"]*"\)/;
+const IOS_SYNC_REMEDIATION = 'Run `npm run cap:sync` (or `npx cap sync ios`) and re-run `npm run validate:native:artifacts`.';
+
+function withIosCategory(category, message) {
+  return `[${category}] ${message} ${IOS_SYNC_REMEDIATION}`;
+}
 
 const normalizeAbsolute = (value) => resolve(value).replaceAll('\\', '/');
 
@@ -236,14 +244,14 @@ export const validateNativeArtifacts = ({
   }
 
   if (pluginPackageSwift && IOS_LOCAL_PATH_DEPENDENCY_PATTERN.test(pluginPackageSwift)) {
-    failures.push('iOS local-path regression detected in Package.swift: remove `.package(path: ...)` and keep remote URL + exact pinning.');
+    failures.push(withIosCategory('package-wiring', 'iOS local-path regression detected in Package.swift: remove `.package(path: ...)` and keep remote URL + exact pinning.'));
   }
 
   if (pluginPackageSwift && !iosExactRemoteDependencyPattern.test(pluginPackageSwift)) {
     const expectedSnippet = expectedIosContract
       ? `.package(url: "${expectedIosContract.packageUrl}", exact: "${expectedIosContract.version}")`
       : '.package(url: "<ios.packageUrl>", exact: "<ios.version>")';
-    failures.push(`iOS remote Swift package dependency is missing: expected \`${expectedSnippet}\` in Package.swift.`);
+    failures.push(withIosCategory('package-wiring', `iOS remote Swift package dependency is missing: expected \`${expectedSnippet}\` in Package.swift.`));
   }
 
   if (expectedIosContract && pluginPackageSwift) {
@@ -252,48 +260,60 @@ export const validateNativeArtifacts = ({
     const expectedProductDependency = new RegExp(`\\.product\\(name:\\s*"${escapeRegExp(expectedIosContract.product)}",\\s*package:\\s*"(?:${packageAlternation})"\\)`);
     if (!expectedProductDependency.test(pluginPackageSwift)) {
       const primaryExpectedPackageIdentity = expectedPackageIdentities[0] ?? deriveSwiftPackageIdentity(expectedIosContract.packageUrl);
-      failures.push(`iOS product identity mismatch: expected .product(name: "${expectedIosContract.product}", package: "${primaryExpectedPackageIdentity}") in Package.swift.`);
+      failures.push(withIosCategory('package-wiring', `iOS product identity mismatch: expected .product(name: "${expectedIosContract.product}", package: "${primaryExpectedPackageIdentity}") in Package.swift.`));
     }
   }
 
   if (capAppSpmPackageSwift && !CAP_APP_SPM_GENERATED_OWNERSHIP_PATTERN.test(capAppSpmPackageSwift)) {
-    failures.push('CapApp-SPM integrity regression: expected generated ownership marker `DO NOT MODIFY THIS FILE - managed by Capacitor CLI commands`.');
+    failures.push(withIosCategory('generated-file-boundary', 'CapApp-SPM integrity regression: expected generated ownership marker `DO NOT MODIFY THIS FILE - managed by Capacitor CLI commands`.'));
   }
 
   if (capAppSpmPackageSwift && CAP_APP_SPM_MANUAL_LEGATO_CORE_PATH_PATTERN.test(capAppSpmPackageSwift)) {
-    failures.push('CapApp-SPM regression detected: remove manual local LegatoCore path wiring and keep generated package dependencies only.');
+    failures.push(withIosCategory('generated-file-boundary', 'CapApp-SPM regression detected: remove manual local LegatoCore path wiring and keep generated package dependencies only.'));
   }
 
   if (capAppSpmPackageSwift && !capAppSpmLegatoPackageName) {
-    failures.push('CapApp-SPM regression detected: expected generated Legato package dependency pointing to node_modules/@ddgutierrezc/legato-capacitor.');
+    failures.push(withIosCategory('package-wiring', 'CapApp-SPM regression detected: expected generated Legato package dependency pointing to node_modules/@ddgutierrezc/legato-capacitor.'));
   }
 
   if (capAppSpmPackageSwift && capAppSpmLegatoProductPattern && !capAppSpmLegatoProductPattern.test(capAppSpmPackageSwift)) {
-    failures.push(`CapApp-SPM regression detected: expected product dependency to mirror generated package name "${capAppSpmLegatoPackageName}".`);
+    failures.push(withIosCategory('package-wiring', `CapApp-SPM regression detected: expected product dependency to mirror generated package name "${capAppSpmLegatoPackageName}".`));
   }
 
   const iosProductMismatch = iosResolutionLog.match(IOS_SPM_PRODUCT_MISMATCH_PATTERN);
   if (iosProductMismatch) {
-    failures.push(`iOS SwiftPM resolver product mismatch: ${iosProductMismatch[0]}`);
+    failures.push(withIosCategory('package-wiring', `iOS SwiftPM resolver product mismatch: ${iosProductMismatch[0]}`));
   }
   const iosMissingProduct = iosResolutionLog.match(IOS_SPM_MISSING_PRODUCT_PATTERN);
   if (iosMissingProduct) {
-    failures.push(`iOS SwiftPM resolver missing product: ${iosMissingProduct[0]}`);
+    failures.push(withIosCategory('package-wiring', `iOS SwiftPM resolver missing product: ${iosMissingProduct[0]}`));
   }
 
   if (pluginSwiftSource && !IOS_PLUGIN_OBJC_PATTERN.test(pluginSwiftSource)) {
-    failures.push('iOS plugin discoverability regression: expected `@objc(LegatoPlugin)` in LegatoPlugin.swift.');
+    failures.push(withIosCategory('package-wiring', 'iOS plugin discoverability regression: expected `@objc(LegatoPlugin)` in LegatoPlugin.swift.'));
   }
 
   if (pluginSwiftSource && !IOS_PLUGIN_BRIDGE_PATTERN.test(pluginSwiftSource)) {
-    failures.push('iOS plugin discoverability regression: expected `LegatoPlugin: CAPPlugin, CAPBridgedPlugin` in LegatoPlugin.swift.');
+    failures.push(withIosCategory('package-wiring', 'iOS plugin discoverability regression: expected `LegatoPlugin: CAPPlugin, CAPBridgedPlugin` in LegatoPlugin.swift.'));
+  }
+
+  if (pluginSwiftSource && !IOS_PLUGIN_IDENTIFIER_PATTERN.test(pluginSwiftSource)) {
+    failures.push(withIosCategory('package-wiring', 'iOS plugin bridge contract regression: expected `identifier = "LegatoPlugin"` in LegatoPlugin.swift.'));
+  }
+
+  if (pluginSwiftSource && !IOS_PLUGIN_JS_NAME_PATTERN.test(pluginSwiftSource)) {
+    failures.push(withIosCategory('package-wiring', 'iOS plugin bridge contract regression: expected `jsName = "Legato"` in LegatoPlugin.swift.'));
+  }
+
+  if (pluginSwiftSource && !IOS_PLUGIN_METHODS_PATTERN.test(pluginSwiftSource)) {
+    failures.push(withIosCategory('package-wiring', 'iOS plugin bridge contract regression: expected `pluginMethods: [CAPPluginMethod]` registration in LegatoPlugin.swift.'));
   }
 
   const packageClassList = capacitorConfigJson ? parseCapacitorConfigPackageClassList(capacitorConfigJson) : [];
   if (packageClassList === null) {
-    failures.push('Failed to parse capacitor.config.json for packageClassList checks.');
+    failures.push(withIosCategory('package-wiring', 'Failed to parse capacitor.config.json for packageClassList checks.'));
   } else if (capacitorConfigJson && !packageClassList.includes('LegatoPlugin')) {
-    failures.push('iOS plugin discoverability regression: expected `"LegatoPlugin"` in capacitor.config.json packageClassList.');
+    failures.push(withIosCategory('package-wiring', 'iOS plugin discoverability regression: expected `"LegatoPlugin"` in capacitor.config.json packageClassList.'));
   }
 
   const status = failures.length === 0 ? PASS : FAIL;
@@ -313,6 +333,9 @@ export const validateNativeArtifacts = ({
       iosResolverProductMismatchDetected: Boolean(iosProductMismatch || iosMissingProduct),
       iosObjcPluginShapePresent: IOS_PLUGIN_OBJC_PATTERN.test(pluginSwiftSource),
       iosBridgedPluginShapePresent: IOS_PLUGIN_BRIDGE_PATTERN.test(pluginSwiftSource),
+      iosBridgedPluginIdentifierPresent: IOS_PLUGIN_IDENTIFIER_PATTERN.test(pluginSwiftSource),
+      iosBridgedPluginJsNamePresent: IOS_PLUGIN_JS_NAME_PATTERN.test(pluginSwiftSource),
+      iosBridgedPluginMethodsPresent: IOS_PLUGIN_METHODS_PATTERN.test(pluginSwiftSource),
       capacitorPackageClassListContainsLegatoPlugin: packageClassList === null ? false : packageClassList.includes('LegatoPlugin'),
     },
     failures,

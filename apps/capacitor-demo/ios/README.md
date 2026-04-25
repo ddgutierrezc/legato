@@ -15,13 +15,19 @@ npx cap add ios
 ## Wiring model (current)
 
 This host should rely on Capacitor CLI-generated SPM integration only (`App/CapApp-SPM/Package.swift`).
-Never hand-edit `App/CapApp-SPM/Package.swift`; regenerate it with `npm run cap:sync`.
+Do not hand-edit generated files (`apps/capacitor-demo/ios/App/CapApp-SPM/Package.swift`); regenerate them with `npm run cap:sync` (or `npx cap sync ios`).
 
-Before the first real iOS smoke attempt, do this in Xcode:
+## Ordered post-sync package checks
 
-1. Open `ios/App/App.xcodeproj`.
-2. Confirm target `App` links `CapApp-SPM` only (no extra manual local package reference to `../../../../packages/capacitor`).
-3. If present, remove direct `LegatoCore` target linkage; `LegatoCore` must remain transitive via the plugin package.
+After `npm run cap:sync`, run this package-only checklist in order:
+
+1. open `ios/App/App.xcodeproj`.
+2. Confirm `CapApp-SPM` remains the source of package wiring for target `App`.
+3. remove duplicate manual plugin/local package references (`../../../../packages/capacitor`) if they appear.
+4. avoid direct `LegatoCore` host linkage so the dependency stays transitive through the plugin package.
+5. Check `App/App/capacitor.config.json` and confirm `packageClassList` contains `LegatoPlugin`.
+
+Out of scope: generic Apple signing/team/provisioning ownership.
 
 ## Notes
 
