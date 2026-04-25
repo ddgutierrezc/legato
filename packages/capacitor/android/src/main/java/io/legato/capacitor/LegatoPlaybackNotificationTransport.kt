@@ -53,7 +53,6 @@ internal object LegatoPlaybackNotificationTransport {
     }
 
     fun playbackStateActionsFor(
-        state: LegatoAndroidPlaybackState,
         capabilities: LegatoAndroidTransportCapabilities,
     ): Long {
         var actions = PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE

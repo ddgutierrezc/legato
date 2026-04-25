@@ -29,16 +29,16 @@ internal class LegatoCapacitorMapper {
     }
 
     fun trackFromJs(track: JSObject): LegatoAndroidTrack {
-        val trackType = track.optString("type", null)?.let(::trackTypeFromWire)
+        val trackType = coerceOptionalString(track.opt("type"))?.let(::trackTypeFromWire)
         val headers = mapOfStringString(track.opt("headers"))
 
         return LegatoAndroidTrack(
             id = track.optString("id"),
             url = track.optString("url"),
-            title = track.optString("title", null),
-            artist = track.optString("artist", null),
-            album = track.optString("album", null),
-            artwork = track.optString("artwork", null),
+            title = coerceOptionalString(track.opt("title")),
+            artist = coerceOptionalString(track.opt("artist")),
+            album = coerceOptionalString(track.opt("album")),
+            artwork = coerceOptionalString(track.opt("artwork")),
             durationMs = anyToLong(track.opt("duration")),
             headers = headers,
             type = trackType,
@@ -158,7 +158,7 @@ internal class LegatoCapacitorMapper {
     }
 
     private fun trackTypeFromWire(value: String): LegatoAndroidTrackType? {
-        return LegatoAndroidTrackType.values().firstOrNull { it.wireValue == value }
+        return LegatoAndroidTrackType.entries.firstOrNull { it.wireValue == value }
     }
 
     private fun anyToLong(value: Any?): Long? {
@@ -172,4 +172,12 @@ internal class LegatoCapacitorMapper {
             else -> null
         }
     }
+}
+
+internal fun coerceOptionalString(rawValue: Any?): String? {
+    val value = rawValue ?: return null
+    if (value == JSONObject.NULL) {
+        return null
+    }
+    return value.toString()
 }

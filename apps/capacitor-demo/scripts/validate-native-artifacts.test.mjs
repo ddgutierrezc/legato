@@ -75,7 +75,7 @@ let package = Package(
         .target(
             name: "LegatoPlugin",
             dependencies: [
-                .product(name: "LegatoCore", package: "legato-ios-core")
+                .product(name: "LegatoCore", package: "LegatoCore")
             ]
         )
     ]
@@ -110,7 +110,7 @@ let package = Package(
         .target(
             name: "LegatoPlugin",
             dependencies: [
-                .product(name: "LegatoCore", package: "legato-ios-core")
+                .product(name: "LegatoCore", package: "LegatoCore")
             ]
         )
     ]
@@ -423,13 +423,28 @@ test('validator fails when iOS product identity diverges from contract', () => {
     nativeArtifactsContractJson: nativeArtifactsContract,
     androidSettingsGradle: androidSettingsWithoutNativeCore,
     capAppSpmPackageSwift: capAppSpmGenerated,
-    pluginPackageSwift: packageSwiftArtifactOnly.replace('.product(name: "LegatoCore", package: "legato-ios-core")', '.product(name: "WrongCore", package: "legato-ios-core")'),
+    pluginPackageSwift: packageSwiftArtifactOnly.replace('.product(name: "LegatoCore", package: "LegatoCore")', '.product(name: "WrongCore", package: "LegatoCore")'),
     capacitorConfigJson: capacitorConfigWithPluginClass,
     pluginSwiftSource: pluginSwiftDiscoverableShape,
   });
 
   assert.equal(result.status, 'FAIL');
   assert.match(result.failures.join('\n'), /product identity mismatch/i);
+});
+
+test('validator accepts iOS product package identity based on contract packageName', () => {
+  const result = validateNativeArtifacts({
+    pluginBuildGradle: buildGradleArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContract,
+    androidSettingsGradle: androidSettingsWithoutNativeCore,
+    capAppSpmPackageSwift: capAppSpmGenerated,
+    pluginPackageSwift: packageSwiftArtifactOnly,
+    capacitorConfigJson: capacitorConfigWithPluginClass,
+    pluginSwiftSource: pluginSwiftDiscoverableShape,
+  });
+
+  assert.equal(result.status, 'PASS');
+  assert.equal(result.failures.length, 0);
 });
 
 test('fixture mode path validator fails when host/plugin paths are coupled to monorepo app path', () => {

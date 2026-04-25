@@ -19,7 +19,6 @@ import io.legato.core.core.LegatoAndroidNowPlayingMetadata
 import io.legato.core.core.LegatoAndroidPlaybackState
 import io.legato.core.core.LegatoAndroidServiceMode
 import io.legato.core.queue.LegatoAndroidTransportCapabilitiesProjector
-import io.legato.core.remote.LegatoAndroidMediaSessionBridge
 import java.net.URL
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -87,7 +86,7 @@ class LegatoPlaybackService : Service() {
                     }
                 },
             )
-            setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)
+            setFlags(legacyMediaSessionFlags())
             isActive = true
         }
         syncMediaSessionPlaybackState(currentPlaybackState)
@@ -287,11 +286,7 @@ class LegatoPlaybackService : Service() {
             largeIcon = currentArtworkBitmap,
         )
 
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID)
-        } else {
-            Notification.Builder(this)
-        }
+        val builder = notificationBuilderForSdk(this, Build.VERSION.SDK_INT, CHANNEL_ID)
 
         builder
             .setSmallIcon(android.R.drawable.ic_media_play)
@@ -312,13 +307,7 @@ class LegatoPlaybackService : Service() {
                 },
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
-            builder.addAction(
-                Notification.Action.Builder(
-                    iconForAction(model.intentAction),
-                    model.label,
-                    actionPendingIntent,
-                ).build(),
-            )
+            builder.addAction(notificationActionBuilder(iconForAction(model.intentAction), model.label, actionPendingIntent).build())
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -343,7 +332,7 @@ class LegatoPlaybackService : Service() {
             previousProjection = lastMediaSessionProjection,
         )
         val playbackState = PlaybackState.Builder()
-            .setActions(LegatoPlaybackNotificationTransport.playbackStateActionsFor(state, capabilities))
+            .setActions(LegatoPlaybackNotificationTransport.playbackStateActionsFor(capabilities))
             .setState(
                 projectedState.playbackStateCode,
                 projectedState.positionMs,
@@ -415,6 +404,33 @@ class LegatoPlaybackService : Service() {
 
 internal fun <C, R> resolveOnCreateDependency(contextProvider: () -> C, resolver: (C) -> R): R {
     return resolver(contextProvider())
+}
+
+@Suppress("DEPRECATION") // Required while service stays on android.media.session compatibility path.
+internal fun legacyMediaSessionFlags(): Int {
+    return MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS
+}
+
+internal fun notificationBuilderForSdk(context: Context, sdkInt: Int, channelId: String): Notification.Builder {
+    return if (sdkInt >= Build.VERSION_CODES.O) {
+        Notification.Builder(context, channelId)
+    } else {
+        notificationBuilderLegacy(context)
+    }
+}
+
+@Suppress("DEPRECATION") // Pre-O fallback constructor is deprecated by platform API design.
+private fun notificationBuilderLegacy(context: Context): Notification.Builder {
+    return Notification.Builder(context)
+}
+
+@Suppress("DEPRECATION") // Legacy action builder is required for current support floor.
+internal fun notificationActionBuilder(
+    iconResId: Int,
+    label: CharSequence,
+    pendingIntent: PendingIntent?,
+): Notification.Action.Builder {
+    return Notification.Action.Builder(iconResId, label, pendingIntent)
 }
 
 internal data class MediaSessionPlaybackProjection(

@@ -5,12 +5,35 @@ import io.legato.core.core.LegatoAndroidPlaybackState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 class LegatoPlaybackServiceBootstrapTest {
+    @Test
+    fun `legacy media-session flags helper keeps both transport and media-button support`() {
+        val flags = legacyMediaSessionFlags()
+
+        assertEquals(
+            android.media.session.MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or
+                android.media.session.MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS,
+            flags,
+        )
+    }
+
+    @Test
+    fun `notification action builder helper forwards icon label and intent`() {
+        val builder = notificationActionBuilder(
+            iconResId = android.R.drawable.ic_media_play,
+            label = "Play",
+            pendingIntent = null,
+        )
+
+        assertNotNull(builder)
+    }
+
     @Test
     fun `media-session projection keeps canonical snapshot position when playback resumes`() {
         val projection = projectMediaSessionPlaybackState(

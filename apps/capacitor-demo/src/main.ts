@@ -469,8 +469,12 @@ const addBoundaryCheck = (check: BoundaryCheck): void => {
 const log = (message: string, payload?: unknown): void => {
   const prefix = `[${new Date().toLocaleTimeString()}]`;
   const line = payload === undefined ? message : `${message} ${summarizePayload(payload)}`;
-  logNode.value = `${logNode.value}${prefix} ${line}\n`;
+  const formattedLine = `${prefix} ${line}`;
+  logNode.value = `${logNode.value}${formattedLine}\n`;
   logNode.scrollTop = logNode.scrollHeight;
+
+  // Keep on-screen logging and emit the same stream to native console/logcat.
+  console.info(formattedLine);
 };
 
 const renderRecentEvents = (): void => {

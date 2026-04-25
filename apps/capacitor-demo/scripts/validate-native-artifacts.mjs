@@ -96,6 +96,25 @@ function deriveSwiftPackageIdentity(packageUrl) {
     ?.replace(/\.git$/i, '') ?? '';
 }
 
+function expectedSwiftPackageIdentities(expectedIosContract) {
+  if (!expectedIosContract) {
+    return [];
+  }
+
+  const identities = new Set();
+  const contractPackageName = String(expectedIosContract.packageName ?? '').trim();
+  if (contractPackageName) {
+    identities.add(contractPackageName);
+  }
+
+  const derivedIdentity = deriveSwiftPackageIdentity(expectedIosContract.packageUrl);
+  if (derivedIdentity) {
+    identities.add(derivedIdentity);
+  }
+
+  return [...identities];
+}
+
 function parseExpectedIosContract(nativeArtifactsContractJson) {
   if (!nativeArtifactsContractJson) {
     return null;
@@ -228,10 +247,12 @@ export const validateNativeArtifacts = ({
   }
 
   if (expectedIosContract && pluginPackageSwift) {
-    const expectedSwiftPackageIdentity = deriveSwiftPackageIdentity(expectedIosContract.packageUrl);
-    const expectedProductDependency = new RegExp(`\\.product\\(name:\\s*"${escapeRegExp(expectedIosContract.product)}",\\s*package:\\s*"${escapeRegExp(expectedSwiftPackageIdentity)}"\\)`);
+    const expectedPackageIdentities = expectedSwiftPackageIdentities(expectedIosContract);
+    const packageAlternation = expectedPackageIdentities.map(escapeRegExp).join('|');
+    const expectedProductDependency = new RegExp(`\\.product\\(name:\\s*"${escapeRegExp(expectedIosContract.product)}",\\s*package:\\s*"(?:${packageAlternation})"\\)`);
     if (!expectedProductDependency.test(pluginPackageSwift)) {
-      failures.push(`iOS product identity mismatch: expected .product(name: "${expectedIosContract.product}", package: "${expectedSwiftPackageIdentity}") in Package.swift.`);
+      const primaryExpectedPackageIdentity = expectedPackageIdentities[0] ?? deriveSwiftPackageIdentity(expectedIosContract.packageUrl);
+      failures.push(`iOS product identity mismatch: expected .product(name: "${expectedIosContract.product}", package: "${primaryExpectedPackageIdentity}") in Package.swift.`);
     }
   }
 

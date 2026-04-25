@@ -79,7 +79,6 @@ class LegatoPlaybackNotificationTransportTest {
     @Test
     fun `playback-state actions include next previous and seek when capabilities allow`() {
         val actions = LegatoPlaybackNotificationTransport.playbackStateActionsFor(
-            state = LegatoAndroidPlaybackState.PLAYING,
             capabilities = LegatoAndroidTransportCapabilities(
                 canSkipNext = true,
                 canSkipPrevious = true,
@@ -95,7 +94,6 @@ class LegatoPlaybackNotificationTransportTest {
     @Test
     fun `playback-state actions omit next when capability is false`() {
         val actions = LegatoPlaybackNotificationTransport.playbackStateActionsFor(
-            state = LegatoAndroidPlaybackState.PAUSED,
             capabilities = LegatoAndroidTransportCapabilities(
                 canSkipNext = false,
                 canSkipPrevious = true,

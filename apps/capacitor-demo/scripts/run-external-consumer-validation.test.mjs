@@ -643,6 +643,106 @@ test('npm-readiness mode records documented import runtime mismatch without bloc
   }
 });
 
+test('consumer-adoption mode does not block on known contract root-import packaging mismatch', async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), 'legato-external-orchestrator-runtime-proof-consumer-known-mismatch-'));
+  const artifactsDir = join(tempDir, 'artifacts');
+  const fixtureRoot = join(tempDir, 'fixture');
+  const repoRoot = join(tempDir, 'repo-root');
+  await mkdir(repoRoot, { recursive: true });
+  await mkdir(fixtureRoot, { recursive: true });
+
+  const commandRunner = async ({ command, args }) => {
+    if (command === 'npm' && args[0] === 'install') {
+      await writeFile(join(fixtureRoot, 'package-lock.json'), JSON.stringify({
+        packages: {
+          'node_modules/@ddgutierrezc/legato-capacitor': { resolved: 'https://registry.npmjs.org/@ddgutierrezc/legato-capacitor/-/legato-capacitor-0.1.2.tgz' },
+          'node_modules/@ddgutierrezc/legato-contract': { resolved: 'https://registry.npmjs.org/@ddgutierrezc/legato-contract/-/legato-contract-0.1.2.tgz' },
+        },
+      }), 'utf8');
+      await mkdir(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor'), { recursive: true });
+      await mkdir(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-contract'), { recursive: true });
+      await writeFile(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor/package.json'), JSON.stringify({
+        name: '@ddgutierrezc/legato-capacitor',
+        main: './dist/index.js',
+        types: './dist/index.d.ts',
+        bin: { legato: './dist/cli/index.mjs' },
+        exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
+      }), 'utf8');
+      await writeFile(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-contract/package.json'), JSON.stringify({
+        name: '@ddgutierrezc/legato-contract',
+        main: './dist/index.js',
+        types: './dist/index.d.ts',
+        exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
+      }), 'utf8');
+      await writeFile(join(fixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor/native-artifacts.json'), '{"ios":{"packageUrl":"https://github.com/ddgutierrezc/legato-ios-core.git","packageName":"LegatoCore","product":"LegatoCore","version":"0.1.1"}}', 'utf8');
+      return { stdout: 'install ok', stderr: '' };
+    }
+    if (command === 'npm' && args[0] === 'view' && args[1] === '@ddgutierrezc/legato-capacitor@0.1.2') {
+      return {
+        stdout: JSON.stringify({
+          version: '0.1.2',
+          peerDependencies: { '@ddgutierrezc/legato-contract': '^0.1.2' },
+        }),
+        stderr: '',
+      };
+    }
+    if (command === 'npm' && args[0] === 'view' && args[1] === '@ddgutierrezc/legato-contract@0.1.2') {
+      return { stdout: JSON.stringify('0.1.2'), stderr: '' };
+    }
+    if (command === 'npm' && args[0] === 'view' && args[1] === '@ddgutierrezc/legato-contract') {
+      return { stdout: JSON.stringify(['0.1.1', '0.1.2']), stderr: '' };
+    }
+    if (command === 'npx' && args[0] === 'legato' && args[1] === '--help') {
+      return { stdout: 'Usage: legato native doctor\n', stderr: '' };
+    }
+    if (command === 'node' && args[0] === '--input-type=module' && /import\('@ddgutierrezc\/legato-contract'\)/.test(args[2] ?? '')) {
+      const error = new Error('known contract packaging mismatch');
+      error.stdout = '';
+      error.stderr = 'Error [ERR_MODULE_NOT_FOUND]: Cannot find module "/tmp/fixture/node_modules/@ddgutierrezc/legato-contract/dist/track" imported from /tmp/fixture/node_modules/@ddgutierrezc/legato-contract/dist/index.js';
+      throw error;
+    }
+    if (command === 'node' && args[0] === '--input-type=module' && /legato-contract\/dist\/state\.js/.test(args[2] ?? '')) {
+      const error = new Error('deep import blocked');
+      error.stdout = '';
+      error.stderr = 'Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath is not defined by "exports"';
+      throw error;
+    }
+    if (command === 'npx' && args[0] === 'cap' && args[1] === 'add' && (args[2] === 'ios' || args[2] === 'android')) {
+      await mkdir(join(fixtureRoot, args[2]), { recursive: true });
+      return { stdout: `added ${args[2]}`, stderr: '' };
+    }
+    if (command === 'npx' && args[0] === 'cap' && args[1] === 'sync') {
+      return { stdout: 'sync ok', stderr: '' };
+    }
+    if (command === 'node' && args.some((arg) => /validate-native-artifacts\.mjs$/i.test(arg))) {
+      return { stdout: 'Overall: PASS\n', stderr: '' };
+    }
+    return { stdout: 'ok', stderr: '' };
+  };
+
+  try {
+    const result = await runExternalConsumerValidation({
+      repoRoot,
+      fixtureRoot,
+      artifactsDir,
+      keepFixture: true,
+      commandRunner,
+      skipPack: true,
+      registrySpecs: {
+        capacitor: '@ddgutierrezc/legato-capacitor@0.1.2',
+        contract: '@ddgutierrezc/legato-contract@0.1.2',
+      },
+      proofMode: 'consumer-adoption',
+    });
+
+    assert.equal(result.status, 'PASS');
+    assert.equal(result.runtimeProof?.documentedImport?.status, 'FAIL');
+    assert.equal(result.failures.some((failure) => /Documented import runtime proof failed/i.test(failure)), false);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('orchestrator reuses validator with fixture-installed native-artifacts contract path', async () => {
   const tempDir = await mkdtemp(join(tmpdir(), 'legato-external-orchestrator-validator-contract-'));
   const artifactsDir = join(tempDir, 'artifacts');

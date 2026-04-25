@@ -1,6 +1,6 @@
 {
   "name": "@ddgutierrezc/legato-capacitor",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Capacitor bridge package for Legato host apps, including the repo-owned `legato native` maintainer CLI.",
   "author": "Legato",
   "homepage": "https://github.com/ddgutierrezc/legato/tree/main/packages/capacitor#readme",

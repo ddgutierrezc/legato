@@ -80,3 +80,19 @@ test('failure helper keeps v1 required keys present and non-null', () => {
   assert.equal(report.metadata.platform, 'android');
   assert.equal(report.metadata.step, 'adb-logcat');
 });
+
+test('collector tolerates additional app-level prefixes before marker in console/logcat lines', () => {
+  const logText = [
+    '04-25 12:00:00.000 1000 1000 I Capacitor/Console: Msg: [12:00:00] [legato-demo] setup started',
+    '04-25 12:00:01.000 1000 1000 I Capacitor/Console: Msg: [12:00:01] [legato-demo] LEGATO_SMOKE_REPORT {"schemaVersion":1,"flow":"smoke","status":"PASS","checks":[],"snapshotSummary":"state=paused","recentEvents":[],"errors":[]}',
+  ].join('\n');
+
+  const report = collectAndroidSmokeReportFromLog(logText, {
+    collectedAt: '2026-04-25T12:00:05.000Z',
+  });
+
+  assert.equal(report.status, 'PASS');
+  assert.equal(report.flow, 'smoke');
+  assert.equal(report.metadata.platform, 'android');
+  assert.equal(report.metadata.collectedAt, '2026-04-25T12:00:05.000Z');
+});

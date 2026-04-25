@@ -15,4 +15,5 @@ test('android/build.gradle resolves Kotlin plugin without host pluginManagement 
   assert.match(source, /apply plugin:\s*['"]com\.android\.library['"]/);
   assert.match(source, /apply plugin:\s*['"]kotlin-android['"]/);
   assert.doesNotMatch(source, /plugins\s*\{[\s\S]*org\.jetbrains\.kotlin\.android[\s\S]*\}/);
+  assert.match(source, /defaultConfig\s*\{[\s\S]*minSdk\s*=/);
 });
