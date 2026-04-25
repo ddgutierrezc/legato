@@ -132,6 +132,14 @@ let package = Package(
     name: "CapApp-SPM",
     dependencies: [
         .package(name: "LegatoCapacitor", path: "../../../node_modules/@ddgutierrezc/legato-capacitor")
+    ],
+    targets: [
+        .target(
+            name: "CapApp-SPM",
+            dependencies: [
+                .product(name: "LegatoCapacitor", package: "LegatoCapacitor")
+            ]
+        )
     ]
 )
 `;
@@ -142,6 +150,19 @@ let package = Package(
     name: "CapApp-SPM",
     dependencies: [
         .package(path: "../../../../../native/ios/LegatoCore")
+    ]
+)
+`;
+
+const capAppSpmWithoutLegatoPluginProduct = `
+// DO NOT MODIFY THIS FILE - managed by Capacitor CLI commands
+let package = Package(
+    name: "CapApp-SPM",
+    dependencies: [
+        .package(name: "LegatoCapacitor", path: "../../../node_modules/@ddgutierrezc/legato-capacitor")
+    ],
+    targets: [
+        .target(name: "CapApp-SPM")
     ]
 )
 `;
@@ -363,6 +384,22 @@ test('validator fails when CapApp-SPM generated ownership marker is missing', ()
   assert.equal(result.status, 'FAIL');
   assert.equal(result.exitCode, 1);
   assert.match(result.failures.join('\n'), /DO NOT MODIFY THIS FILE/i);
+});
+
+test('validator fails when CapApp-SPM omits generated Legato package product dependency', () => {
+  const result = validateNativeArtifacts({
+    pluginBuildGradle: buildGradleArtifactOnly,
+    androidSettingsGradle: androidSettingsWithoutNativeCore,
+    capAppSpmPackageSwift: capAppSpmWithoutLegatoPluginProduct,
+    pluginPackageSwift: packageSwiftArtifactOnly,
+    nativeArtifactsContractJson: nativeArtifactsContract,
+    capacitorConfigJson: capacitorConfigWithPluginClass,
+    pluginSwiftSource: pluginSwiftDiscoverableShape,
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.match(result.failures.join('\n'), /CapApp-SPM/i);
+  assert.match(result.failures.join('\n'), /product dependency/i);
 });
 
 test('validator passes for non-default iOS repo owner when contract drives URL', () => {
