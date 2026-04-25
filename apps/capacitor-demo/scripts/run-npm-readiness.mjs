@@ -147,6 +147,7 @@ export const runNpmReadiness = async ({ packageTarget = 'capacitor', commandRunn
     args: [
       resolve(scriptDir, 'run-external-consumer-validation.mjs'),
       '--skip-pack',
+      '--proof-mode', 'npm-readiness',
       '--tarball-contract', contractResult.tarballPath,
       '--tarball-capacitor', capacitorResult.tarballPath,
       '--artifacts-dir', resolve(artifactsRoot, 'external-consumer'),

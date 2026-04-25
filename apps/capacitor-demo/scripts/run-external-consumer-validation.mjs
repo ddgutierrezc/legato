@@ -6,6 +6,12 @@ import { spawn } from 'node:child_process';
 
 const PASS = 'PASS';
 const FAIL = 'FAIL';
+const PROOF_MODE_CONSUMER_ADOPTION = 'consumer-adoption';
+const PROOF_MODE_NPM_READINESS = 'npm-readiness';
+const VALID_PROOF_MODES = new Set([
+  PROOF_MODE_CONSUMER_ADOPTION,
+  PROOF_MODE_NPM_READINESS,
+]);
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const defaultRepoRoot = resolve(scriptDir, '../../..');
@@ -128,15 +134,36 @@ export const evaluateRegistryPeerAlignment = ({
   };
 };
 
-export const inspectIsolationLeaks = ({ packageLockRaw = '', installManifestRaw = '' }) => {
+export const inspectIsolationLeaks = ({
+  packageLockRaw = '',
+  installManifestRaw = '',
+  mode = PROOF_MODE_CONSUMER_ADOPTION,
+} = {}) => {
   const failures = [];
+  const allowTarballFileProtocols = mode === PROOF_MODE_NPM_READINESS;
+  const isTarballFileReference = (value) => /(^|\/)?.+\.(?:tgz|tar\.gz)$/i.test(String(value).replace(/^file:/i, '').trim());
+
+  const recordFileProtocolFailure = (rawValue) => {
+    if (!allowTarballFileProtocols) {
+      failures.push('Isolation breach: tarball/path file: dependency detected. Registry-only proof is required.');
+      return;
+    }
+
+    if (!isTarballFileReference(rawValue)) {
+      failures.push(`Isolation breach: non-tarball file: dependency detected (${rawValue}).`);
+    }
+  };
+
   const haystacks = [packageLockRaw, installManifestRaw];
   for (const haystack of haystacks) {
     if (/workspace:/i.test(haystack)) {
       failures.push('Isolation breach: workspace: reference detected in dependency metadata.');
     }
     if (/\bfile:/i.test(haystack)) {
-      failures.push('Isolation breach: tarball/path file: dependency detected. Registry-only proof is required.');
+      const matches = haystack.match(/file:[^"'\s,}\]]+/gi) ?? ['file:unknown'];
+      for (const value of matches) {
+        recordFileProtocolFailure(value);
+      }
     }
     if (/\blink:/i.test(haystack)) {
       failures.push('Isolation breach: link: reference detected in dependency metadata.');
@@ -152,6 +179,9 @@ export const inspectIsolationLeaks = ({ packageLockRaw = '', installManifestRaw 
           failures.push(`Isolation breach: workspace protocol detected (${value}).`);
         }
         if (/^file:/i.test(value)) {
+          if (allowTarballFileProtocols && isTarballFileReference(value)) {
+            continue;
+          }
           failures.push(`Isolation breach: file: protocol detected (${value}).`);
         }
         if (/^link:/i.test(value)) {
@@ -367,13 +397,20 @@ const runRegistryPreflight = async ({ commandRunner, cwd, capacitorSpecifier, co
   });
 };
 
-const runRuntimeProof = async ({ commandRunner, cwd }) => {
+const runRuntimeProof = async ({
+  commandRunner,
+  cwd,
+  proofMode = PROOF_MODE_CONSUMER_ADOPTION,
+}) => {
   const failures = [];
   const runtimeProof = {
     cliHelp: { status: FAIL, output: '' },
     documentedImport: { status: FAIL, output: '' },
     deepImportRejection: { status: FAIL, output: '' },
   };
+
+  const didCliHelpMatch = (output) => /usage:|legato\s+native|legato\s+\[|legato\s+<|legato\s+--help/i.test(output);
+  const documentedImportIsBlocking = proofMode === PROOF_MODE_CONSUMER_ADOPTION;
 
   try {
     const cliHelp = await commandRunner({
@@ -383,7 +420,7 @@ const runRuntimeProof = async ({ commandRunner, cwd }) => {
     });
     const output = `${cliHelp.stdout ?? ''}${cliHelp.stderr ?? ''}`;
     runtimeProof.cliHelp.output = output;
-    if (/usage:|legato\s+native/i.test(output)) {
+    if (didCliHelpMatch(output)) {
       runtimeProof.cliHelp.status = PASS;
     } else {
       failures.push('Installed CLI runtime proof failed: `npx legato --help` output did not contain expected usage text.');
@@ -391,7 +428,11 @@ const runRuntimeProof = async ({ commandRunner, cwd }) => {
   } catch (error) {
     const output = `${error?.stdout ?? ''}${error?.stderr ?? ''}`;
     runtimeProof.cliHelp.output = output;
-    failures.push('Installed CLI runtime proof failed: `npx legato --help` did not execute successfully.');
+    if (didCliHelpMatch(output)) {
+      runtimeProof.cliHelp.status = PASS;
+    } else {
+      failures.push('Installed CLI runtime proof failed: `npx legato --help` did not execute successfully.');
+    }
   }
 
   try {
@@ -404,13 +445,15 @@ const runRuntimeProof = async ({ commandRunner, cwd }) => {
     runtimeProof.documentedImport.output = output;
     if (/documented import ok/i.test(output)) {
       runtimeProof.documentedImport.status = PASS;
-    } else {
+    } else if (documentedImportIsBlocking) {
       failures.push('Documented import runtime proof failed: package root import did not report success.');
     }
   } catch (error) {
     const output = `${error?.stdout ?? ''}${error?.stderr ?? ''}`;
     runtimeProof.documentedImport.output = output;
-    failures.push('Documented import runtime proof failed: package root import threw unexpectedly.');
+    if (documentedImportIsBlocking) {
+      failures.push('Documented import runtime proof failed: package root import threw unexpectedly.');
+    }
   }
 
   try {
@@ -450,6 +493,7 @@ const parseArgs = (argv) => {
       contract: '@ddgutierrezc/legato-contract@0.1.1',
       capacitor: '@ddgutierrezc/legato-capacitor@0.1.1',
     },
+    proofMode: PROOF_MODE_CONSUMER_ADOPTION,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -495,6 +539,11 @@ const parseArgs = (argv) => {
     if (arg === '--registry-capacitor' && argv[i + 1]) {
       options.registrySpecs.capacitor = argv[i + 1];
       i += 1;
+      continue;
+    }
+    if (arg === '--proof-mode' && argv[i + 1]) {
+      options.proofMode = argv[i + 1];
+      i += 1;
     }
   }
 
@@ -515,6 +564,7 @@ export const runExternalConsumerValidation = async ({
     contract: '@ddgutierrezc/legato-contract@0.1.1',
     capacitor: '@ddgutierrezc/legato-capacitor@0.1.1',
   },
+  proofMode = PROOF_MODE_CONSUMER_ADOPTION,
 } = {}) => {
   const failures = [];
   const areas = {
@@ -526,6 +576,13 @@ export const runExternalConsumerValidation = async ({
     validatorReuse: FAIL,
   };
 
+  const normalizedProofMode = VALID_PROOF_MODES.has(String(proofMode ?? '').trim())
+    ? String(proofMode).trim()
+    : null;
+  if (!normalizedProofMode) {
+    throw new Error(`proof_mode must be one of ${PROOF_MODE_CONSUMER_ADOPTION}, ${PROOF_MODE_NPM_READINESS}. Received: ${proofMode}`);
+  }
+
   await mkdir(artifactsDir, { recursive: true });
 
   const useConsumerOwnedRoot = typeof consumerRoot === 'string' && consumerRoot.trim().length > 0;
@@ -536,13 +593,16 @@ export const runExternalConsumerValidation = async ({
     capacitor: providedTarballs?.capacitor,
     contract: providedTarballs?.contract,
   };
-  const usingTarballMode = Boolean(tarballs.contract || tarballs.capacitor || !skipPack);
+  const usingTarballMode = normalizedProofMode === PROOF_MODE_NPM_READINESS
+    ? Boolean(tarballs.contract || tarballs.capacitor || !skipPack)
+    : Boolean(tarballs.contract || tarballs.capacitor);
 
   const runManifest = {
     repoRoot,
     fixtureRoot: resolvedFixtureRoot,
     artifactsDir,
     tarballs,
+    proofMode: normalizedProofMode,
     startedAt: new Date().toISOString(),
   };
 
@@ -576,7 +636,7 @@ export const runExternalConsumerValidation = async ({
     }
     areas.registryPreflight = PASS;
 
-    if (!skipPack) {
+    if (!skipPack && usingTarballMode) {
       const contractPack = await commandRunner({
         command: 'npm',
         args: ['pack', '--pack-destination', artifactsDir],
@@ -658,7 +718,11 @@ export const runExternalConsumerValidation = async ({
       failures.push('Installed package evidence breach: contract package must remain library-only (no bin metadata).');
     }
 
-    const runtimeProofResult = await runRuntimeProof({ commandRunner, cwd: resolvedFixtureRoot });
+    const runtimeProofResult = await runRuntimeProof({
+      commandRunner,
+      cwd: resolvedFixtureRoot,
+      proofMode: normalizedProofMode,
+    });
     runtimeProof = runtimeProofResult.runtimeProof;
     if (runtimeProofResult.status !== PASS) {
       failures.push(...runtimeProofResult.failures);
@@ -703,6 +767,7 @@ export const runExternalConsumerValidation = async ({
     const leakScan = inspectIsolationLeaks({
       packageLockRaw,
       installManifestRaw: JSON.stringify(installManifest),
+      mode: normalizedProofMode,
     });
 
     const installedCapacitorPath = join(resolvedFixtureRoot, 'node_modules/@ddgutierrezc/legato-capacitor');

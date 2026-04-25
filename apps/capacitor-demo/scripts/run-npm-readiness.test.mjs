@@ -46,6 +46,9 @@ test('npm readiness runs ergonomics validation for both packages before tarball 
   assert.equal(capacitorErgonomicsIndex > -1, true);
   assert.equal(firstInspectIndex > contractErgonomicsIndex, true);
   assert.equal(firstInspectIndex > capacitorErgonomicsIndex, true);
+
+  const externalValidationCall = calls.find((call) => /run-external-consumer-validation\.mjs/i.test(call));
+  assert.match(externalValidationCall ?? '', /--proof-mode npm-readiness/i);
 });
 
 test('npm readiness propagates ergonomics validator failures', async () => {
