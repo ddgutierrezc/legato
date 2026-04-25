@@ -74,6 +74,13 @@ const parseLibraryProductNames = (packageSwift) => {
   return products;
 };
 
+const deriveSwiftPackageIdentity = (packageUrl = '') => packageUrl
+  .trim()
+  .replace(/\/+$/, '')
+  .split('/')
+  .pop()
+  ?.replace(/\.git$/i, '') ?? '';
+
 const parsePluginRemoteDependencies = (pluginPackageSwift) => {
   const dependencies = [];
   const matcher = /\.package\(\s*url:\s*"([^"]+)"\s*,\s*exact:\s*"([^"]+)"\s*\)/g;
@@ -272,11 +279,12 @@ export const runIosReleasePreflight = async ({
   }
 
   const pluginProductDependencies = parsePluginProductDependencies(pluginPackage);
-  const pluginProduct = pluginProductDependencies.find((entry) => entry.packageName === resolvedContract.packageName) ?? null;
+  const expectedSwiftPackageIdentity = deriveSwiftPackageIdentity(resolvedContract.packageUrl);
+  const pluginProduct = pluginProductDependencies.find((entry) => entry.packageName === expectedSwiftPackageIdentity) ?? null;
   if (!pluginProduct) {
-    failures.push('iOS plugin metadata mismatch: Package.swift is missing `.product(name: ..., package: ...)` for LegatoCore.');
+    failures.push(`iOS plugin metadata mismatch: Package.swift is missing \.product(name: ..., package: ...) for ${expectedSwiftPackageIdentity}.`);
   } else if (pluginProduct.product !== resolvedContract.product) {
-    failures.push(`iOS product identity mismatch: plugin Product dependency is ${pluginProduct.product}/${pluginProduct.packageName}, expected ${resolvedContract.product}/${resolvedContract.packageName}.`);
+    failures.push(`iOS product identity mismatch: plugin Product dependency is ${pluginProduct.product}/${pluginProduct.packageName}, expected ${resolvedContract.product}/${expectedSwiftPackageIdentity}.`);
   }
 
   const managedContract = parseManagedContractBlock(pluginPackage);
