@@ -96,6 +96,54 @@ class LegatoAndroidPlayerEngineInterruptionPolicyTest {
     }
 
     @Test
+    fun `service-originated becoming noisy signal pauses playback with interruption origin`() = runBlocking {
+        val playbackRuntime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val engine = buildEngine(playbackRuntime, sessionRuntime)
+
+        engine.setup()
+        engine.load(
+            tracks = listOf(
+                LegatoAndroidTrack(
+                    id = "track-1",
+                    url = "https://example.com/audio.mp3",
+                ),
+            ),
+        )
+        engine.play()
+
+        sessionRuntime.emit(LegatoAndroidInterruptionSignal.BecomingNoisy)
+
+        assertEquals(LegatoAndroidPlaybackState.PAUSED, engine.getSnapshot().state)
+        assertEquals(LegatoAndroidPauseOrigin.INTERRUPTION, engine.getPauseOrigin())
+        assertEquals(LegatoAndroidServiceMode.RESUME_PENDING_INTERRUPTION, engine.getServiceMode())
+    }
+
+    @Test
+    fun `service-originated can-duck signal pauses playback and keeps interrupted mode`() = runBlocking {
+        val playbackRuntime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val engine = buildEngine(playbackRuntime, sessionRuntime)
+
+        engine.setup()
+        engine.load(
+            tracks = listOf(
+                LegatoAndroidTrack(
+                    id = "track-1",
+                    url = "https://example.com/audio.mp3",
+                ),
+            ),
+        )
+        engine.play()
+
+        sessionRuntime.emit(LegatoAndroidInterruptionSignal.AudioFocusLostTransientCanDuck)
+
+        assertEquals(LegatoAndroidPlaybackState.PAUSED, engine.getSnapshot().state)
+        assertEquals(LegatoAndroidPauseOrigin.INTERRUPTION, engine.getPauseOrigin())
+        assertEquals(LegatoAndroidServiceMode.RESUME_PENDING_INTERRUPTION, engine.getServiceMode())
+    }
+
+    @Test
     fun `runtime ended callback transitions state and emits playback-ended event`() = runBlocking {
         val playbackRuntime = RecordingPlaybackRuntime()
         val sessionRuntime = RecordingSessionRuntime()

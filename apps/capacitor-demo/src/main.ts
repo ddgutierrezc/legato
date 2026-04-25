@@ -444,6 +444,7 @@ const updateParityInspector = (snapshot: PlaybackSnapshot): void => {
     `metadata signal: ${formatRequiredMetadataSignal(snapshot)}`,
     `artwork signal: ${artworkSignal}`,
     `observed sync events: ${summarizeObservedEventSignals()}`,
+    'interruption signal: while playing, trigger focus-loss or unplug headphones and verify snapshot reaches paused; use recent events + raw log for exact ordering.',
     'manual fidelity check: Android lockscreen/notification position rebases from real snapshot after resume/seek, and iOS now-playing playbackRate mirrors play/pause (1.0 vs 0.0).',
   ];
 
@@ -1203,6 +1204,7 @@ log('Legato parity harness ready.');
 log('platform:', platform);
 log('isNativePlatform:', isNative);
 log('Use smoke buttons for quick pass/fail, guided cases for scripted remote checks, and manual controls for deep debugging.');
+log('Interruption diagnostics: capture recent events + raw log while testing audio-focus loss/becoming-noisy to validate pause behavior.');
 renderBoundarySummary();
 
 smokeButton.addEventListener('click', () => {

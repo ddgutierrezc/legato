@@ -102,6 +102,38 @@ class LegatoAndroidMedia3PlaybackRuntimeTest {
 
         assertEquals(listOf("prepare", "play"), playerCalls)
     }
+
+    @Test
+    fun `replace queue rebind clears progress and keeps provided start index`() {
+        val runtime = LegatoAndroidMedia3PlaybackRuntime()
+        runtime.dispatchProgress(positionMs = 9_500L, durationMs = 120_000L, bufferedPositionMs = 12_000L, currentIndex = 1)
+
+        runtime.replaceQueue(
+            items = listOf(
+                LegatoAndroidRuntimeTrackSource(id = "track-1", url = "https://example.com/1.mp3", headers = emptyMap(), type = null),
+                LegatoAndroidRuntimeTrackSource(id = "track-2", url = "https://example.com/2.mp3", headers = emptyMap(), type = null),
+            ),
+            startIndex = 1,
+        )
+
+        val snapshot = runtime.snapshot()
+        assertEquals(1, snapshot.currentIndex)
+        assertEquals(0L, snapshot.progress.positionMs)
+        assertEquals(0L, snapshot.progress.bufferedPositionMs)
+        assertEquals(null, snapshot.progress.durationMs)
+    }
+
+    @Test
+    fun `replace queue with empty items clears active index`() {
+        val runtime = LegatoAndroidMedia3PlaybackRuntime()
+        runtime.dispatchProgress(positionMs = 4_000L, durationMs = 60_000L, bufferedPositionMs = 8_000L, currentIndex = 0)
+
+        runtime.replaceQueue(items = emptyList(), startIndex = null)
+
+        val snapshot = runtime.snapshot()
+        assertEquals(null, snapshot.currentIndex)
+        assertEquals(0L, snapshot.progress.positionMs)
+    }
 }
 
 private class QueueingCommandExecutor : PlayerCommandExecutor {

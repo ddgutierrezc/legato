@@ -319,6 +319,126 @@ class LegatoAndroidPlaybackCoordinatorTest {
         }
     }
 
+    @Test
+    fun `coordinator remove rebinds canonical queue through runtime`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3"),
+                LegatoAndroidTrack(id = "track-2", url = "https://example.com/2.mp3"),
+                LegatoAndroidTrack(id = "track-3", url = "https://example.com/3.mp3"),
+            ),
+            startIndex = 1,
+        )
+
+        coordinator.remove(index = 1)
+
+        assertEquals(listOf("track-1", "track-3"), runtime.lastReplacedQueueIds)
+        assertEquals(2, runtime.replaceQueueCalls)
+        assertEquals("track-3", coordinator.core.playerEngine.getSnapshot().currentTrack?.id)
+    }
+
+    @Test
+    fun `coordinator remove shifts selected index when deleting item before active track`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3"),
+                LegatoAndroidTrack(id = "track-2", url = "https://example.com/2.mp3"),
+                LegatoAndroidTrack(id = "track-3", url = "https://example.com/3.mp3"),
+            ),
+            startIndex = 2,
+        )
+
+        coordinator.remove(index = 0)
+
+        assertEquals(listOf("track-2", "track-3"), runtime.lastReplacedQueueIds)
+        assertEquals(1, coordinator.core.playerEngine.getSnapshot().currentIndex)
+    }
+
+    @Test
+    fun `coordinator reset clears queue and returns idle snapshot`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3"),
+                LegatoAndroidTrack(id = "track-2", url = "https://example.com/2.mp3"),
+            ),
+        )
+
+        coordinator.reset()
+
+        val snapshot = coordinator.core.playerEngine.getSnapshot()
+        assertTrue(snapshot.queue.items.isEmpty())
+        assertEquals(null, snapshot.currentIndex)
+        assertEquals(LegatoAndroidPlaybackState.IDLE, snapshot.state)
+    }
+
+    @Test
+    fun `coordinator reset keeps idle state when queue already empty`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+
+        coordinator.setup()
+        coordinator.reset()
+
+        val snapshot = coordinator.core.playerEngine.getSnapshot()
+        assertTrue(snapshot.queue.items.isEmpty())
+        assertEquals(LegatoAndroidPlaybackState.IDLE, snapshot.state)
+    }
+
+    @Test
+    fun `coordinator interruption projection stays coherent after canonical remove transition`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(id = "track-1", url = "https://example.com/1.mp3"),
+                LegatoAndroidTrack(id = "track-2", url = "https://example.com/2.mp3"),
+            ),
+            startIndex = 1,
+        )
+        coordinator.play()
+        coordinator.remove(index = 0)
+
+        sessionRuntime.emit(LegatoAndroidInterruptionSignal.AudioFocusLost)
+
+        assertEquals(LegatoAndroidPlaybackState.PAUSED, coordinator.currentPlaybackState())
+        assertEquals(LegatoAndroidServiceMode.RESUME_PENDING_INTERRUPTION, coordinator.currentServiceMode())
+        assertEquals(LegatoAndroidPauseOrigin.INTERRUPTION, coordinator.currentPauseOrigin())
+    }
+
     private fun buildCore(
         runtime: RecordingPlaybackRuntime,
         sessionRuntime: RecordingSessionRuntime,

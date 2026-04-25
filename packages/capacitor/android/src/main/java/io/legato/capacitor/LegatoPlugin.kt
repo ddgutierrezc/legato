@@ -8,8 +8,6 @@ import com.getcapacitor.annotation.CapacitorPlugin
 import io.legato.core.core.LegatoAndroidEventName
 import io.legato.core.core.LegatoAndroidEventPayload
 import io.legato.core.core.LegatoAndroidPlaybackSnapshot
-import io.legato.core.core.LegatoAndroidPlaybackState
-import io.legato.core.core.LegatoAndroidQueueSnapshot
 import io.legato.core.core.LegatoAndroidErrorCode
 
 @CapacitorPlugin(name = "Legato")
@@ -57,77 +55,16 @@ class LegatoPlugin : Plugin() {
     fun remove(call: PluginCall) {
         runCatching {
             val index = resolveRemovalIndex(call)
-            val queue = core.queueManager.getQueueSnapshot()
-            val mutableItems = queue.items.toMutableList()
-
-            require(index in mutableItems.indices) { "remove index out of bounds" }
-            mutableItems.removeAt(index)
-
-            val previousSnapshot = core.snapshotStore.getPlaybackSnapshot()
-            if (mutableItems.isEmpty()) {
-                core.queueManager.clear()
-                core.snapshotStore.replacePlaybackSnapshot(
-                    LegatoAndroidPlaybackSnapshot(
-                        state = LegatoAndroidPlaybackState.IDLE,
-                        currentTrack = null,
-                        currentIndex = null,
-                        positionMs = 0L,
-                        durationMs = null,
-                        bufferedPositionMs = null,
-                        queue = LegatoAndroidQueueSnapshot(items = emptyList(), currentIndex = null),
-                    ),
-                )
-            } else {
-                val targetIndex = when (val previousIndex = queue.currentIndex) {
-                    null -> 0
-                    in (index + 1)..Int.MAX_VALUE -> previousIndex - 1
-                    index -> index.coerceAtMost(mutableItems.lastIndex)
-                    else -> previousIndex.coerceAtMost(mutableItems.lastIndex)
-                }
-
-                val nextQueue = core.queueManager.replaceQueue(mutableItems, targetIndex)
-                val nextSnapshot = snapshotWithQueue(previousSnapshot, nextQueue)
-                core.snapshotStore.replacePlaybackSnapshot(nextSnapshot)
-            }
-
-            val next = core.snapshotStore.getPlaybackSnapshot()
-            publishQueueTrackProgress(next)
-            if (previousSnapshot.state != next.state) {
-                core.eventEmitter.emit(
-                    name = LegatoAndroidEventName.PLAYBACK_STATE_CHANGED,
-                    payload = LegatoAndroidEventPayload.PlaybackStateChanged(next.state),
-                )
-            }
-
-            coordinator.projectServiceMode()
-
-            call.resolve(snapshotResult(next))
+            coordinator.remove(index)
+            call.resolve(snapshotResult(core.playerEngine.getSnapshot()))
         }.onFailure { reject(call, it) }
     }
 
     @PluginMethod
     fun reset(call: PluginCall) {
         runCatching {
-            core.queueManager.clear()
-            val snapshot = LegatoAndroidPlaybackSnapshot(
-                state = LegatoAndroidPlaybackState.IDLE,
-                currentTrack = null,
-                currentIndex = null,
-                positionMs = 0L,
-                durationMs = null,
-                bufferedPositionMs = null,
-                queue = LegatoAndroidQueueSnapshot(items = emptyList(), currentIndex = null),
-            )
-            core.snapshotStore.replacePlaybackSnapshot(snapshot)
-            publishQueueTrackProgress(snapshot)
-            core.eventEmitter.emit(
-                name = LegatoAndroidEventName.PLAYBACK_STATE_CHANGED,
-                payload = LegatoAndroidEventPayload.PlaybackStateChanged(snapshot.state),
-            )
-
-            coordinator.projectServiceMode()
-
-            call.resolve(snapshotResult(snapshot))
+            coordinator.reset()
+            call.resolve(snapshotResult(core.playerEngine.getSnapshot()))
         }.onFailure { reject(call, it) }
     }
 
@@ -233,25 +170,6 @@ class LegatoPlugin : Plugin() {
         call.resolve(snapshotResult(core.playerEngine.getSnapshot()))
     }
 
-    private fun publishQueueTrackProgress(snapshot: LegatoAndroidPlaybackSnapshot) {
-        core.eventEmitter.emit(
-            name = LegatoAndroidEventName.PLAYBACK_QUEUE_CHANGED,
-            payload = LegatoAndroidEventPayload.QueueChanged(snapshot.queue),
-        )
-        core.eventEmitter.emit(
-            name = LegatoAndroidEventName.PLAYBACK_ACTIVE_TRACK_CHANGED,
-            payload = LegatoAndroidEventPayload.ActiveTrackChanged(snapshot.currentTrack, snapshot.currentIndex),
-        )
-        core.eventEmitter.emit(
-            name = LegatoAndroidEventName.PLAYBACK_PROGRESS,
-            payload = LegatoAndroidEventPayload.PlaybackProgress(
-                positionMs = snapshot.positionMs,
-                durationMs = snapshot.durationMs,
-                bufferedPositionMs = snapshot.bufferedPositionMs,
-            ),
-        )
-    }
-
     private fun resolveRemovalIndex(call: PluginCall): Int {
         call.getInt("index")?.let { return it }
 
@@ -262,30 +180,6 @@ class LegatoPlugin : Plugin() {
         val resolved = queue.items.indexOfFirst { it.id == id }
         require(resolved >= 0) { "remove.id was not found in queue" }
         return resolved
-    }
-
-    private fun snapshotWithQueue(
-        previous: LegatoAndroidPlaybackSnapshot,
-        queue: LegatoAndroidQueueSnapshot,
-    ): LegatoAndroidPlaybackSnapshot {
-        val fallbackIndex = if (queue.items.isNotEmpty()) 0 else null
-        val nextIndex = queue.currentIndex ?: fallbackIndex
-        val track = nextIndex?.let(queue.items::getOrNull)
-        val nextState = when {
-            queue.items.isEmpty() -> LegatoAndroidPlaybackState.IDLE
-            previous.state == LegatoAndroidPlaybackState.IDLE -> LegatoAndroidPlaybackState.READY
-            else -> previous.state
-        }
-
-        return LegatoAndroidPlaybackSnapshot(
-            state = nextState,
-            currentTrack = track,
-            currentIndex = nextIndex,
-            positionMs = if (track?.id == previous.currentTrack?.id) previous.positionMs else 0L,
-            durationMs = track?.durationMs,
-            bufferedPositionMs = if (track?.id == previous.currentTrack?.id) previous.bufferedPositionMs else 0L,
-            queue = queue,
-        )
     }
 
     private fun snapshotResult(snapshot: LegatoAndroidPlaybackSnapshot): JSObject {

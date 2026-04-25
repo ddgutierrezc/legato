@@ -124,7 +124,8 @@ Maintainer-heavy CLI/release/SPM operational details are documented in [`../../d
 
 ## MVP limitations
 
-- Native runtime playback wiring (ExoPlayer/AVPlayer) is still pending in core.
-- This binding only bridges the current native core semantics/state/events.
-- Behavior is intentionally minimal and contract-first.
-- Android background playback/service wiring is groundwork-only in Milestone 1 (contract + stub service), not production parity.
+- Android runtime playback is implemented (Media3/ExoPlayer runtime + foreground service transport controls) for package-supported flows.
+- This binding bridges current native core semantics/state/events and keeps queue/state/event ownership aligned.
+- Interruption handling policy in runtime-v1 is explicit: focus loss/noisy pauses playback; focus gain does not auto-resume.
+- Non-goals for this milestone: process-death restore, broad lifecycle/OEM hardening, and cross-platform parity expansion.
+- Those deferred items move to follow-up milestones (`android-background-lifecycle-v1` and platform parity tracks), not runtime-v1.
