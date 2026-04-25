@@ -77,4 +77,6 @@ test('release control workflow passes source commit into aggregate summary outpu
   assert.match(workflow, /source_commit/i);
   assert.match(workflow, /github\.sha/i);
   assert.match(workflow, /aggregate-release-summary\.mjs/i);
+  assert.match(workflow, /NPM_SUMMARY_RAW:/i);
+  assert.match(workflow, /process\.env\.NPM_SUMMARY_RAW/i);
 });

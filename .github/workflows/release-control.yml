@@ -238,6 +238,16 @@ jobs:
         run: npm ci
 
       - name: Build aggregated summary
+        env:
+          SELECTED_TARGETS_JSON: ${{ needs.validate-dispatch.outputs.targets_json }}
+          ANDROID_MODE: ${{ needs.validate-dispatch.outputs.android_mode }}
+          IOS_MODE: ${{ needs.validate-dispatch.outputs.ios_mode }}
+          NPM_MODE: ${{ needs.validate-dispatch.outputs.npm_mode }}
+          ANDROID_SUMMARY_RAW: ${{ needs.android-lane.outputs.summary_json || '' }}
+          IOS_SUMMARY_RAW: ${{ needs.ios-lane.outputs.summary_json || '' }}
+          NPM_SUMMARY_RAW: ${{ needs.npm-lane.outputs.summary_json || '' }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          SOURCE_COMMIT: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -254,16 +264,16 @@ jobs:
             return JSON.parse(value);
           };
 
-          const selectedTargets = parseTargets('${{ needs.validate-dispatch.outputs.targets_json }}');
+          const selectedTargets = parseTargets(process.env.SELECTED_TARGETS_JSON);
           const requestedModes = {
-            android: '${{ needs.validate-dispatch.outputs.android_mode }}',
-            ios: '${{ needs.validate-dispatch.outputs.ios_mode }}',
-            npm: '${{ needs.validate-dispatch.outputs.npm_mode }}',
+            android: process.env.ANDROID_MODE ?? '',
+            ios: process.env.IOS_MODE ?? '',
+            npm: process.env.NPM_MODE ?? '',
           };
 
-          const androidRaw = `${{ needs.android-lane.outputs.summary_json || '' }}`.trim();
-          const iosRaw = `${{ needs.ios-lane.outputs.summary_json || '' }}`.trim();
-          const npmRaw = `${{ needs.npm-lane.outputs.summary_json || '' }}`.trim();
+          const androidRaw = String(process.env.ANDROID_SUMMARY_RAW ?? '').trim();
+          const iosRaw = String(process.env.IOS_SUMMARY_RAW ?? '').trim();
+          const npmRaw = String(process.env.NPM_SUMMARY_RAW ?? '').trim();
 
           const androidSummary = selectedTargets.includes('android') && androidRaw
             ? adaptAndroidReleaseSummary({ selected: true, releaseSummary: JSON.parse(androidRaw), evidenceRoot: 'android' })
@@ -280,15 +290,15 @@ jobs:
               selected: true,
               terminal_status: npmLane.terminal_status,
               stage_statuses: { mode: npmLane.mode, readiness: npmLane.status },
-              evidence: [{ label: 'summary', path: `npm/${'${{ inputs.release_id }}'}/summary.json` }],
+              evidence: [{ label: 'summary', path: `npm/${process.env.RELEASE_ID}/summary.json` }],
               missing_evidence: [],
               notes: npmLane.failures ?? [],
             })
             : createNotSelectedSummary('npm');
 
           const summary = aggregateReleaseSummary({
-            release_id: '${{ inputs.release_id }}',
-            source_commit: '${{ github.sha }}',
+            release_id: process.env.RELEASE_ID,
+            source_commit: process.env.SOURCE_COMMIT,
             selected_targets: selectedTargets,
             requested_modes: requestedModes,
             target_summaries: {
@@ -298,7 +308,7 @@ jobs:
             },
           });
 
-          const root = resolve('./artifacts/release-control', '${{ inputs.release_id }}');
+          const root = resolve('./artifacts/release-control', process.env.RELEASE_ID || 'missing-release-id');
           await mkdir(root, { recursive: true });
           await writeFile(resolve(root, 'android-summary.json'), `${JSON.stringify(androidSummary, null, 2)}\n`, 'utf8');
           await writeFile(resolve(root, 'ios-summary.json'), `${JSON.stringify(iosSummary, null, 2)}\n`, 'utf8');
