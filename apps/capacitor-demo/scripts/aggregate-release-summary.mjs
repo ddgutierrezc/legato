@@ -28,6 +28,7 @@ const resolveOverallStatus = (targets) => {
 
 export const aggregateReleaseSummary = ({
   release_id,
+  source_commit = '',
   selected_targets = [],
   requested_modes = {},
   target_summaries = {},
@@ -54,6 +55,7 @@ export const aggregateReleaseSummary = ({
 
   return {
     release_id: String(release_id ?? '').trim(),
+    source_commit: String(source_commit ?? '').trim(),
     selected_targets,
     requested_modes,
     generated_at: toIsoTimestamp(),
@@ -78,6 +80,11 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     }
     if (arg === '--selected-targets' && args[i + 1]) {
       options.selected_targets = args[i + 1].split(',').map((entry) => entry.trim()).filter(Boolean);
+      i += 1;
+      continue;
+    }
+    if (arg === '--source-commit' && args[i + 1]) {
+      options.source_commit = args[i + 1];
       i += 1;
       continue;
     }
@@ -124,6 +131,7 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     '# Cross-Platform Release Summary',
     '',
     `- Release ID: \`${summary.release_id}\``,
+    `- Source commit: \`${summary.source_commit || 'unknown'}\``,
     `- Overall status: \`${summary.overall_status}\``,
     '',
     '## Target outcomes',

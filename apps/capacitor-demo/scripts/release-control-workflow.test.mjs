@@ -57,3 +57,20 @@ test('release control workflow uploads iOS publish evidence bundle', async () =>
   assert.match(workflow, /ios-publication-v2/i);
   assert.match(workflow, /ios-summary\.json/i);
 });
+
+test('release control workflow derives iOS release tag/version from native contract and avoids hardcoded literals', async () => {
+  const workflow = await readFile(workflowPath, 'utf8');
+
+  assert.match(workflow, /native-artifacts\.json/i);
+  assert.match(workflow, /ios_release_tag/i);
+  assert.match(workflow, /ios_release_version/i);
+  assert.doesNotMatch(workflow, /IOS_RELEASE_TAG=v0\.1\.1/i);
+});
+
+test('release control workflow passes source commit into aggregate summary output', async () => {
+  const workflow = await readFile(workflowPath, 'utf8');
+
+  assert.match(workflow, /source_commit/i);
+  assert.match(workflow, /github\.sha/i);
+  assert.match(workflow, /aggregate-release-summary\.mjs/i);
+});

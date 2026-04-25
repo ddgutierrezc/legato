@@ -101,3 +101,47 @@ test('aggregate summary marks overall failed when every selected lane fails', ()
 
   assert.equal(result.overall_status, 'failed');
 });
+
+test('aggregate summary preserves source commit for freshness audits', () => {
+  const result = aggregateReleaseSummary({
+    release_id: 'R-2026.04.25.1',
+    source_commit: '0123456789abcdef0123456789abcdef01234567',
+    selected_targets: ['android', 'ios', 'npm'],
+    requested_modes: {
+      android: 'publish',
+      ios: 'publish',
+      npm: 'protected-publish',
+    },
+    target_summaries: {
+      android: {
+        target: 'android',
+        selected: true,
+        terminal_status: 'published',
+        stage_statuses: { publish: 'PASS' },
+        evidence: [{ label: 'summary', path: 'android/summary.json' }],
+        missing_evidence: [],
+        notes: [],
+      },
+      ios: {
+        target: 'ios',
+        selected: true,
+        terminal_status: 'published',
+        stage_statuses: { publish: 'PASS' },
+        evidence: [{ label: 'summary', path: 'ios/summary.json' }],
+        missing_evidence: [],
+        notes: [],
+      },
+      npm: {
+        target: 'npm',
+        selected: true,
+        terminal_status: 'published',
+        stage_statuses: { publish: 'PASS' },
+        evidence: [{ label: 'summary', path: 'npm/summary.json' }],
+        missing_evidence: [],
+        notes: [],
+      },
+    },
+  });
+
+  assert.equal(result.source_commit, '0123456789abcdef0123456789abcdef01234567');
+});

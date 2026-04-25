@@ -619,3 +619,29 @@ test('iOS publish transaction maps verification failure to failed', async () => 
 
   await rm(tempDir, { recursive: true, force: true });
 });
+
+test('iOS publish transaction fails closed when release tag drifts from iOS contract version', async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), 'legato-ios-publish-contract-drift-'));
+  const result = await executeIosPublishTransaction({
+    releaseId: 'rel-contract-drift',
+    artifactsDir: tempDir,
+    releaseTag: 'v0.1.9',
+    distributionRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
+    distributionRef: 'main',
+    githubAppToken: 'ghs_example_token',
+    runGit: async (args) => {
+      if (args[0] === 'ls-remote' && args[1] === '--tags') {
+        return { exitCode: 0, stdout: '', stderr: '' };
+      }
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+    runPromote: async () => ({ status: 'PASS', destinationRoot: '/tmp', provenance: {} }),
+    runSwiftPackageResolve: async () => ({ exitCode: 0, stdout: 'resolved', stderr: '' }),
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.terminal_status, 'failed');
+  assert.match(result.failures.join('\n'), /must match iOS contract version/i);
+
+  await rm(tempDir, { recursive: true, force: true });
+});

@@ -54,6 +54,8 @@ jobs:
       android_mode: ${{ steps.normalize.outputs.android_mode }}
       ios_mode: ${{ steps.normalize.outputs.ios_mode }}
       npm_mode: ${{ steps.normalize.outputs.npm_mode }}
+      ios_release_tag: ${{ steps.extract-ios-contract.outputs.ios_release_tag }}
+      ios_release_version: ${{ steps.extract-ios-contract.outputs.ios_release_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -101,6 +103,28 @@ jobs:
           echo "ios_mode=$ios_mode" >> "$GITHUB_OUTPUT"
           echo "npm_mode=$npm_mode" >> "$GITHUB_OUTPUT"
 
+      - name: Extract iOS contract release values
+        id: extract-ios-contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          contract_path="../../packages/capacitor/native-artifacts.json"
+          if [[ ! -f "$contract_path" ]]; then
+            echo "Missing iOS contract file: $contract_path" >&2
+            exit 1
+          fi
+          ios_version=$(node -e 'const fs=require("node:fs");const c=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const v=String(c?.ios?.version ?? "").trim();if(!v){process.exit(1)};process.stdout.write(v);' "$contract_path") || {
+            echo "Unable to derive ios.version from native-artifacts contract" >&2
+            exit 1
+          }
+          ios_tag="v${ios_version#v}"
+          if [[ -z "$ios_version" || -z "$ios_tag" ]]; then
+            echo "Derived empty iOS release values from contract" >&2
+            exit 1
+          fi
+          echo "ios_release_version=$ios_version" >> "$GITHUB_OUTPUT"
+          echo "ios_release_tag=$ios_tag" >> "$GITHUB_OUTPUT"
+
   android-lane:
     if: ${{ needs.validate-dispatch.outputs.android_selected == 'true' }}
     needs: validate-dispatch
@@ -145,13 +169,13 @@ jobs:
           repositories: legato-ios-core
 
       - name: Run iOS preflight
-        run: IOS_RELEASE_ID=${{ inputs.release_id }} IOS_RELEASE_TAG=v0.1.1 npm run release:ios:preflight -- --release-id "${{ inputs.release_id }}" --mode "${{ needs.validate-dispatch.outputs.ios_mode }}"
+        run: IOS_RELEASE_ID=${{ inputs.release_id }} IOS_RELEASE_TAG=${{ needs.validate-dispatch.outputs.ios_release_tag }} npm run release:ios:preflight -- --release-id "${{ inputs.release_id }}" --mode "${{ needs.validate-dispatch.outputs.ios_mode }}"
 
       - name: Run iOS publish lane
         shell: bash
         run: |
           set +e
-          IOS_RELEASE_ID=${{ inputs.release_id }} IOS_RELEASE_TAG=v0.1.1 IOS_DISTRIBUTION_REPO="${{ inputs.ios_distribution_repo }}" IOS_DISTRIBUTION_REF="${{ inputs.ios_distribution_ref }}" IOS_GITHUB_APP_TOKEN="${{ steps.ios-app-token.outputs.token }}" npm run release:ios:publish
+          IOS_RELEASE_ID=${{ inputs.release_id }} IOS_RELEASE_TAG=${{ needs.validate-dispatch.outputs.ios_release_tag }} IOS_DISTRIBUTION_REPO="${{ inputs.ios_distribution_repo }}" IOS_DISTRIBUTION_REF="${{ inputs.ios_distribution_ref }}" IOS_GITHUB_APP_TOKEN="${{ steps.ios-app-token.outputs.token }}" npm run release:ios:publish
           code=$?
           set -e
           exit "$code"
@@ -255,6 +279,7 @@ jobs:
 
           const summary = aggregateReleaseSummary({
             release_id: '${{ inputs.release_id }}',
+            source_commit: '${{ github.sha }}',
             selected_targets: selectedTargets,
             requested_modes: requestedModes,
             target_summaries: {
@@ -274,6 +299,7 @@ jobs:
             '# Cross-platform release summary (v2)',
             '',
             `- release_id: \`${summary.release_id}\``,
+            `- source_commit: \`${summary.source_commit || 'unknown'}\``,
             `- overall_status: \`${summary.overall_status}\``,
             '',
             '## Targets',

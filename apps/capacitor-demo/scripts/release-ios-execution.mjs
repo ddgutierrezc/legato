@@ -944,6 +944,12 @@ export const executeIosPublishTransaction = async ({
     failures.push(`unable to read iOS contract at ${resolve(contractPath)} (${error instanceof Error ? error.message : String(error)})`);
   }
 
+  const normalizedContractVersion = normalizeTagVersion(iosContract.version ?? '');
+  const normalizedTagVersion = normalizeTagVersion(normalizedReleaseTag);
+  if (normalizedContractVersion && normalizedTagVersion !== normalizedContractVersion) {
+    failures.push(`release tag drift detected: ${normalizedReleaseTag || '<missing>'} must match iOS contract version v${normalizedContractVersion}.`);
+  }
+
   if (remoteTagExists) {
     const alreadyPublishedArtifact = {
       status: PASS,

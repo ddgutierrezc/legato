@@ -72,6 +72,12 @@ Files:
 - `summary.json`
 - `summary.md`
 
+Required summary fields for closure traceability:
+
+- `release_id`
+- `source_commit` (must equal the commit SHA used for the mixed canary run)
+- `overall_status`
+
 Run-level outcomes:
 
 - `success`
@@ -89,6 +95,32 @@ Run-level outcomes:
 
 1. iOS-only canary (`targets=ios`, `ios=publish`)
 2. npm-only canary (`targets=npm`, `npm=protected-publish`)
-3. Mixed run (`targets=android,ios,npm`) after both single-lane canaries pass
+3. Mixed run (`targets=android,ios,npm`) on latest `HEAD` after CI cleanup and after both single-lane canaries pass
+
+## Pre-canary verification gate
+
+Run this focused guard suite before canary execution:
+
+- `npm run test:release:confidence`
+
+This pre-canary verification gate catches workflow/script/docs drift before operational runs.
+
+## Closure-reconciliation checklist (required before marking done)
+
+1. Compare closure/task claims against the canonical mixed canary evidence.
+2. Correct stale or contradictory closure claims before completion.
+3. Execute freshness enforcement before sign-off:
+   - `npm run release:confidence:fresh-head:check`
+   - this command fails closed when closure evidence `source_commit` does not match latest `HEAD`
+   - if this gate fails, sign-off remains blocked until a fresh mixed canary is captured from latest `HEAD`
+4. Closure notes must include all traceability fields:
+   - mixed canary run URL
+   - `release-control-summary-<release_id>` artifact link
+   - `source_commit`
+5. If claims and evidence disagree, closeout remains blocked until reconciled.
 
 Record run URLs and artifact links in release closure notes.
+
+## Scope boundary (non-goal)
+
+Broad `apps/capacitor-demo` typecheck cleanup is a non-goal for this change and stays out of scope unless a specific typecheck error directly blocks release validation or evidence capture.
