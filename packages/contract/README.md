@@ -8,11 +8,31 @@ Library-only contract package for Legato shared types, events, and invariants.
 npm install @ddgutierrezc/legato-contract
 ```
 
+## Package role
+
+Use this package when you need shared contract primitives only.
+
+- Includes types, event-name constants, snapshots, queue/state models, and invariants.
+- Does not include Capacitor runtime/plugin behavior.
+- Does not ship a CLI.
+
 ## First import
 
 ```ts
-import { LEGATO_EVENTS } from '@ddgutierrezc/legato-contract';
+import { LEGATO_EVENT_NAMES } from '@ddgutierrezc/legato-contract';
 ```
+
+## Public surface
+
+`packages/contract/src/index.ts` exports the following groups:
+
+- `track`, `state`, `queue`, `snapshot`, `errors`
+- Event types: `PlayerEventName`, `MediaSessionEventName`, `LegacyPlayerEventName`, `LegatoEventName`
+- Event payload types/maps
+- Event constants: `PLAYER_EVENT_NAMES`, `MEDIA_SESSION_EVENT_NAMES`, `LEGACY_PLAYER_EVENT_NAMES`, `LEGATO_EVENT_NAMES`
+- `capability`, `invariants`
+
+Maintainer verification map: [`../../docs/maintainers/package-documentation-foundation-v1-source-map.md`](../../docs/maintainers/package-documentation-foundation-v1-source-map.md)
 
 ## Package role boundary
 
