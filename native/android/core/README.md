@@ -1,24 +1,27 @@
-# Legato Android Native Core (Runtime-Seam MVP)
+# Legato Android Native Core (Runtime + Integrity v1)
 
 This directory contains the Android native core and runtime integration seams for Legato.
 
 Current scope includes:
 - canonical queue/state/snapshot/event behavior,
-- manager scaffolding for session + remote command integration,
+- manager/runtime integration for session + remote command surfaces,
 - explicit runtime adapters/seams for playback/session/remote surfaces,
-- typed interruption + audio-focus policy contract surfaces (Milestone 1 groundwork only).
+- typed interruption + audio-focus policy surfaces wired through canonical interruption signals.
 
 Out of scope for this pass:
-- full Media3/ExoPlayer runtime binding,
-- complete Android AudioFocus/MediaSession lifecycle behavior,
-- production-grade background playback behavior.
+- process-death restoration/persistent queue recovery,
+- broad Android lifecycle/OEM matrix hardening,
+- cross-platform parity expansion beyond Android runtime integrity closure.
 
-The default runtime adapters are intentionally no-op/in-memory and exist to define stable integration boundaries.
+Deferred scope is tracked under follow-up milestones (`android-background-lifecycle-v1` and parity tracks) rather than this runtime-v1 integrity pass.
 
-## Milestone 1 contract note
+The module ships a real Media3 runtime path and also keeps default no-op adapters for explicit seam tests.
 
-Android session interruption/audio-focus surfaces in this module are contract seams only.
-They are intentionally no-op and DO NOT provide full Media3 audio-focus/background parity yet.
+## Runtime-v1 interruption contract
+
+- Focus loss (`AUDIOFOCUS_LOSS`, `AUDIOFOCUS_LOSS_TRANSIENT`, `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK`) and becoming noisy signals pause playback with interruption pause origin.
+- Focus gain does **not** auto-resume playback in v1.
+- Service/app adapters ingest Android callbacks and forward canonical interruption signals to the session runtime.
 
 ## Gradle module bootstrap
 

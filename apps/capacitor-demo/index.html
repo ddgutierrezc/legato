@@ -285,7 +285,7 @@ errors=none</pre>
 
         <section class="card stack">
           <h2>Manual native controls</h2>
-          <p>Use these when validating background/lifecycle behavior step-by-step.</p>
+          <p>Use these when validating background/lifecycle/interruption behavior step-by-step.</p>
           <div class="actions">
             <button id="use-legato-surface" type="button">Manual target: Legato facade</button>
             <button id="use-audioplayer-surface" type="button">Manual target: audioPlayer namespace</button>
@@ -343,6 +343,7 @@ checks=none yet</pre>
             <li>Remote next/previous parity: run <code>Case: remote next/previous parity</code>; next and previous must round-trip queue index as prompted.</li>
             <li>Remote seek parity: run <code>Case: remote seek parity</code>; remote seek must produce a visible snapshot position jump.</li>
             <li>Boundary behavior parity: previous at first track restarts to 0, next at last track transitions to ended + playbackEnded event.</li>
+            <li>Interruption ingestion check: while playing, trigger focus-loss/noisy (headphones unplug/Bluetooth disconnect) and confirm snapshot moves to paused; keep <code>Recent events/progress</code> + <code>Raw operation log</code> for copyable evidence.</li>
             <li>Capability projection parity: canSkipNext/canSkipPrevious/canSeek summary must align with queue index + ended/empty states.</li>
             <li>Android lockscreen/notification position from real snapshot: on resume/seek, projected position should rebase near snapshot target (no transient 0 reset).</li>
             <li>iOS now-playing playbackRate fidelity: expect playbackRate=1.0 while playing and playbackRate=0.0 when paused/stopped/non-playing.</li>

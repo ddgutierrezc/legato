@@ -5,10 +5,14 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
@@ -19,6 +23,7 @@ import io.legato.core.core.LegatoAndroidNowPlayingMetadata
 import io.legato.core.core.LegatoAndroidPlaybackState
 import io.legato.core.core.LegatoAndroidServiceMode
 import io.legato.core.queue.LegatoAndroidTransportCapabilitiesProjector
+import io.legato.core.session.LegatoAndroidInterruptionSignal
 import java.net.URL
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +51,12 @@ class LegatoPlaybackService : Service() {
     private val artworkLoader: LegatoPlaybackArtworkLoader = DefaultLegatoPlaybackArtworkLoader
     private val artworkDiagnostics: LegatoPlaybackArtworkDiagnostics = AndroidLogcatArtworkDiagnostics
     private val artworkScope: CoroutineScope = CoroutineScope(SupervisorJob())
+    private var audioManager: AudioManager? = null
+    private var audioFocusListener: AudioManager.OnAudioFocusChangeListener? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private var hasAudioFocus: Boolean = false
+    private var noisyReceiver: BroadcastReceiver? = null
+    private var noisyReceiverRegistered: Boolean = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -92,6 +103,8 @@ class LegatoPlaybackService : Service() {
         syncMediaSessionPlaybackState(currentPlaybackState)
         publishNowPlayingSurfaces()
         refreshArtworkFor(currentNowPlayingMetadata)
+        setupInterruptionIngestion()
+        reconcileAudioFocusForState(currentPlaybackState)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -121,6 +134,7 @@ class LegatoPlaybackService : Service() {
         activeArtworkJob?.cancel()
         activeArtworkJob = null
         artworkScope.cancel()
+        teardownInterruptionIngestion()
 
         mediaSession?.release()
         mediaSession = null
@@ -135,6 +149,7 @@ class LegatoPlaybackService : Service() {
     private fun onServiceModeChanged(mode: LegatoAndroidServiceMode) {
         currentMode = mode
         if (mode == LegatoAndroidServiceMode.OFF) {
+            abandonAudioFocusIfHeld()
             if (foregroundActive) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 foregroundActive = false
@@ -150,6 +165,7 @@ class LegatoPlaybackService : Service() {
         currentPlaybackState = state
         syncMediaSessionPlaybackState(state)
         publishNowPlayingSurfaces()
+        reconcileAudioFocusForState(state)
     }
 
     private fun onNowPlayingMetadataChanged(metadata: LegatoAndroidNowPlayingMetadata?) {
@@ -161,6 +177,108 @@ class LegatoPlaybackService : Service() {
         }
         publishNowPlayingSurfaces()
         refreshArtworkFor(metadata)
+    }
+
+    private fun setupInterruptionIngestion() {
+        val manager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        audioManager = manager
+
+        val focusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+            val signal = interruptionSignalFromAudioFocusChange(focusChange) ?: return@OnAudioFocusChangeListener
+            coordinator.core.mediaSessionBridge.onInterruption(signal)
+        }
+        audioFocusListener = focusListener
+        audioFocusRequest = buildAudioFocusRequest(focusListener)
+
+        if (noisyReceiver == null) {
+            noisyReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                        coordinator.core.mediaSessionBridge.onInterruption(
+                            LegatoAndroidInterruptionSignal.BecomingNoisy,
+                        )
+                    }
+                }
+            }
+        }
+
+        if (!noisyReceiverRegistered) {
+            registerReceiver(noisyReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+            noisyReceiverRegistered = true
+        }
+    }
+
+    private fun teardownInterruptionIngestion() {
+        abandonAudioFocusIfHeld()
+        if (noisyReceiverRegistered) {
+            runCatching { unregisterReceiver(noisyReceiver) }
+            noisyReceiverRegistered = false
+        }
+
+        noisyReceiver = null
+        audioFocusListener = null
+        audioFocusRequest = null
+        audioManager = null
+    }
+
+    private fun reconcileAudioFocusForState(state: LegatoAndroidPlaybackState) {
+        if (state == LegatoAndroidPlaybackState.PLAYING || state == LegatoAndroidPlaybackState.BUFFERING) {
+            requestAudioFocusIfNeeded()
+        } else {
+            abandonAudioFocusIfHeld()
+        }
+    }
+
+    private fun requestAudioFocusIfNeeded() {
+        if (hasAudioFocus) {
+            return
+        }
+
+        val manager = audioManager ?: return
+        val focusRequest = audioFocusRequest
+        val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
+            manager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            @Suppress("DEPRECATION")
+            manager.requestAudioFocus(
+                audioFocusListener,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN,
+            ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+        hasAudioFocus = granted
+    }
+
+    private fun abandonAudioFocusIfHeld() {
+        if (!hasAudioFocus) {
+            return
+        }
+
+        val manager = audioManager ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val focusRequest = audioFocusRequest
+            if (focusRequest != null) {
+                manager.abandonAudioFocusRequest(focusRequest)
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            manager.abandonAudioFocus(audioFocusListener)
+        }
+        hasAudioFocus = false
+    }
+
+    private fun buildAudioFocusRequest(
+        listener: AudioManager.OnAudioFocusChangeListener,
+    ): AudioFocusRequest? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return null
+        }
+
+        return AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAcceptsDelayedFocusGain(false)
+            .setWillPauseWhenDucked(true)
+            .setOnAudioFocusChangeListener(listener)
+            .build()
     }
 
     private fun refreshArtworkFor(metadata: LegatoAndroidNowPlayingMetadata?) {
@@ -399,6 +517,16 @@ class LegatoPlaybackService : Service() {
         private const val REQUEST_CODE_TRANSPORT_BASE: Int = 1002
         private const val MAX_COMPACT_ACTIONS: Int = 3
         private const val MEDIA_SESSION_TAG: String = "legato.playback"
+    }
+}
+
+internal fun interruptionSignalFromAudioFocusChange(focusChange: Int): LegatoAndroidInterruptionSignal? {
+    return when (focusChange) {
+        AudioManager.AUDIOFOCUS_GAIN -> LegatoAndroidInterruptionSignal.AudioFocusGained
+        AudioManager.AUDIOFOCUS_LOSS -> LegatoAndroidInterruptionSignal.AudioFocusLost
+        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> LegatoAndroidInterruptionSignal.AudioFocusLostTransient
+        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> LegatoAndroidInterruptionSignal.AudioFocusLostTransientCanDuck
+        else -> null
     }
 }
 

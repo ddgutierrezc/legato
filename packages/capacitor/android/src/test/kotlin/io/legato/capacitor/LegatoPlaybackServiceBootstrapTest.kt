@@ -2,6 +2,7 @@ package io.legato.capacitor
 
 import io.legato.core.core.LegatoAndroidNowPlayingMetadata
 import io.legato.core.core.LegatoAndroidPlaybackState
+import io.legato.core.session.LegatoAndroidInterruptionSignal
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -249,5 +250,31 @@ class LegatoPlaybackServiceBootstrapTest {
         assertSame(provided, observed)
         assertFalse(observed === null)
         assertSame(expectedCoordinator, resolved)
+    }
+
+    @Test
+    fun `audio focus change mapping converts Android constants into canonical interruption signals`() {
+        assertEquals(
+            LegatoAndroidInterruptionSignal.AudioFocusGained,
+            interruptionSignalFromAudioFocusChange(android.media.AudioManager.AUDIOFOCUS_GAIN),
+        )
+        assertEquals(
+            LegatoAndroidInterruptionSignal.AudioFocusLost,
+            interruptionSignalFromAudioFocusChange(android.media.AudioManager.AUDIOFOCUS_LOSS),
+        )
+        assertEquals(
+            LegatoAndroidInterruptionSignal.AudioFocusLostTransient,
+            interruptionSignalFromAudioFocusChange(android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT),
+        )
+        assertEquals(
+            LegatoAndroidInterruptionSignal.AudioFocusLostTransientCanDuck,
+            interruptionSignalFromAudioFocusChange(android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK),
+        )
+    }
+
+    @Test
+    fun `audio focus change mapping ignores unsupported platform constants`() {
+        assertNull(interruptionSignalFromAudioFocusChange(Int.MAX_VALUE))
+        assertNull(interruptionSignalFromAudioFocusChange(123_456))
     }
 }

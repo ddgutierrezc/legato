@@ -64,7 +64,7 @@ class LegatoAndroidNoopSessionRuntime : LegatoAndroidSessionRuntime {
     private var interruptionListener: ((LegatoAndroidInterruptionSignal) -> Unit)? = null
 
     override fun configureSession() {
-        // Intentionally no-op. Media3/AudioFocus wiring is pending.
+        // Intentionally no-op. Use runtime-backed implementations when platform wiring is available.
     }
 
     override fun audioFocusPolicy(): LegatoAndroidAudioFocusPolicy =
@@ -75,7 +75,7 @@ class LegatoAndroidNoopSessionRuntime : LegatoAndroidSessionRuntime {
     }
 
     override fun onInterruption(signal: LegatoAndroidInterruptionSignal) {
-        // Intentionally no-op. Runtime callback handling is pending.
+        // Intentionally no-op. No listener projection in noop runtime.
     }
 
     override fun updatePlaybackState(state: LegatoAndroidPlaybackState) {
@@ -100,7 +100,7 @@ class LegatoAndroidAudioFocusSessionRuntime : LegatoAndroidSessionRuntime {
     private var interruptionListener: ((LegatoAndroidInterruptionSignal) -> Unit)? = null
 
     override fun configureSession() {
-        // Session wiring hooks are intentionally deferred to plugin/service integration batch.
+        // Configuration is owned by the Android adapter (service/app) boundary.
     }
 
     override fun audioFocusPolicy(): LegatoAndroidAudioFocusPolicy =
@@ -115,15 +115,15 @@ class LegatoAndroidAudioFocusSessionRuntime : LegatoAndroidSessionRuntime {
     }
 
     override fun updatePlaybackState(state: LegatoAndroidPlaybackState) {
-        // Runtime-backed media session publication is deferred.
+        // Publication is owned by service/media-session adapter.
     }
 
     override fun updateNowPlayingMetadata(metadata: LegatoAndroidNowPlayingMetadata?) {
-        // Runtime-backed metadata publication is deferred.
+        // Publication is owned by service/media-session adapter.
     }
 
     override fun updateProgress(progress: LegatoAndroidProgressUpdate) {
-        // Runtime-backed progress publication is deferred.
+        // Publication is owned by service/media-session adapter.
     }
 
     override fun releaseSession() {
