@@ -144,6 +144,11 @@ function makeUnresolvedCoordinatePattern(coordinate) {
   return new RegExp(`Could not find\\s+${escapeRegExp(coordinate)}(?:\\.|\\s|$)`, 'i');
 }
 
+function parseCapAppSpmLegatoPackageName(capAppSpmPackageSwift) {
+  const match = capAppSpmPackageSwift.match(/\.package\(name:\s*"([^"]+)",\s*path:\s*"[^"]*node_modules\/@ddgutierrezc\/legato-capacitor"\)/);
+  return match?.[1] ?? null;
+}
+
 export const validateNativeArtifacts = ({
   pluginBuildGradle,
   nativeArtifactsContractJson = '',
@@ -178,6 +183,12 @@ export const validateNativeArtifacts = ({
 
   const unresolvedCoordinatePattern = makeUnresolvedCoordinatePattern(expectedAndroidCoordinate);
   const iosExactRemoteDependencyPattern = makeIosExactRemoteDependencyPattern(expectedIosContract);
+  const capAppSpmLegatoPackageName = capAppSpmPackageSwift
+    ? parseCapAppSpmLegatoPackageName(capAppSpmPackageSwift)
+    : null;
+  const capAppSpmLegatoProductPattern = capAppSpmLegatoPackageName
+    ? new RegExp(`\\.product\\(name:\\s*"${escapeRegExp(capAppSpmLegatoPackageName)}",\\s*package:\\s*"${escapeRegExp(capAppSpmLegatoPackageName)}"\\)`)
+    : null;
 
   if (LOCAL_PROJECT_DEPENDENCY_PATTERN.test(pluginBuildGradle)) {
     failures.push("Local-project regression detected in plugin dependency graph: remove project(':native:android:core') and keep artifact coordinates only.");
@@ -222,6 +233,14 @@ export const validateNativeArtifacts = ({
     failures.push('CapApp-SPM regression detected: remove manual local LegatoCore path wiring and keep generated package dependencies only.');
   }
 
+  if (capAppSpmPackageSwift && !capAppSpmLegatoPackageName) {
+    failures.push('CapApp-SPM regression detected: expected generated Legato package dependency pointing to node_modules/@ddgutierrezc/legato-capacitor.');
+  }
+
+  if (capAppSpmPackageSwift && capAppSpmLegatoProductPattern && !capAppSpmLegatoProductPattern.test(capAppSpmPackageSwift)) {
+    failures.push(`CapApp-SPM regression detected: expected product dependency to mirror generated package name "${capAppSpmLegatoPackageName}".`);
+  }
+
   const iosProductMismatch = iosResolutionLog.match(IOS_SPM_PRODUCT_MISMATCH_PATTERN);
   if (iosProductMismatch) {
     failures.push(`iOS SwiftPM resolver product mismatch: ${iosProductMismatch[0]}`);
@@ -259,6 +278,7 @@ export const validateNativeArtifacts = ({
       iosExactRemoteDependencyPresent: iosExactRemoteDependencyPattern.test(pluginPackageSwift),
       capAppSpmOwnershipMarkerPresent: CAP_APP_SPM_GENERATED_OWNERSHIP_PATTERN.test(capAppSpmPackageSwift),
       capAppSpmManualLegatoCorePathAbsent: !CAP_APP_SPM_MANUAL_LEGATO_CORE_PATH_PATTERN.test(capAppSpmPackageSwift),
+      capAppSpmLegatoPluginProductPresent: capAppSpmLegatoProductPattern ? capAppSpmLegatoProductPattern.test(capAppSpmPackageSwift) : false,
       iosResolverProductMismatchDetected: Boolean(iosProductMismatch || iosMissingProduct),
       iosObjcPluginShapePresent: IOS_PLUGIN_OBJC_PATTERN.test(pluginSwiftSource),
       iosBridgedPluginShapePresent: IOS_PLUGIN_BRIDGE_PATTERN.test(pluginSwiftSource),
