@@ -31,6 +31,13 @@ dist/
 build/
 **/build/
 
+# Local validation / evidence artifacts
+apps/capacitor-demo/artifacts/
+
+# SwiftPM local build and resolution artifacts
+packages/capacitor/.build/
+packages/capacitor/Package.resolved
+
 # Android Studio
 *.iml
 .idea/
