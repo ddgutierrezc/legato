@@ -1,6 +1,6 @@
 {
   "name": "@ddgutierrezc/legato-contract",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Library-only contract package for Legato types, events, and invariants.",
   "homepage": "https://github.com/ddgutierrezc/legato/tree/main/packages/contract#readme",
   "repository": {
