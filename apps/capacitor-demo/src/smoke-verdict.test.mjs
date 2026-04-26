@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildSmokeReportV1,
   createInitialSmokeVerdict,
   reduceSmokeVerdict,
   summarizeSmokeVerdict,
@@ -75,4 +76,38 @@ test('complete without snapshot does not report PASS', () => {
 
   assert.equal(completed.status, 'FAIL');
   assert.match(summarizeSmokeVerdict(completed), /Awaiting snapshot/);
+});
+
+test('buildSmokeReportV1 includes explicit ios runtime integrity checks payload', () => {
+  const started = reduceSmokeVerdict(createInitialSmokeVerdict(), { type: 'start', flow: 'smoke' });
+  const withSnapshot = reduceSmokeVerdict(started, { type: 'snapshot', snapshot });
+  const completed = reduceSmokeVerdict(withSnapshot, { type: 'complete' });
+
+  const report = buildSmokeReportV1({
+    verdict: completed,
+    recentEvents: [
+      'setup finished',
+      'add finished',
+      'play finished',
+      'pause finished',
+    ],
+    runtimeIntegrity: {
+      transportCommandsObserved: true,
+      progressAdvancedWhilePlaying: true,
+      trackEndTransitionObserved: false,
+      snapshotProjectionCoherent: true,
+      details: {
+        transport: 'setup/add/play/pause observed',
+        progress: 'progress moved by +900ms',
+        trackEnd: 'not covered in smoke flow',
+        snapshot: 'snapshot state/index/track coherence holds',
+      },
+    },
+  });
+
+  assert.equal(report.status, 'PASS');
+  assert.equal(report.runtimeIntegrity.transportCommandsObserved, true);
+  assert.equal(report.runtimeIntegrity.progressAdvancedWhilePlaying, true);
+  assert.equal(report.runtimeIntegrity.trackEndTransitionObserved, false);
+  assert.equal(report.runtimeIntegrity.snapshotProjectionCoherent, true);
 });

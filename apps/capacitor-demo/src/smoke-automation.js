@@ -20,6 +20,26 @@ export const compactSmokeMarkerReport = (report) => ({
     ? report.recentEvents.slice(-MAX_MARKER_RECENT_EVENTS).map(compactRecentEvent)
     : [],
   errors: Array.isArray(report?.errors) ? report.errors.map((entry) => String(entry ?? '')) : [],
+  runtimeIntegrity: {
+    transportCommandsObserved: report?.runtimeIntegrity?.transportCommandsObserved === true,
+    progressAdvancedWhilePlaying: report?.runtimeIntegrity?.progressAdvancedWhilePlaying === true,
+    trackEndTransitionObserved: report?.runtimeIntegrity?.trackEndTransitionObserved === true,
+    snapshotProjectionCoherent: report?.runtimeIntegrity?.snapshotProjectionCoherent === true,
+    details: {
+      transport: typeof report?.runtimeIntegrity?.details?.transport === 'string'
+        ? report.runtimeIntegrity.details.transport
+        : 'transport evidence unavailable',
+      progress: typeof report?.runtimeIntegrity?.details?.progress === 'string'
+        ? report.runtimeIntegrity.details.progress
+        : 'progress evidence unavailable',
+      trackEnd: typeof report?.runtimeIntegrity?.details?.trackEnd === 'string'
+        ? report.runtimeIntegrity.details.trackEnd
+        : 'track-end evidence unavailable',
+      snapshot: typeof report?.runtimeIntegrity?.details?.snapshot === 'string'
+        ? report.runtimeIntegrity.details.snapshot
+        : 'snapshot evidence unavailable',
+    },
+  },
 });
 
 export const buildSmokeMarkerLine = (report) => `${LEGATO_SMOKE_REPORT_MARKER} ${JSON.stringify(compactSmokeMarkerReport(report))}`;

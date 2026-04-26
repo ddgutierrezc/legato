@@ -44,6 +44,20 @@ const evaluateArtifact = ({ path, report }) => {
     failures.push(`[${platform}] ${path}: status is PASS but errors[] is not empty.`);
   }
 
+  if (platform === 'ios' && report?.status === PASS) {
+    const runtimeIntegrity = report?.runtimeIntegrity;
+    const hasRuntimeIntegrity = runtimeIntegrity
+      && typeof runtimeIntegrity === 'object'
+      && typeof runtimeIntegrity.transportCommandsObserved === 'boolean'
+      && typeof runtimeIntegrity.progressAdvancedWhilePlaying === 'boolean'
+      && typeof runtimeIntegrity.trackEndTransitionObserved === 'boolean'
+      && typeof runtimeIntegrity.snapshotProjectionCoherent === 'boolean';
+
+    if (!hasRuntimeIntegrity) {
+      failures.push(`[ios] ${path}: PASS reports must include runtime integrity payload (transport/progress/track-end/snapshot checks).`);
+    }
+  }
+
   if (report?.status === FAIL) {
     const collectorError = report.errors?.[0] ?? 'status is FAIL with no actionable error provided';
     failures.push(`[${platform}] ${path}: collector retrieval failed or smoke reported FAIL: ${collectorError}`);

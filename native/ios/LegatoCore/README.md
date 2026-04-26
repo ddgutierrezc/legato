@@ -1,18 +1,23 @@
-# Legato iOS Native Core (Runtime-Seam MVP)
+# Legato iOS Native Core (Runtime Integrity v1)
 
-This directory contains the iOS native core and runtime integration seams for Legato.
+This directory contains the iOS native core used by `@ddgutierrezc/legato-capacitor`.
 
 Current scope includes:
-- canonical queue/state/snapshot/event behavior,
-- manager scaffolding for AVAudioSession/Now Playing/Remote Command boundaries,
-- explicit runtime adapter protocols for future AVPlayer integration.
+- canonical queue/state/snapshot/event behavior owned by `LegatoiOSPlayerEngine`,
+- AVPlayer-backed runtime support via `LegatoiOSAVPlayerPlaybackRuntime`,
+- manager boundaries for AVAudioSession / Now Playing / Remote Command integration,
+- direct runtime evidence for transport/progress/end/snapshot coherence.
 
-Out of scope for this pass:
-- fully wired AVPlayer runtime playback,
-- complete AVAudioSession interruption/route-change handling,
-- production-grade background playback behavior.
+AVPlayer-backed runtime is implemented and active as the default runtime path for iOS foreground audible playback (`LegatoiOSAVPlayerPlaybackRuntime`).
 
-Default runtime adapters are intentionally no-op/in-memory and define stable handoff points for real iOS runtime wiring.
+Out of scope for `ios-runtime-playback-v1`:
+- full background/interruption lifecycle production hardening,
+- broad Android/iOS parity expansion,
+- new end-user playback feature additions.
+
+Scope guardrails: `docs/architecture/ios-runtime-playback-v1-scope-guardrails.md`.
+
+This is NOT yet full background/lifecycle production hardening.
 
 ## Dependency composition
 

@@ -1,5 +1,7 @@
 # Native Core v0
 
+> Historical spec note: early "no AVPlayer integration yet" wording is superseded by shipped iOS AVPlayer runtime in later milestones (including `ios-runtime-playback-v1`).
+
 ## Goal
 Establish native core locations and boundaries.
 

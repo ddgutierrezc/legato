@@ -5,6 +5,8 @@
 > Binding principal: Capacitor  
 > Distribución: Open source (`@ddgutierrezc/`)
 
+> Historical note: some roadmap sections predate shipped iOS runtime support and are kept as narrative context; current iOS status is runtime implemented + integrity hardening, not pending/conceptual.
+
 ---
 
 ## Índice

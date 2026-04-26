@@ -29,6 +29,34 @@ const createPassReport = (platform) => ({
     platform,
     collectedAt: '2026-04-22T21:00:00.000Z',
   },
+  runtimeIntegrity: {
+    transportCommandsObserved: true,
+    progressAdvancedWhilePlaying: true,
+    trackEndTransitionObserved: false,
+    snapshotProjectionCoherent: true,
+    details: {
+      transport: 'setup/add/play/pause observed',
+      progress: 'position advanced by 1.2s',
+      trackEnd: 'not covered in smoke flow',
+      snapshot: 'snapshot coherence verified',
+    },
+  },
+});
+
+const withRuntimeIntegrity = (report) => ({
+  ...report,
+  runtimeIntegrity: {
+    transportCommandsObserved: true,
+    progressAdvancedWhilePlaying: true,
+    trackEndTransitionObserved: false,
+    snapshotProjectionCoherent: true,
+    details: {
+      transport: 'setup/add/play/pause observed',
+      progress: 'position advanced by 1.2s',
+      trackEnd: 'not covered in smoke flow',
+      snapshot: 'snapshot coherence verified',
+    },
+  },
 });
 
 const createCollectorFailReport = (platform) => ({
@@ -43,6 +71,18 @@ const createCollectorFailReport = (platform) => ({
     platform,
     step: 'find-marker',
     collectedAt: '2026-04-22T21:00:00.000Z',
+  },
+  runtimeIntegrity: {
+    transportCommandsObserved: false,
+    progressAdvancedWhilePlaying: false,
+    trackEndTransitionObserved: false,
+    snapshotProjectionCoherent: false,
+    details: {
+      transport: 'collector failed before transport verification',
+      progress: 'collector failed before progress verification',
+      trackEnd: 'collector failed before track-end verification',
+      snapshot: 'collector failed before snapshot verification',
+    },
   },
 });
 
@@ -68,7 +108,7 @@ const runValidatorCli = async (reportPaths) => new Promise((resolveResult) => {
 test('shared validator marks all-platform PASS when every normalized report passes schema and checks', () => {
   const result = validateSmokeReports([
     { path: 'android.json', report: createPassReport('android') },
-    { path: 'ios.json', report: createPassReport('ios') },
+    { path: 'ios.json', report: withRuntimeIntegrity(createPassReport('ios')) },
   ]);
 
   assert.equal(result.status, 'PASS');
@@ -125,7 +165,7 @@ test('CLI exits with 0 when all supplied artifacts validate as PASS', async () =
   const iosPath = join(tempDir, 'ios.json');
 
   await writeFile(androidPath, `${JSON.stringify(createPassReport('android'))}\n`, 'utf8');
-  await writeFile(iosPath, `${JSON.stringify(createPassReport('ios'))}\n`, 'utf8');
+  await writeFile(iosPath, `${JSON.stringify(withRuntimeIntegrity(createPassReport('ios')))}\n`, 'utf8');
 
   try {
     const result = await runValidatorCli([androidPath, iosPath]);
@@ -135,6 +175,19 @@ test('CLI exits with 0 when all supplied artifacts validate as PASS', async () =
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+test('shared validator fails iOS PASS artifacts when runtime integrity payload is missing', () => {
+  const iosWithoutRuntimeIntegrity = createPassReport('ios');
+  delete iosWithoutRuntimeIntegrity.runtimeIntegrity;
+
+  const result = validateSmokeReports([
+    { path: 'ios.json', report: iosWithoutRuntimeIntegrity },
+  ]);
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.platforms.ios.status, 'FAIL');
+  assert.match(result.failures[0], /runtimeIntegrity/i);
 });
 
 test('CLI exits non-zero with actionable output when any artifact fails validation', async () => {
