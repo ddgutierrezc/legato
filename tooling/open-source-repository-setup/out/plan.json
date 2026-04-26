@@ -1,0 +1,115 @@
+{
+  "generatedAt": "2026-04-26T21:05:21.569Z",
+  "fileOps": [
+    {
+      "path": "LICENSE",
+      "strategy": "create-if-missing",
+      "status": "present-compatible",
+      "existing": "MIT License\n\nCopyright (c) 2026 Legato contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n",
+      "desired": "MIT License\n\nCopyright (c) 2026 Legato contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "strategy": "create-if-missing",
+      "status": "present-compatible",
+      "existing": "# Contributing to legato\n\nThanks for contributing.\n\n## Before opening a PR\n\n1. Open or link an issue first.\n2. For implementation PRs, issue status must be `approved`.\n3. Use a branch name in the form `type/description` (lowercase `a-z0-9._-`).\n4. Use conventional commits.\n\n## Pull request checklist\n\n- Include `Closes #<issue>` / `Fixes #<issue>` / `Resolves #<issue>` in PR body.\n- Add exactly one `type:*` label (`type:feature`, `type:bug`, `type:docs`, `type:chore`).\n- Keep release workflows untouched unless your issue explicitly targets release automation.\n- Run relevant validation checks locally before asking for review.\n\n## Scope discipline\n\nLegato uses focused scope and contracts for release and runtime safety. Keep changes minimal and evidence-driven.\n",
+      "desired": "# Contributing to legato\n\nThanks for contributing.\n\n## Before opening a PR\n\n1. Open or link an issue first.\n2. For implementation PRs, issue status must be `approved`.\n3. Use a branch name in the form `type/description` (lowercase `a-z0-9._-`).\n4. Use conventional commits.\n\n## Pull request checklist\n\n- Include `Closes #<issue>` / `Fixes #<issue>` / `Resolves #<issue>` in PR body.\n- Add exactly one `type:*` label (`type:feature`, `type:bug`, `type:docs`, `type:chore`).\n- Keep release workflows untouched unless your issue explicitly targets release automation.\n- Run relevant validation checks locally before asking for review.\n\n## Scope discipline\n\nLegato uses focused scope and contracts for release and runtime safety. Keep changes minimal and evidence-driven.\n"
+    },
+    {
+      "path": "CODE_OF_CONDUCT.md",
+      "strategy": "create-if-missing",
+      "status": "present-compatible",
+      "existing": "# Contributor Covenant Code of Conduct\n\n## Our Pledge\n\nWe as members, contributors, and leaders pledge to make participation in our\ncommunity a harassment-free experience for everyone.\n\n## Our Standards\n\nExamples of behavior that contributes to a positive environment include:\n\n- Demonstrating empathy and kindness.\n- Being respectful of differing opinions and experiences.\n- Giving and gracefully accepting constructive feedback.\n\nExamples of unacceptable behavior include harassment, insulting comments,\npublic or private attacks, and other conduct inappropriate in a professional setting.\n\n## Enforcement Responsibilities\n\nProject maintainers are responsible for clarifying and enforcing standards and\nmay remove or edit comments, commits, code, issues, and other contributions.\n\n## Scope\n\nThis Code of Conduct applies within all project spaces and when an individual\nis officially representing the project in public spaces.\n\n## Enforcement\n\nReport incidents to maintainers via security channels documented in `SECURITY.md`.\nAll complaints will be reviewed and investigated promptly and fairly.\n\n## Attribution\n\nThis Code of Conduct is adapted from the Contributor Covenant, version 2.1:\nhttps://www.contributor-covenant.org/version/2/1/code_of_conduct.html\n",
+      "desired": "# Contributor Covenant Code of Conduct\n\n## Our Pledge\n\nWe as members, contributors, and leaders pledge to make participation in our\ncommunity a harassment-free experience for everyone.\n\n## Our Standards\n\nExamples of behavior that contributes to a positive environment include:\n\n- Demonstrating empathy and kindness.\n- Being respectful of differing opinions and experiences.\n- Giving and gracefully accepting constructive feedback.\n\nExamples of unacceptable behavior include harassment, insulting comments,\npublic or private attacks, and other conduct inappropriate in a professional setting.\n\n## Enforcement Responsibilities\n\nProject maintainers are responsible for clarifying and enforcing standards and\nmay remove or edit comments, commits, code, issues, and other contributions.\n\n## Scope\n\nThis Code of Conduct applies within all project spaces and when an individual\nis officially representing the project in public spaces.\n\n## Enforcement\n\nReport incidents to maintainers via security channels documented in `SECURITY.md`.\nAll complaints will be reviewed and investigated promptly and fairly.\n\n## Attribution\n\nThis Code of Conduct is adapted from the Contributor Covenant, version 2.1:\nhttps://www.contributor-covenant.org/version/2/1/code_of_conduct.html\n"
+    },
+    {
+      "path": "SECURITY.md",
+      "strategy": "create-if-missing",
+      "status": "present-compatible",
+      "existing": "# Security Policy\n\n## Reporting a Vulnerability\n\nPlease report suspected vulnerabilities privately via GitHub Security Advisories:\n\n- https://github.com/ddgutierrezc/legato/security/advisories/new\n\nIf advisories are unavailable for your access level, open a private report with maintainers and avoid public disclosure until triage is complete.\n\n## Response Expectations\n\n- Initial triage acknowledgment: within 7 days.\n- Mitigation or remediation plan: provided after triage.\n\n## Supported Versions\n\nThis repository currently focuses on the latest published package versions.\n",
+      "desired": "# Security Policy\n\n## Reporting a Vulnerability\n\nPlease report suspected vulnerabilities privately via GitHub Security Advisories:\n\n- https://github.com/ddgutierrezc/legato/security/advisories/new\n\nIf advisories are unavailable for your access level, open a private report with maintainers and avoid public disclosure until triage is complete.\n\n## Response Expectations\n\n- Initial triage acknowledgment: within 7 days.\n- Mitigation or remediation plan: provided after triage.\n\n## Supported Versions\n\nThis repository currently focuses on the latest published package versions.\n"
+    },
+    {
+      "path": ".github/CODEOWNERS",
+      "strategy": "create-if-missing",
+      "status": "present-compatible",
+      "existing": "# Default owner coverage\n* @ddgutierrezc\n\n# Workflows and release automation\n.github/workflows/* @ddgutierrezc\n",
+      "desired": "# Default owner coverage\n* @ddgutierrezc\n\n# Workflows and release automation\n.github/workflows/* @ddgutierrezc\n"
+    },
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "strategy": "create-if-missing",
+      "status": "present-compatible",
+      "existing": "## Summary\n\n- Explain WHY this change is needed.\n\n## Linked issue\n\nResolves #<issue-number>\n\n## Validation\n\n- [ ] Relevant tests/checks were run\n- [ ] No unrelated workflows were changed\n\n## Policy checks\n\n- [ ] Exactly one `type:*` label added\n- [ ] Approved issue linked when required (`status:approved`)\n",
+      "desired": "## Summary\n\n- Explain WHY this change is needed.\n\n## Linked issue\n\nResolves #<issue-number>\n\n## Validation\n\n- [ ] Relevant tests/checks were run\n- [ ] No unrelated workflows were changed\n\n## Policy checks\n\n- [ ] Exactly one `type:*` label added\n- [ ] Approved issue linked when required (`status:approved`)\n"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
+      "strategy": "create-if-missing",
+      "status": "present-compatible",
+      "existing": "name: Bug report\ndescription: Report something that is broken.\ntitle: \"bug: \"\nlabels: [\"type:bug\", \"status:needs-review\"]\nbody:\n  - type: markdown\n    attributes:\n      value: \"Please include reproducible steps and expected behavior.\"\n  - type: textarea\n    id: problem\n    attributes:\n      label: Problem\n      placeholder: What happened?\n    validations:\n      required: true\n  - type: textarea\n    id: reproduce\n    attributes:\n      label: Reproduction steps\n      placeholder: Step by step\n    validations:\n      required: true\n",
+      "desired": "name: Bug report\ndescription: Report something that is broken.\ntitle: \"bug: \"\nlabels: [\"type:bug\", \"status:needs-review\"]\nbody:\n  - type: markdown\n    attributes:\n      value: \"Please include reproducible steps and expected behavior.\"\n  - type: textarea\n    id: problem\n    attributes:\n      label: Problem\n      placeholder: What happened?\n    validations:\n      required: true\n  - type: textarea\n    id: reproduce\n    attributes:\n      label: Reproduction steps\n      placeholder: Step by step\n    validations:\n      required: true\n"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/feature_request.yml",
+      "strategy": "create-if-missing",
+      "status": "present-compatible",
+      "existing": "name: Feature request\ndescription: Propose an improvement.\ntitle: \"feature: \"\nlabels: [\"type:feature\", \"status:needs-review\"]\nbody:\n  - type: markdown\n    attributes:\n      value: \"Please describe the user need and expected outcomes.\"\n  - type: textarea\n    id: problem\n    attributes:\n      label: Problem / opportunity\n      placeholder: What should improve?\n    validations:\n      required: true\n  - type: textarea\n    id: proposal\n    attributes:\n      label: Proposed solution\n      placeholder: What are you proposing?\n    validations:\n      required: true\n",
+      "desired": "name: Feature request\ndescription: Propose an improvement.\ntitle: \"feature: \"\nlabels: [\"type:feature\", \"status:needs-review\"]\nbody:\n  - type: markdown\n    attributes:\n      value: \"Please describe the user need and expected outcomes.\"\n  - type: textarea\n    id: problem\n    attributes:\n      label: Problem / opportunity\n      placeholder: What should improve?\n    validations:\n      required: true\n  - type: textarea\n    id: proposal\n    attributes:\n      label: Proposed solution\n      placeholder: What are you proposing?\n    validations:\n      required: true\n"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/config.yml",
+      "strategy": "managed-block",
+      "marker": "OSS_CONTACT_LINKS",
+      "commentStyle": "hash",
+      "status": "present-compatible",
+      "existing": "blank_issues_enabled: false\n\n# OSS_CONTACT_LINKS:START\ncontact_links:\n  - name: Security policy\n    url: https://github.com/ddgutierrezc/legato/blob/main/SECURITY.md\n    about: Read security disclosure guidance before reporting vulnerabilities.\n  - name: Maintainers scope notes\n    url: https://github.com/ddgutierrezc/legato/tree/main/docs/maintainers\n    about: Maintainer process, release constraints, and scope boundaries.\n# OSS_CONTACT_LINKS:END\n",
+      "desired": "blank_issues_enabled: false\n\n# OSS_CONTACT_LINKS:START\ncontact_links:\n  - name: Security policy\n    url: https://github.com/ddgutierrezc/legato/blob/main/SECURITY.md\n    about: Read security disclosure guidance before reporting vulnerabilities.\n  - name: Maintainers scope notes\n    url: https://github.com/ddgutierrezc/legato/tree/main/docs/maintainers\n    about: Maintainer process, release constraints, and scope boundaries.\n# OSS_CONTACT_LINKS:END\n"
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "strategy": "managed-block",
+      "marker": "OSS_DEPENDABOT",
+      "commentStyle": "hash",
+      "status": "present-compatible",
+      "existing": "version: 2\n\n# OSS_DEPENDABOT:START\nupdates:\n  - package-ecosystem: \"npm\"\n    directory: \"/apps/capacitor-demo\"\n    schedule:\n      interval: \"weekly\"\n  - package-ecosystem: \"npm\"\n    directory: \"/packages/capacitor\"\n    schedule:\n      interval: \"weekly\"\n  - package-ecosystem: \"npm\"\n    directory: \"/packages/contract\"\n    schedule:\n      interval: \"weekly\"\n  - package-ecosystem: \"github-actions\"\n    directory: \"/\"\n    schedule:\n      interval: \"weekly\"\n# OSS_DEPENDABOT:END\n",
+      "desired": "version: 2\n\n# OSS_DEPENDABOT:START\nupdates:\n  - package-ecosystem: \"npm\"\n    directory: \"/apps/capacitor-demo\"\n    schedule:\n      interval: \"weekly\"\n  - package-ecosystem: \"npm\"\n    directory: \"/packages/capacitor\"\n    schedule:\n      interval: \"weekly\"\n  - package-ecosystem: \"npm\"\n    directory: \"/packages/contract\"\n    schedule:\n      interval: \"weekly\"\n  - package-ecosystem: \"github-actions\"\n    directory: \"/\"\n    schedule:\n      interval: \"weekly\"\n# OSS_DEPENDABOT:END\n"
+    },
+    {
+      "path": "README.md",
+      "strategy": "managed-block",
+      "marker": "OSS_LINKS",
+      "status": "present-compatible",
+      "existing": "# legato\n\nLegato provides a contract package and a Capacitor integration package for continuous audio playback flows.\n\n## Which package should I install?\n\n## Package decision matrix\n\n| If you need... | Install | Read first |\n|---|---|---|\n| Shared playback types/events/contracts with no Capacitor runtime | `@ddgutierrezc/legato-contract` | [`packages/contract/README.md`](packages/contract/README.md) |\n| Capacitor plugin runtime + namespaced APIs (`audioPlayer`, `mediaSession`) | `@ddgutierrezc/legato-capacitor` + `@ddgutierrezc/legato-contract` | [`packages/capacitor/README.md`](packages/capacitor/README.md) |\n\n## Install\n\n```bash\nnpm install @ddgutierrezc/legato-contract\n```\n\nor\n\n```bash\nnpm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract\n```\n\n## Usage\n\n- Contract-only consumers: use shared symbols like `LEGATO_EVENT_NAMES` from `@ddgutierrezc/legato-contract`.\n- Capacitor consumers: start from `@ddgutierrezc/legato-capacitor` and use `audioPlayer` / `mediaSession`.\n\n## Maintainers\n\nMaintainer-only scope and operational boundaries are documented in [`docs/maintainers/package-documentation-foundation-v1-scope.md`](docs/maintainers/package-documentation-foundation-v1-scope.md).\n\n## Non-goals for package-documentation-foundation-v1\n\n- Non-goal: runtime behavior expansion in native/player engines.\n- Non-goal: release-lane redesign.\n- Non-goal: platform bootstrap automation.\n\n## Contributing\n\nIf you update README/package docs, also run docs drift checks from `apps/capacitor-demo`.\n\n<!-- OSS_LINKS:START -->\n## Community\n\n- [Contributing](./CONTRIBUTING.md)\n- [Code of Conduct](./CODE_OF_CONDUCT.md)\n- [Security Policy](./SECURITY.md)\n<!-- OSS_LINKS:END -->\n",
+      "desired": "# legato\n\nLegato provides a contract package and a Capacitor integration package for continuous audio playback flows.\n\n## Which package should I install?\n\n## Package decision matrix\n\n| If you need... | Install | Read first |\n|---|---|---|\n| Shared playback types/events/contracts with no Capacitor runtime | `@ddgutierrezc/legato-contract` | [`packages/contract/README.md`](packages/contract/README.md) |\n| Capacitor plugin runtime + namespaced APIs (`audioPlayer`, `mediaSession`) | `@ddgutierrezc/legato-capacitor` + `@ddgutierrezc/legato-contract` | [`packages/capacitor/README.md`](packages/capacitor/README.md) |\n\n## Install\n\n```bash\nnpm install @ddgutierrezc/legato-contract\n```\n\nor\n\n```bash\nnpm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract\n```\n\n## Usage\n\n- Contract-only consumers: use shared symbols like `LEGATO_EVENT_NAMES` from `@ddgutierrezc/legato-contract`.\n- Capacitor consumers: start from `@ddgutierrezc/legato-capacitor` and use `audioPlayer` / `mediaSession`.\n\n## Maintainers\n\nMaintainer-only scope and operational boundaries are documented in [`docs/maintainers/package-documentation-foundation-v1-scope.md`](docs/maintainers/package-documentation-foundation-v1-scope.md).\n\n## Non-goals for package-documentation-foundation-v1\n\n- Non-goal: runtime behavior expansion in native/player engines.\n- Non-goal: release-lane redesign.\n- Non-goal: platform bootstrap automation.\n\n## Contributing\n\nIf you update README/package docs, also run docs drift checks from `apps/capacitor-demo`.\n\n<!-- OSS_LINKS:START -->\n## Community\n\n- [Contributing](./CONTRIBUTING.md)\n- [Code of Conduct](./CODE_OF_CONDUCT.md)\n- [Security Policy](./SECURITY.md)\n<!-- OSS_LINKS:END -->\n"
+    }
+  ],
+  "apiOps": [
+    {
+      "id": "branch-protection",
+      "method": "PUT",
+      "endpoint": "/repos/{owner}/{repo}/branches/main/protection",
+      "status": "missing",
+      "payload": {
+        "branch": "main",
+        "required_status_checks": {
+          "strict": true,
+          "contexts": [
+            "npm-readiness"
+          ]
+        },
+        "enforce_admins": false,
+        "required_pull_request_reviews": {
+          "required_approving_review_count": 1,
+          "dismiss_stale_reviews": false,
+          "require_code_owner_reviews": false
+        },
+        "restrictions": null,
+        "allow_force_pushes": false,
+        "allow_deletions": false,
+        "required_linear_history": false
+      }
+    }
+  ],
+  "blockers": []
+}

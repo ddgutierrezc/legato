@@ -41,3 +41,11 @@ Maintainer-only scope and operational boundaries are documented in [`docs/mainta
 ## Contributing
 
 If you update README/package docs, also run docs drift checks from `apps/capacitor-demo`.
+
+<!-- OSS_LINKS:START -->
+## Community
+
+- [Contributing](./CONTRIBUTING.md)
+- [Code of Conduct](./CODE_OF_CONDUCT.md)
+- [Security Policy](./SECURITY.md)
+<!-- OSS_LINKS:END -->

@@ -1,0 +1,58 @@
+{
+  "files": [
+    { "path": "LICENSE", "template": "LICENSE", "strategy": "create-if-missing" },
+    { "path": "CONTRIBUTING.md", "template": "CONTRIBUTING.md", "strategy": "create-if-missing" },
+    { "path": "CODE_OF_CONDUCT.md", "template": "CODE_OF_CONDUCT.md", "strategy": "create-if-missing" },
+    { "path": "SECURITY.md", "template": "SECURITY.md", "strategy": "create-if-missing" },
+    { "path": ".github/CODEOWNERS", "template": ".github/CODEOWNERS", "strategy": "create-if-missing" },
+    { "path": ".github/PULL_REQUEST_TEMPLATE.md", "template": ".github/PULL_REQUEST_TEMPLATE.md", "strategy": "create-if-missing" },
+    { "path": ".github/ISSUE_TEMPLATE/bug_report.yml", "template": ".github/ISSUE_TEMPLATE/bug_report.yml", "strategy": "create-if-missing" },
+    { "path": ".github/ISSUE_TEMPLATE/feature_request.yml", "template": ".github/ISSUE_TEMPLATE/feature_request.yml", "strategy": "create-if-missing" },
+    { "path": ".github/ISSUE_TEMPLATE/config.yml", "template": ".github/ISSUE_TEMPLATE/config.yml", "strategy": "managed-block", "marker": "OSS_CONTACT_LINKS", "commentStyle": "hash", "base": "blank_issues_enabled: false\n" },
+    { "path": ".github/dependabot.yml", "template": ".github/dependabot.yml", "strategy": "managed-block", "marker": "OSS_DEPENDABOT", "commentStyle": "hash", "base": "version: 2\n" },
+    { "path": "README.md", "template": "README.oss-links.md", "strategy": "managed-block", "marker": "OSS_LINKS" }
+  ],
+  "github": {
+    "repo": {
+      "allow_auto_merge": false,
+      "delete_branch_on_merge": true,
+      "allow_update_branch": true,
+      "has_discussions": false,
+      "allow_merge_commit": true,
+      "allow_rebase_merge": true,
+      "allow_squash_merge": true,
+      "security_and_analysis": {
+        "dependabot_security_updates": { "status": "enabled" },
+        "secret_scanning": { "status": "enabled" },
+        "secret_scanning_push_protection": { "status": "enabled" }
+      }
+    },
+    "topics": ["legato", "capacitor", "audio", "opensource"],
+    "requiredLabels": [
+      { "name": "status:needs-review", "color": "d4c5f9", "description": "Needs reviewer triage" }
+    ],
+    "branchProtection": {
+      "branch": "main",
+      "required_status_checks": {
+        "strict": true,
+        "contexts": ["npm-readiness"]
+      },
+      "enforce_admins": false,
+      "required_pull_request_reviews": {
+        "required_approving_review_count": 1,
+        "dismiss_stale_reviews": false,
+        "require_code_owner_reviews": false
+      },
+      "restrictions": null,
+      "allow_force_pushes": false,
+      "allow_deletions": false,
+      "required_linear_history": false
+    }
+  },
+  "dependabotTargets": [
+    { "ecosystem": "npm", "directory": "/apps/capacitor-demo" },
+    { "ecosystem": "npm", "directory": "/packages/capacitor" },
+    { "ecosystem": "npm", "directory": "/packages/contract" },
+    { "ecosystem": "github-actions", "directory": "/" }
+  ]
+}
