@@ -6,11 +6,18 @@ import { spawn } from 'node:child_process';
 
 const PASS = 'PASS';
 const FAIL = 'FAIL';
+const WARN = 'WARN';
 const PROOF_MODE_CONSUMER_ADOPTION = 'consumer-adoption';
 const PROOF_MODE_NPM_READINESS = 'npm-readiness';
+const VALIDATION_PROFILE_MANUAL_CONSUMER_PROOF = 'manual-consumer-proof';
+const VALIDATION_PROFILE_CI_NPM_READINESS = 'ci-npm-readiness';
 const VALID_PROOF_MODES = new Set([
   PROOF_MODE_CONSUMER_ADOPTION,
   PROOF_MODE_NPM_READINESS,
+]);
+const VALID_VALIDATION_PROFILES = new Set([
+  VALIDATION_PROFILE_MANUAL_CONSUMER_PROOF,
+  VALIDATION_PROFILE_CI_NPM_READINESS,
 ]);
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -20,10 +27,71 @@ const defaultArtifactsDir = resolve(scriptDir, '../artifacts/external-consumer-v
 
 const normalizePath = (value) => resolve(value).replaceAll('\\', '/');
 
+const resolveHomePath = () => {
+  if (typeof process.env.HOME === 'string' && process.env.HOME.trim().length > 0) {
+    return resolve(process.env.HOME);
+  }
+  return null;
+};
+
 const isInside = (target, root) => {
   const normalizedTarget = normalizePath(target);
   const normalizedRoot = normalizePath(root).replace(/\/+$/, '');
   return normalizedTarget === normalizedRoot || normalizedTarget.startsWith(`${normalizedRoot}/`);
+};
+
+const VALID_HOST_STRATEGIES = new Set(['preserve', 'regenerate']);
+
+const resolveValidationProfile = ({ validationProfile, proofMode }) => {
+  const normalizedValidationProfile = typeof validationProfile === 'string'
+    ? validationProfile.trim()
+    : '';
+  if (VALID_VALIDATION_PROFILES.has(normalizedValidationProfile)) {
+    return normalizedValidationProfile;
+  }
+
+  if (String(proofMode ?? '').trim() === PROOF_MODE_NPM_READINESS) {
+    return VALIDATION_PROFILE_CI_NPM_READINESS;
+  }
+
+  return VALIDATION_PROFILE_MANUAL_CONSUMER_PROOF;
+};
+
+const assertConsumerRootCleanupSafety = async ({ repoRoot, consumerRoot, allowlistRoots = [] }) => {
+  const normalizedConsumerRoot = resolve(consumerRoot);
+  const homePath = resolveHomePath();
+
+  if (normalizedConsumerRoot === '/' || normalizedConsumerRoot === homePath) {
+    throw new Error(`Safety boundary rejected cleanup target: refusing destructive cleanup for root/home path (${normalizedConsumerRoot}).`);
+  }
+
+  if (isInside(normalizedConsumerRoot, repoRoot)) {
+    throw new Error(`Safety boundary rejected cleanup target: consumer root must be outside repo root. repoRoot=${repoRoot} consumerRoot=${normalizedConsumerRoot}`);
+  }
+
+  if (!allowlistRoots.some((root) => isInside(normalizedConsumerRoot, root))) {
+    throw new Error(`Safety boundary rejected cleanup target: consumer root is outside allowlisted boundaries. consumerRoot=${normalizedConsumerRoot}`);
+  }
+
+  const sentinelPath = join(normalizedConsumerRoot, '.legato-consumer-root');
+  const hasSentinel = await pathExists(sentinelPath);
+  if (!hasSentinel) {
+    throw new Error(`Safety boundary rejected cleanup target: missing ${sentinelPath} sentinel file required for consumer-owned regeneration.`);
+  }
+};
+
+const writeCommandTranscript = async ({ artifactsDir, commandTranscript }) => {
+  const commandTranscriptPath = join(artifactsDir, 'command-transcript.log');
+  const output = commandTranscript.length === 0
+    ? '# no commands executed\n'
+    : `${commandTranscript.join('\n')}\n`;
+  await writeFile(commandTranscriptPath, output, 'utf8');
+  return commandTranscriptPath;
+};
+
+const createCommandRunnerRecorder = ({ commandRunner, commandTranscript }) => async (commandInput) => {
+  commandTranscript.push(`${commandInput.command} ${(commandInput.args ?? []).join(' ')}`.trim());
+  return commandRunner(commandInput);
 };
 
 export const ensureFixtureOutsideRepo = ({ repoRoot, fixtureRoot }) => {
@@ -397,10 +465,63 @@ const runRegistryPreflight = async ({ commandRunner, cwd, capacitorSpecifier, co
   });
 };
 
+export const evaluateConsumerAdoption = ({ runtimeProof }) => {
+  const failures = [];
+  const warnings = [];
+
+  if (runtimeProof.cliHelp.status !== PASS) {
+    failures.push('Installed CLI runtime proof failed: `npx legato --help` output did not contain expected usage text.');
+  }
+
+  if (runtimeProof.documentedImport.status !== PASS) {
+    warnings.push('Manual consumer proof warning: documented package root import is currently informational in this profile.');
+  }
+
+  if (runtimeProof.deepImportRejection.status !== PASS) {
+    failures.push('Undocumented deep import rejection proof failed: expected ERR_PACKAGE_PATH_NOT_EXPORTED evidence.');
+  }
+
+  return {
+    status: failures.length === 0 ? PASS : FAIL,
+    failures,
+    warnings,
+    classification: failures.length === 0
+      ? 'manual-consumer-proof-passed'
+      : 'manual-consumer-proof-contract-violation',
+    remediation: failures.length === 0
+      ? 'Attach manual real-device evidence to complete release packet.'
+      : 'Fix runtime/exports regressions before relying on consumer adoption evidence.',
+  };
+};
+
+export const evaluateNpmReadiness = ({ runtimeProof }) => {
+  const failures = [];
+  if (runtimeProof.cliHelp.status !== PASS) {
+    failures.push('Installed CLI runtime proof failed: `npx legato --help` output did not contain expected usage text.');
+  }
+  if (runtimeProof.documentedImport.status !== PASS) {
+    failures.push('Documented import runtime proof failed: package root import is release-blocking in ci-npm-readiness profile.');
+  }
+  if (runtimeProof.deepImportRejection.status !== PASS) {
+    failures.push('Undocumented deep import rejection proof failed: expected ERR_PACKAGE_PATH_NOT_EXPORTED evidence.');
+  }
+
+  return {
+    status: failures.length === 0 ? PASS : FAIL,
+    failures,
+    warnings: [],
+    classification: failures.length === 0
+      ? 'ci-npm-readiness-passed'
+      : 'ci-npm-readiness-contract-violation',
+    remediation: failures.length === 0
+      ? 'Ready for CI gating. Still attach manual real-device evidence for final release confidence.'
+      : 'Fix packaging/runtime export issues before running release gate.',
+  };
+};
+
 const runRuntimeProof = async ({
   commandRunner,
   cwd,
-  proofMode = PROOF_MODE_CONSUMER_ADOPTION,
 }) => {
   const failures = [];
   const runtimeProof = {
@@ -410,7 +531,6 @@ const runRuntimeProof = async ({
   };
 
   const didCliHelpMatch = (output) => /usage:|legato\s+native|legato\s+\[|legato\s+<|legato\s+--help/i.test(output);
-  const documentedImportIsBlocking = true;
 
   try {
     const cliHelp = await commandRunner({
@@ -445,15 +565,13 @@ const runRuntimeProof = async ({
     runtimeProof.documentedImport.output = output;
     if (/documented import ok/i.test(output)) {
       runtimeProof.documentedImport.status = PASS;
-    } else if (documentedImportIsBlocking) {
+    } else {
       failures.push('Documented import runtime proof failed: package root import did not report success.');
     }
   } catch (error) {
     const output = `${error?.stdout ?? ''}${error?.stderr ?? ''}`;
     runtimeProof.documentedImport.output = output;
-    if (documentedImportIsBlocking) {
-      failures.push('Documented import runtime proof failed: package root import threw unexpectedly.');
-    }
+    failures.push('Documented import runtime proof failed: package root import threw unexpectedly.');
   }
 
   try {
@@ -481,12 +599,23 @@ const runRuntimeProof = async ({
   };
 };
 
-const parseArgs = (argv) => {
+const requireValue = (argv, index, flag) => {
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) {
+    throw new Error(`Missing value for ${flag}`);
+  }
+  return value;
+};
+
+export const parseArgs = (argv) => {
   const options = {
     repoRoot: defaultRepoRoot,
     artifactsDir: defaultArtifactsDir,
     consumerRoot: undefined,
     keepFixture: false,
+    hostStrategy: undefined,
+    allowConsumerRootRegeneration: false,
+    consumerRootAllowlist: [],
     skipPack: false,
     tarballs: {},
     registrySpecs: {
@@ -494,22 +623,28 @@ const parseArgs = (argv) => {
       capacitor: '@ddgutierrezc/legato-capacitor@0.1.1',
     },
     proofMode: PROOF_MODE_CONSUMER_ADOPTION,
+    validationProfile: undefined,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === '--repo-root' && argv[i + 1]) {
-      options.repoRoot = resolve(argv[i + 1]);
+    if (arg === '--repo-root') {
+      options.repoRoot = resolve(requireValue(argv, i, arg));
       i += 1;
       continue;
     }
-    if (arg === '--artifacts-dir' && argv[i + 1]) {
-      options.artifactsDir = resolve(argv[i + 1]);
+    if (arg === '--artifacts-dir') {
+      options.artifactsDir = resolve(requireValue(argv, i, arg));
       i += 1;
       continue;
     }
-    if (arg === '--consumer-root' && argv[i + 1]) {
-      options.consumerRoot = resolve(argv[i + 1]);
+    if (arg === '--consumer-root') {
+      options.consumerRoot = resolve(requireValue(argv, i, arg));
+      i += 1;
+      continue;
+    }
+    if (arg === '--consumer-root-allowlist') {
+      options.consumerRootAllowlist.push(resolve(requireValue(argv, i, arg)));
       i += 1;
       continue;
     }
@@ -517,34 +652,51 @@ const parseArgs = (argv) => {
       options.keepFixture = true;
       continue;
     }
+    if (arg === '--allow-consumer-root-regeneration') {
+      options.allowConsumerRootRegeneration = true;
+      continue;
+    }
+    if (arg === '--host-strategy') {
+      options.hostStrategy = requireValue(argv, i, arg);
+      i += 1;
+      continue;
+    }
     if (arg === '--skip-pack') {
       options.skipPack = true;
       continue;
     }
-    if (arg === '--tarball-contract' && argv[i + 1]) {
-      options.tarballs.contract = resolve(argv[i + 1]);
+    if (arg === '--tarball-contract') {
+      options.tarballs.contract = resolve(requireValue(argv, i, arg));
       i += 1;
       continue;
     }
-    if (arg === '--tarball-capacitor' && argv[i + 1]) {
-      options.tarballs.capacitor = resolve(argv[i + 1]);
+    if (arg === '--tarball-capacitor') {
+      options.tarballs.capacitor = resolve(requireValue(argv, i, arg));
       i += 1;
       continue;
     }
-    if (arg === '--registry-contract' && argv[i + 1]) {
-      options.registrySpecs.contract = argv[i + 1];
+    if (arg === '--registry-contract') {
+      options.registrySpecs.contract = requireValue(argv, i, arg);
       i += 1;
       continue;
     }
-    if (arg === '--registry-capacitor' && argv[i + 1]) {
-      options.registrySpecs.capacitor = argv[i + 1];
+    if (arg === '--registry-capacitor') {
+      options.registrySpecs.capacitor = requireValue(argv, i, arg);
       i += 1;
       continue;
     }
-    if (arg === '--proof-mode' && argv[i + 1]) {
-      options.proofMode = argv[i + 1];
+    if (arg === '--proof-mode') {
+      options.proofMode = requireValue(argv, i, arg);
       i += 1;
+      continue;
     }
+    if (arg === '--validation-profile') {
+      options.validationProfile = requireValue(argv, i, arg);
+      i += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown argument: ${arg}`);
   }
 
   return options;
@@ -560,13 +712,20 @@ export const runExternalConsumerValidation = async ({
   commandRunner = runCommand,
   skipPack = false,
   tarballs: providedTarballs,
+  hostStrategy,
+  allowConsumerRootRegeneration = false,
+  consumerRootAllowlist = [],
   registrySpecs = {
     contract: '@ddgutierrezc/legato-contract@0.1.1',
     capacitor: '@ddgutierrezc/legato-capacitor@0.1.1',
   },
   proofMode = PROOF_MODE_CONSUMER_ADOPTION,
+  validationProfile,
 } = {}) => {
   const failures = [];
+  const warnings = [];
+  const commandTranscript = [];
+  const commandRunnerWithTranscript = createCommandRunnerRecorder({ commandRunner, commandTranscript });
   const areas = {
     registryPreflight: FAIL,
     isolation: FAIL,
@@ -577,10 +736,15 @@ export const runExternalConsumerValidation = async ({
   };
 
   const normalizedProofMode = VALID_PROOF_MODES.has(String(proofMode ?? '').trim())
-    ? String(proofMode).trim()
+    ? String(proofMode ?? '').trim()
     : null;
   if (!normalizedProofMode) {
     throw new Error(`proof_mode must be one of ${PROOF_MODE_CONSUMER_ADOPTION}, ${PROOF_MODE_NPM_READINESS}. Received: ${proofMode}`);
+  }
+
+  const resolvedValidationProfile = resolveValidationProfile({ validationProfile, proofMode: normalizedProofMode });
+  if (!VALID_VALIDATION_PROFILES.has(resolvedValidationProfile)) {
+    throw new Error(`validation_profile must be one of ${VALIDATION_PROFILE_MANUAL_CONSUMER_PROOF}, ${VALIDATION_PROFILE_CI_NPM_READINESS}. Received: ${validationProfile}`);
   }
 
   await mkdir(artifactsDir, { recursive: true });
@@ -589,6 +753,12 @@ export const runExternalConsumerValidation = async ({
   const resolvedFixtureRoot = useConsumerOwnedRoot
     ? resolve(consumerRoot)
     : (fixtureRoot ?? await mkdtemp(join(tmpdir(), 'legato-external-consumer-')));
+  const resolvedHostStrategy = typeof hostStrategy === 'string' && hostStrategy.trim().length > 0
+    ? hostStrategy.trim()
+    : (useConsumerOwnedRoot ? 'preserve' : 'regenerate');
+  if (!VALID_HOST_STRATEGIES.has(resolvedHostStrategy)) {
+    throw new Error(`host_strategy must be one of preserve, regenerate. Received: ${hostStrategy}`);
+  }
   const tarballs = {
     capacitor: providedTarballs?.capacitor,
     contract: providedTarballs?.contract,
@@ -598,35 +768,49 @@ export const runExternalConsumerValidation = async ({
     : Boolean(tarballs.contract || tarballs.capacitor);
 
   const runManifest = {
+    runId: `consumer-proof-${Date.now()}`,
+    schemaVersion: 2,
     repoRoot,
     fixtureRoot: resolvedFixtureRoot,
     artifactsDir,
     tarballs,
+    validationProfile: resolvedValidationProfile,
     proofMode: normalizedProofMode,
+    hostStrategy: resolvedHostStrategy,
     startedAt: new Date().toISOString(),
+    checks: {},
+    artifacts: [],
+    externalEvidence: [],
   };
 
   const capSyncLogPath = join(artifactsDir, 'cap-sync.log');
   const typecheckLogPath = join(artifactsDir, 'typecheck.log');
   const validatorSummaryPath = join(artifactsDir, 'validator-summary.txt');
   const runManifestPath = join(artifactsDir, 'run-manifest.json');
+  const summaryCliPath = join(artifactsDir, 'summary-cli.json');
   const installMetadataPath = join(artifactsDir, 'install-metadata.json');
   const dependencyScanPath = join(artifactsDir, 'dependency-scan.json');
   const tarballEntrypointCheckPath = join(artifactsDir, 'tarball-entrypoint-check.json');
   const summaryPath = join(artifactsDir, 'summary.json');
   let packageEvidence = null;
   let runtimeProof = null;
+  let commandTranscriptPath = null;
+  let policy = {
+    status: FAIL,
+    failures: [],
+    warnings: [],
+    classification: 'not-evaluated',
+    remediation: 'Policy evaluation did not run.',
+  };
 
   try {
-    ensureFixtureOutsideRepo({ repoRoot, fixtureRoot: resolvedFixtureRoot });
-    if (!useConsumerOwnedRoot) {
-      await cp(templateRoot, resolvedFixtureRoot, { recursive: true, force: true });
-      await ensureFixtureScaffold(resolvedFixtureRoot);
-    }
+    await commandRunnerWithTranscript({ command: 'node', args: ['--version'], cwd: repoRoot });
+    await commandRunnerWithTranscript({ command: 'npm', args: ['--version'], cwd: repoRoot });
+    await commandRunnerWithTranscript({ command: 'npx', args: ['--version'], cwd: repoRoot });
 
     const preflight = await runRegistryPreflight({
-      commandRunner,
-      cwd: resolvedFixtureRoot,
+      commandRunner: commandRunnerWithTranscript,
+      cwd: repoRoot,
       capacitorSpecifier: registrySpecs.capacitor,
       contractSpecifier: registrySpecs.contract,
     });
@@ -636,13 +820,36 @@ export const runExternalConsumerValidation = async ({
     }
     areas.registryPreflight = PASS;
 
+    ensureFixtureOutsideRepo({ repoRoot, fixtureRoot: resolvedFixtureRoot });
+    if (!useConsumerOwnedRoot) {
+      await rm(resolvedFixtureRoot, { recursive: true, force: true });
+      await cp(templateRoot, resolvedFixtureRoot, { recursive: true, force: true });
+      await ensureFixtureScaffold(resolvedFixtureRoot);
+    }
+
+    if (useConsumerOwnedRoot && resolvedHostStrategy === 'regenerate') {
+      if (!allowConsumerRootRegeneration) {
+        throw new Error('Safety boundary rejected cleanup target: consumer-owned host regeneration requires --allow-consumer-root-regeneration.');
+      }
+      await assertConsumerRootCleanupSafety({
+        repoRoot,
+        consumerRoot: resolvedFixtureRoot,
+        allowlistRoots: [resolve(repoRoot, '..'), ...consumerRootAllowlist],
+      });
+      await rm(join(resolvedFixtureRoot, 'ios'), { recursive: true, force: true });
+      await rm(join(resolvedFixtureRoot, 'android'), { recursive: true, force: true });
+      await rm(join(resolvedFixtureRoot, 'node_modules'), { recursive: true, force: true });
+      await rm(join(resolvedFixtureRoot, 'package-lock.json'), { force: true });
+      await ensureFixtureScaffold(resolvedFixtureRoot);
+    }
+
     if (!skipPack && usingTarballMode) {
-      const contractPack = await commandRunner({
+      const contractPack = await commandRunnerWithTranscript({
         command: 'npm',
         args: ['pack', '--pack-destination', artifactsDir],
         cwd: resolve(repoRoot, 'packages/contract'),
       });
-      const capacitorPack = await commandRunner({
+      const capacitorPack = await commandRunnerWithTranscript({
         command: 'npm',
         args: ['pack', '--pack-destination', artifactsDir],
         cwd: resolve(repoRoot, 'packages/capacitor'),
@@ -663,7 +870,7 @@ export const runExternalConsumerValidation = async ({
       installArgs.push(registrySpecs.contract, registrySpecs.capacitor);
     }
 
-    await commandRunner({
+    await commandRunnerWithTranscript({
       command: 'npm',
       args: installArgs,
       cwd: resolvedFixtureRoot,
@@ -719,22 +926,27 @@ export const runExternalConsumerValidation = async ({
     }
 
     const runtimeProofResult = await runRuntimeProof({
-      commandRunner,
+      commandRunner: commandRunnerWithTranscript,
       cwd: resolvedFixtureRoot,
-      proofMode: normalizedProofMode,
     });
     runtimeProof = runtimeProofResult.runtimeProof;
-    if (runtimeProofResult.status !== PASS) {
-      failures.push(...runtimeProofResult.failures);
+    if (runtimeProofResult.failures.length > 0) {
+      warnings.push(...runtimeProofResult.failures);
     }
+
+    policy = resolvedValidationProfile === VALIDATION_PROFILE_CI_NPM_READINESS
+      ? evaluateNpmReadiness({ runtimeProof })
+      : evaluateConsumerAdoption({ runtimeProof });
+    failures.push(...policy.failures);
+    warnings.push(...policy.warnings);
 
     const consumerPackageJson = await readJsonIfPresent(join(resolvedFixtureRoot, 'package.json'));
     const capacitorEntrypoints = collectDeclaredEntrypoints(installedCapacitorPackageJson ?? {});
     const contractEntrypoints = collectDeclaredEntrypoints(installedContractPackageJson ?? {});
     const missingEntrypoints = [];
     if (usingTarballMode) {
-      const capacitorTarEntries = await listTarballEntries({ tarballPath: tarballs.capacitor, commandRunner });
-      const contractTarEntries = await listTarballEntries({ tarballPath: tarballs.contract, commandRunner });
+      const capacitorTarEntries = await listTarballEntries({ tarballPath: tarballs.capacitor, commandRunner: commandRunnerWithTranscript });
+      const contractTarEntries = await listTarballEntries({ tarballPath: tarballs.contract, commandRunner: commandRunnerWithTranscript });
       missingEntrypoints.push(
         ...verifyEntrypointsInTarball({
           entrypoints: capacitorEntrypoints,
@@ -790,21 +1002,21 @@ export const runExternalConsumerValidation = async ({
     const compileArgs = consumerPackageJson?.scripts?.typecheck
       ? ['run', 'typecheck']
       : ['run', 'build'];
-    const typecheckResult = await commandRunner({ command: 'npm', args: compileArgs, cwd: resolvedFixtureRoot });
+    const typecheckResult = await commandRunnerWithTranscript({ command: 'npm', args: compileArgs, cwd: resolvedFixtureRoot });
     await writeFile(typecheckLogPath, `${typecheckResult.stdout}${typecheckResult.stderr}`, 'utf8');
 
     await ensureCapacitorPlatform({
       fixtureRoot: resolvedFixtureRoot,
       platform: 'ios',
-      commandRunner,
+      commandRunner: commandRunnerWithTranscript,
     });
     await ensureCapacitorPlatform({
       fixtureRoot: resolvedFixtureRoot,
       platform: 'android',
-      commandRunner,
+      commandRunner: commandRunnerWithTranscript,
     });
 
-    const capSyncResult = await commandRunner({
+    const capSyncResult = await commandRunnerWithTranscript({
       command: 'npx',
       args: ['cap', 'sync', 'ios', 'android'],
       cwd: resolvedFixtureRoot,
@@ -812,7 +1024,7 @@ export const runExternalConsumerValidation = async ({
     await writeFile(capSyncLogPath, `${capSyncResult.stdout}${capSyncResult.stderr}`, 'utf8');
     areas.typecheckAndSync = PASS;
 
-    const validatorCli = await commandRunner({
+    const validatorCli = await commandRunnerWithTranscript({
       command: 'node',
       args: [
         resolve(scriptDir, 'validate-native-artifacts.mjs'),
@@ -846,8 +1058,60 @@ export const runExternalConsumerValidation = async ({
       failures.push(error.message);
     }
   } finally {
+    commandTranscriptPath = await writeCommandTranscript({ artifactsDir, commandTranscript });
     runManifest.tarballs = tarballs;
+    runManifest.finishedAt = new Date().toISOString();
+    runManifest.checks = {
+      registryPreflight: areas.registryPreflight,
+      isolation: areas.isolation,
+      installability: areas.installability,
+      packedEntrypoints: areas.packedEntrypoints,
+      typecheckAndSync: areas.typecheckAndSync,
+      validatorReuse: areas.validatorReuse,
+      policy: policy.status,
+    };
+    runManifest.artifacts = [
+      { key: 'summary', path: summaryPath, required: true },
+      { key: 'summaryCli', path: summaryCliPath, required: true },
+      { key: 'runManifest', path: runManifestPath, required: true },
+      { key: 'installMetadata', path: installMetadataPath, required: true },
+      { key: 'dependencyScan', path: dependencyScanPath, required: true },
+      { key: 'typecheckLog', path: typecheckLogPath, required: true },
+      { key: 'capSyncLog', path: capSyncLogPath, required: true },
+      { key: 'validatorSummary', path: validatorSummaryPath, required: true },
+      { key: 'tarballEntrypointCheck', path: tarballEntrypointCheckPath, required: true },
+      { key: 'commandTranscript', path: commandTranscriptPath, required: true },
+    ];
+    runManifest.externalEvidence = [
+      {
+        kind: 'manual-real-device-proof',
+        required: resolvedValidationProfile === VALIDATION_PROFILE_MANUAL_CONSUMER_PROOF,
+        note: 'Manual/real-device playback proof remains out of full automation scope.',
+      },
+    ];
     await writeFile(runManifestPath, stringify(runManifest), 'utf8');
+  }
+
+  const requiredArtifactChecks = [
+    { key: 'runManifest', path: runManifestPath },
+    { key: 'installMetadata', path: installMetadataPath },
+    { key: 'dependencyScan', path: dependencyScanPath },
+    { key: 'typecheckLog', path: typecheckLogPath },
+    { key: 'capSyncLog', path: capSyncLogPath },
+    { key: 'validatorSummary', path: validatorSummaryPath },
+    { key: 'tarballEntrypointCheck', path: tarballEntrypointCheckPath },
+    { key: 'commandTranscript', path: commandTranscriptPath },
+  ];
+  const missingArtifacts = [];
+  for (const artifact of requiredArtifactChecks) {
+    // eslint-disable-next-line no-await-in-loop
+    const exists = await pathExists(artifact.path);
+    if (!exists) {
+      missingArtifacts.push(artifact.key);
+    }
+  }
+  if (missingArtifacts.length > 0) {
+    failures.push(`Evidence contract violation: missing required artifacts (${missingArtifacts.join(', ')}).`);
   }
 
   const status = failures.length === 0 ? PASS : FAIL;
@@ -856,21 +1120,41 @@ export const runExternalConsumerValidation = async ({
     exitCode: status === PASS ? 0 : 1,
     areas,
     failures,
+    warnings,
     packageEvidence,
     runtimeProof,
+    validationProfile: resolvedValidationProfile,
+    policy,
     artifacts: {
       runManifestPath,
+      summaryPath,
+      summaryCliPath,
       installMetadataPath,
       dependencyScanPath,
       typecheckLogPath,
       capSyncLogPath,
       validatorSummaryPath,
       tarballEntrypointCheckPath,
+      commandTranscriptPath,
     },
     fixtureRoot: resolvedFixtureRoot,
   };
 
   await writeFile(summaryPath, stringify(summary), 'utf8');
+  await writeFile(summaryCliPath, stringify({
+    status,
+    exitCode: status === PASS ? 0 : 1,
+    proofMode: normalizedProofMode,
+    validationProfile: resolvedValidationProfile,
+    policy: {
+      status: policy.status,
+      classification: policy.classification,
+      remediation: policy.remediation,
+    },
+    areas,
+    failures,
+    warnings,
+  }), 'utf8');
 
   if (!keepFixture && !useConsumerOwnedRoot) {
     await rm(resolvedFixtureRoot, { recursive: true, force: true });

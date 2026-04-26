@@ -1,4 +1,4 @@
-# External Consumer Validation V2 — Evidence Report
+# External Consumer Validation V3 — Evidence Report
 
 ## Phase 0 — Registry alignment baseline
 
@@ -87,10 +87,11 @@
 
 ### Command
 
-`node apps/capacitor-demo/scripts/run-external-consumer-validation.mjs --consumer-root /Volumes/S3/daniel/github/legato-consumer-smoke --skip-pack --registry-capacitor @ddgutierrezc/legato-capacitor@0.1.1 --registry-contract @ddgutierrezc/legato-contract@0.1.1 --artifacts-dir apps/capacitor-demo/artifacts/external-consumer-validation-v1`
+`node apps/capacitor-demo/scripts/run-external-consumer-validation.mjs --validation-profile manual-consumer-proof --proof-mode consumer-adoption --consumer-root /Volumes/S3/daniel/github/legato-consumer-smoke --skip-pack --registry-capacitor @ddgutierrezc/legato-capacitor@0.1.1 --registry-contract @ddgutierrezc/legato-contract@0.1.1 --artifacts-dir apps/capacitor-demo/artifacts/external-consumer-validation-v1`
 
 ### Output summary
 
+- `apps/capacitor-demo/artifacts/external-consumer-validation-v1/summary.json` reports `status=PASS`
 - `apps/capacitor-demo/artifacts/external-consumer-validation-v1/summary-cli.json` reports `status=PASS`
 - All areas PASS: `registryPreflight`, `isolation`, `installability`, `packedEntrypoints`, `typecheckAndSync`, `validatorReuse`.
 
@@ -98,12 +99,17 @@
 
 #### Command
 
-`node apps/capacitor-demo/scripts/run-external-consumer-validation.mjs --consumer-root /Volumes/S3/daniel/github/legato-consumer-smoke --skip-pack --registry-capacitor @ddgutierrezc/legato-capacitor@0.1.2 --registry-contract @ddgutierrezc/legato-contract@0.1.2 --artifacts-dir apps/capacitor-demo/artifacts/external-consumer-validation-v1`
+`node apps/capacitor-demo/scripts/run-external-consumer-validation.mjs --validation-profile ci-npm-readiness --proof-mode npm-readiness --consumer-root /Volumes/S3/daniel/github/legato-consumer-smoke --skip-pack --registry-capacitor @ddgutierrezc/legato-capacitor@0.1.2 --registry-contract @ddgutierrezc/legato-contract@0.1.2 --artifacts-dir apps/capacitor-demo/artifacts/external-consumer-validation-v1`
 
 #### Output summary
 
 - `apps/capacitor-demo/artifacts/external-consumer-validation-v1/summary-cli.json` reports `status=PASS`.
 - `apps/capacitor-demo/artifacts/external-consumer-validation-v1/install-metadata.json` shows both packages resolved from npm registry at `0.1.2`.
+
+### Boundary acknowledgement
+
+- Manual/real-device playback proof remains required and is attached separately.
+- Automated profile output is evidence support, not a full replacement for hands-on validation.
 
 ### Native validator proof
 

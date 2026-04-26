@@ -15,6 +15,8 @@
     "collect:smoke:ios": "node ./scripts/collect-ios-smoke.mjs --output ./artifacts/ios-smoke-report.json",
     "validate:native:artifacts": "node ./scripts/validate-native-artifacts.mjs --plugin-gradle ../../packages/capacitor/android/build.gradle --native-artifacts-contract ../../packages/capacitor/native-artifacts.json --android-settings ./android/settings.gradle --capapp-spm-package ./ios/App/CapApp-SPM/Package.swift --plugin-swift-package ../../packages/capacitor/Package.swift --plugin-swift-source ../../packages/capacitor/ios/Sources/LegatoPlugin/LegatoPlugin.swift --capacitor-config ./ios/App/App/capacitor.config.json",
     "validate:external:consumer": "node ./scripts/run-external-consumer-validation.mjs",
+    "validate:external:consumer:manual-proof": "node ./scripts/run-external-consumer-validation.mjs --validation-profile manual-consumer-proof --proof-mode consumer-adoption",
+    "validate:external:consumer:ci-readiness": "node ./scripts/run-external-consumer-validation.mjs --validation-profile ci-npm-readiness --proof-mode npm-readiness",
     "validate:npm:readiness": "node ./scripts/run-npm-readiness.mjs",
     "release:npm:policy": "node ./scripts/run-npm-release-policy.mjs",
     "release:npm:execute": "node ./scripts/release-npm-execution.mjs",

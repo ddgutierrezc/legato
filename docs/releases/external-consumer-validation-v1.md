@@ -1,13 +1,26 @@
-# External Consumer Validation V2 — Registry-First Release Gate
+# External Consumer Validation V3 — Profiled Registry-First Gate
 
 This runbook is the release gate that proves Legato is adoptable from the **public npm registry** by a clean Ionic + Capacitor consumer app.
 
-## Scope Boundaries (v2)
+## Scope Boundaries (v3)
 
 - Registry-first release gate: npm metadata is the source of truth.
 - Manual proof in `/Volumes/S3/daniel/github/legato-consumer-smoke` is required before automation is accepted.
 - Native validation must inspect consumer-owned/generated artifacts (`android/settings.gradle`, `ios/App/CapApp-SPM/Package.swift`, `ios/App/App/capacitor.config.json`).
-- Do NOT use `file:`, workspace, tarball, or `link:` dependencies as consumer-adoption evidence.
+- Do NOT use `workspace:` or `link:` dependencies in any profile.
+- `file:` tarballs are allowed only for `ci-npm-readiness` when validating publishable package contents.
+
+## Validation Profiles
+
+- `manual-consumer-proof` (human confidence profile)
+  - Primary truth source: app-level install/build/sync/native validator outcomes.
+  - Package root Node import mismatch is **informational** when app-level proof passes.
+  - Still requires manual/real-device evidence attachment.
+- `ci-npm-readiness` (release gate profile)
+  - Package root Node import/runtime packaging checks are **blocking**.
+  - Intended for deterministic CI contract checks.
+
+Legacy `--proof-mode` remains available for source-mode compatibility (`consumer-adoption` / `npm-readiness`), but release reporting should always include explicit `--validation-profile`.
 
 ## Phase 0 — Registry peer/version alignment blocker
 
@@ -50,7 +63,8 @@ Run from `/Volumes/S3/daniel/github/legato-consumer-smoke`:
 
 Run from `apps/capacitor-demo`:
 
-1. `node ./scripts/run-external-consumer-validation.mjs`
+1. Manual profile: `npm run validate:external:consumer:manual-proof`
+2. CI profile: `npm run validate:external:consumer:ci-readiness`
 2. `node ./scripts/validate-native-artifacts.mjs ...`
 
 Automation MUST reject local-shortcut proofs and preserve parity with the manual sequence above.
@@ -62,9 +76,18 @@ Automation MUST reject local-shortcut proofs and preserve parity with the manual
 - Consumer Android discovery files: `android/settings.gradle`, `node_modules/@ddgutierrezc/legato-capacitor/android/build.gradle`.
 - Consumer iOS discovery files: `ios/App/CapApp-SPM/Package.swift`, `ios/App/App/capacitor.config.json` with `packageClassList`.
 - Automation outputs:
-  - `apps/capacitor-demo/artifacts/external-consumer-validation-v1/summary.json`
-  - `apps/capacitor-demo/artifacts/external-consumer-validation-v1/run-manifest.json`
-  - `apps/capacitor-demo/artifacts/external-consumer-validation-v1/dependency-scan.json`
+- `apps/capacitor-demo/artifacts/external-consumer-validation-v1/summary.json`
+- `apps/capacitor-demo/artifacts/external-consumer-validation-v1/summary-cli.json`
+- `apps/capacitor-demo/artifacts/external-consumer-validation-v1/run-manifest.json`
+- `apps/capacitor-demo/artifacts/external-consumer-validation-v1/dependency-scan.json`
+
+## Manual-only / Real-device Boundaries (explicitly out of automation scope)
+
+- Physical-device playback verification (lock-screen controls, interruptions, BT/headset routes).
+- Human verification of UX behavior in external consumer app screens.
+- Store/distribution-specific checks outside npm + Capacitor host generation.
+
+Automation profiles do **not** replace these checks; they produce deterministic evidence to accompany manual proof.
 
 ## Release Readiness Checklist
 
