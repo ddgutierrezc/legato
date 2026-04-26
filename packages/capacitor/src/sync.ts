@@ -1,5 +1,10 @@
-import type { PluginListenerHandle } from '@capacitor/core';
-import type { AudioPlayerApi, LegatoEventName, LegatoEventPayloadMap, PlaybackSnapshot } from './definitions';
+import type {
+  AudioPlayerApi,
+  BindingListenerHandle,
+  LegatoEventName,
+  LegatoEventPayloadMap,
+  PlaybackSnapshot,
+} from './definitions';
 import { AUDIO_PLAYER_EVENTS } from './events';
 import { Legato } from './plugin';
 
@@ -26,7 +31,7 @@ export interface AudioPlayerSyncOptions extends LegatoSyncOptions {
 
 export function createLegatoSync(options: LegatoSyncOptions = {}): LegatoSyncController {
   const client = options.client ?? Legato;
-  const handles: PluginListenerHandle[] = [];
+  const handles: BindingListenerHandle[] = [];
   let current: PlaybackSnapshot | null = null;
 
   const publishSnapshot = (snapshot: PlaybackSnapshot): PlaybackSnapshot => {

@@ -118,6 +118,12 @@ await sync.stop();
 - Choose `@ddgutierrezc/legato-contract` when you only need shared contracts/types.
 - Choose `@ddgutierrezc/legato-capacitor` when you need Capacitor plugin runtime integration.
 
+## Multi-binding boundary note (foundation v1)
+
+- Capacitor is the **first concrete adapter** over the shared binding contract.
+- Capacitor remains the **only implemented binding** in this change.
+- Flutter and React Native are planned follow-up spikes only; no runtime adapter implementation ships here.
+
 ## Maintainer operations
 
 Maintainer-heavy CLI/release/SPM operational details are documented in [`../../docs/maintainers/legato-capacitor-operator-guide.md`](../../docs/maintainers/legato-capacitor-operator-guide.md).

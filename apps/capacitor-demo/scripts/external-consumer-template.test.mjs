@@ -30,7 +30,7 @@ test('external consumer template package uses standard Capacitor deps with no wo
 
 test('external consumer template compile surface imports legato capacitor and contract types', async () => {
   const source = await readFile(resolve(templateRoot, 'src/main.ts'), 'utf8');
-  assert.match(source, /from\s+'@legato\/capacitor'/i);
-  assert.match(source, /from\s+'@legato\/contract'/i);
+  assert.match(source, /from\s+'@ddgutierrezc\/legato-capacitor'/i);
+  assert.match(source, /from\s+'@ddgutierrezc\/legato-contract'/i);
   assert.match(source, /Legato/i);
 });

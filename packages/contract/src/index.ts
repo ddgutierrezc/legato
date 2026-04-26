@@ -28,3 +28,4 @@ export {
 
 export * from './capability.js';
 export * from './invariants.js';
+export * from './binding-adapter.js';

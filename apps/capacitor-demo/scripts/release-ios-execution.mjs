@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { normalizeTargetSummary } from './release-control-summary-schema.mjs';
 
 const PASS = 'PASS';
@@ -11,7 +12,8 @@ const CONFIG_ERROR_EXIT_CODE = 2;
 const DEFAULT_RELEASE_ID = 'manual';
 const DEFAULT_ARTIFACTS_DIR = 'artifacts/ios-publication-v1';
 const DEFAULT_PUBLISH_ARTIFACTS_DIR = 'artifacts/ios-publication-v2';
-const DEFAULT_CONTRACT_PATH = '../../packages/capacitor/native-artifacts.json';
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_CONTRACT_PATH = resolve(SCRIPT_DIR, '../../../packages/capacitor/native-artifacts.json');
 const ALLOWED_PROOF_TYPES = new Set(['tag-release-url', 'commit-sha']);
 const PLACEHOLDER_VALUE_RE = /(\b(tbd|example|placeholder)\b|^<.+>$)/i;
 

@@ -31,7 +31,11 @@ let package = Package(
 
 const pluginSwiftSource = `
 @objc(LegatoPlugin)
-public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {}
+public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "LegatoPlugin"
+    public let jsName = "Legato"
+    public let pluginMethods: [CAPPluginMethod] = []
+}
 `;
 
 const capacitorConfig = `
@@ -69,6 +73,14 @@ let package = Package(
     name: "CapApp-SPM",
     dependencies: [
         .package(name: "DdgutierrezcLegatoCapacitor", path: "../../../node_modules/@ddgutierrezc/legato-capacitor")
+    ],
+    targets: [
+        .target(
+            name: "App",
+            dependencies: [
+                .product(name: "DdgutierrezcLegatoCapacitor", package: "DdgutierrezcLegatoCapacitor")
+            ]
+        )
     ]
 )
 `;
