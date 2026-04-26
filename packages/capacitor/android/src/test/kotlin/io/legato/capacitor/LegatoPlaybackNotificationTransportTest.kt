@@ -127,6 +127,21 @@ class LegatoPlaybackNotificationTransportTest {
     }
 
     @Test
+    fun `interruption mode forces primary notification action to play even if playback state still reports playing`() {
+        val actions = LegatoPlaybackNotificationTransport.notificationActionModelFor(
+            state = LegatoAndroidPlaybackState.PLAYING,
+            capabilities = LegatoAndroidTransportCapabilities(
+                canSkipNext = true,
+                canSkipPrevious = true,
+                canSeek = true,
+            ),
+            mode = LegatoAndroidServiceMode.RESUME_PENDING_INTERRUPTION,
+        )
+
+        assertEquals(LegatoPlaybackNotificationTransport.ACTION_PLAY, actions[1].intentAction)
+    }
+
+    @Test
     fun `notification intent action maps previous and next to remote commands`() {
         assertEquals(
             io.legato.core.core.LegatoAndroidRemoteCommand.Previous,

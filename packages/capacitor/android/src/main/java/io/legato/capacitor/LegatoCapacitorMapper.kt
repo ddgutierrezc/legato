@@ -119,6 +119,11 @@ internal class LegatoCapacitorMapper {
                 put("snapshot", snapshotToJs(payload.snapshot))
             }
 
+            is LegatoAndroidEventPayload.PlaybackInterruption -> JSObject().apply {
+                put("reason", payload.reason.wireValue)
+                put("resumable", payload.resumable)
+            }
+
             is LegatoAndroidEventPayload.PlaybackError -> JSObject().apply {
                 put("error", errorToJs(payload.error))
             }

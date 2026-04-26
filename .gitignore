@@ -30,6 +30,7 @@ dist/
 .gradle/
 build/
 **/build/
+**/.kotlin/
 
 # Local validation / evidence artifacts
 apps/capacitor-demo/artifacts/

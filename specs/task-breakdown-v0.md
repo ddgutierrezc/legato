@@ -38,8 +38,9 @@
 - [x] Update native readmes/spec notes to clarify integrated runtime scope and deferred follow-up milestones.
 
 ## Deferred
-- [ ] Android process-death queue/session restoration hardening (`android-background-lifecycle-v1`).
-- [ ] Broad Android background lifecycle + OEM matrix parity hardening (`android-background-lifecycle-v1` follow-ups).
+- [ ] Android process-death queue/session restoration hardening (post-`android-background-lifecycle-v1` follow-up milestone).
+- [ ] Broad Android lifecycle/OEM matrix hardening and resilience certification (deferred after `android-background-lifecycle-v1` in-process scope).
+- [ ] Large MediaSession modernization/rewrite track (explicitly deferred beyond `android-background-lifecycle-v1`).
 - [ ] iOS runtime parity remains deferred to dedicated parity tracks (historical wording from pre-`ios-runtime-playback-v1` runtime-integrity closure).
 - [ ] Framework binding implementations.
 - [ ] CI/tooling automation.

@@ -144,6 +144,52 @@ class LegatoAndroidPlayerEngineInterruptionPolicyTest {
     }
 
     @Test
+    fun `focus-denied interruption emits canonical interruption event and keeps runtime non-playing`() = runBlocking {
+        val playbackRuntime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event -> events += event }
+        val engine = buildEngine(playbackRuntime, sessionRuntime, eventEmitter)
+
+        engine.setup()
+        engine.load(tracks = listOf(LegatoAndroidTrack(id = "track-1", url = "https://example.com/audio.mp3")))
+        engine.play()
+
+        sessionRuntime.emit(LegatoAndroidInterruptionSignal.AudioFocusDenied)
+
+        assertEquals(LegatoAndroidPlaybackState.PAUSED, engine.getSnapshot().state)
+        val interruptionEvents = events
+            .filter { it.name == LegatoAndroidEventName.PLAYBACK_INTERRUPTION }
+            .mapNotNull { it.payload as? LegatoAndroidEventPayload.PlaybackInterruption }
+        assertTrue(interruptionEvents.any {
+            it.reason == LegatoAndroidInterruptionReason.FOCUS_DENIED && !it.resumable
+        })
+    }
+
+    @Test
+    fun `focus-denied interruption before play does not enter playing or buffering`() = runBlocking {
+        val playbackRuntime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event -> events += event }
+        val engine = buildEngine(playbackRuntime, sessionRuntime, eventEmitter)
+
+        engine.setup()
+        engine.load(tracks = listOf(LegatoAndroidTrack(id = "track-1", url = "https://example.com/audio.mp3")))
+
+        sessionRuntime.emit(LegatoAndroidInterruptionSignal.AudioFocusDenied)
+
+        assertEquals(LegatoAndroidPlaybackState.READY, engine.getSnapshot().state)
+        assertEquals(0, playbackRuntime.playCallCount)
+        val interruptions = events
+            .filter { it.name == LegatoAndroidEventName.PLAYBACK_INTERRUPTION }
+            .mapNotNull { it.payload as? LegatoAndroidEventPayload.PlaybackInterruption }
+        assertTrue(interruptions.any { it.reason == LegatoAndroidInterruptionReason.FOCUS_DENIED })
+    }
+
+    @Test
     fun `runtime ended callback transitions state and emits playback-ended event`() = runBlocking {
         val playbackRuntime = RecordingPlaybackRuntime()
         val sessionRuntime = RecordingSessionRuntime()

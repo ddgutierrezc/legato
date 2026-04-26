@@ -2,6 +2,9 @@ package io.legato.capacitor
 
 import io.legato.core.core.LegatoAndroidNowPlayingMetadata
 import io.legato.core.core.LegatoAndroidPlaybackState
+import io.legato.core.core.LegatoAndroidServiceMode
+import io.legato.core.core.LegatoAndroidTrack
+import io.legato.core.core.LegatoAndroidTransportCapabilities
 import io.legato.core.session.LegatoAndroidInterruptionSignal
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -276,5 +279,153 @@ class LegatoPlaybackServiceBootstrapTest {
     fun `audio focus change mapping ignores unsupported platform constants`() {
         assertNull(interruptionSignalFromAudioFocusChange(Int.MAX_VALUE))
         assertNull(interruptionSignalFromAudioFocusChange(123_456))
+    }
+
+    @Test
+    fun `audio focus request denial resolves deterministic interruption projection`() {
+        val deniedProjection = projectAudioFocusRequestOutcome(
+            requestGranted = false,
+            playbackState = LegatoAndroidPlaybackState.PLAYING,
+        )
+        val grantedProjection = projectAudioFocusRequestOutcome(
+            requestGranted = true,
+            playbackState = LegatoAndroidPlaybackState.PLAYING,
+        )
+
+        assertFalse(deniedProjection.hasAudioFocus)
+        assertEquals(LegatoAndroidInterruptionSignal.AudioFocusDenied, deniedProjection.interruptionSignal)
+        assertEquals("focus-denied", deniedProjection.reason)
+        assertTrue(deniedProjection.pauseForInterruption)
+        assertTrue(grantedProjection.hasAudioFocus)
+        assertNull(grantedProjection.interruptionSignal)
+    }
+
+    @Test
+    fun `service start mode projection prevents foreground resurrection for null-intent OFF`() {
+        val projection = resolveStartCommandMode(
+            intentMode = null,
+            coordinatorMode = LegatoAndroidServiceMode.OFF,
+            currentMode = LegatoAndroidServiceMode.OFF,
+        )
+
+        assertEquals(LegatoAndroidServiceMode.OFF, projection.mode)
+        assertFalse(projection.shouldStartForeground)
+        assertTrue(projection.shouldStopSelf)
+    }
+
+    @Test
+    fun `media-session projection prefers canonical snapshot track id over stale metadata id`() {
+        val resolvedTrackId = resolveActiveTrackIdForProjection(
+            snapshotTrackId = "track-2",
+            metadataTrackId = "track-1",
+        )
+
+        assertEquals("track-2", resolvedTrackId)
+    }
+
+    @Test
+    fun `media-session metadata reconciliation drops stale metadata during transition churn`() {
+        val reconciled = reconcileNowPlayingMetadataWithSnapshot(
+            snapshotTrack = LegatoAndroidTrack(
+                id = "track-2",
+                url = "https://example.com/2.mp3",
+                title = "Canonical",
+                artist = "Artist",
+            ),
+            observedMetadata = LegatoAndroidNowPlayingMetadata(
+                trackId = "track-1",
+                title = "Stale",
+                artist = "Old",
+            ),
+        )
+
+        assertEquals("track-2", reconciled?.trackId)
+        assertEquals("Canonical", reconciled?.title)
+        assertEquals("Artist", reconciled?.artist)
+    }
+
+    @Test
+    fun `off teardown projection keeps stop-self deterministic and non-blocking`() {
+        val activeProjection = projectOffTeardown(
+            foregroundActive = true,
+            hasAudioFocus = true,
+        )
+        val idleProjection = projectOffTeardown(
+            foregroundActive = false,
+            hasAudioFocus = false,
+        )
+
+        assertTrue(activeProjection.shouldAbandonFocus)
+        assertTrue(activeProjection.shouldStopForeground)
+        assertTrue(activeProjection.shouldStopSelf)
+        assertFalse(idleProjection.shouldAbandonFocus)
+        assertFalse(idleProjection.shouldStopForeground)
+        assertTrue(idleProjection.shouldStopSelf)
+    }
+
+    @Test
+    fun `background pause resume projection keeps actions ordered and interruption mode coherent`() {
+        val pausedActions = LegatoPlaybackNotificationTransport.notificationActionModelFor(
+            state = LegatoAndroidPlaybackState.PAUSED,
+            capabilities = LegatoAndroidTransportCapabilities(
+                canSkipNext = true,
+                canSkipPrevious = true,
+                canSeek = true,
+            ),
+            mode = LegatoAndroidServiceMode.RESUME_PENDING_INTERRUPTION,
+        )
+        val resumedActions = LegatoPlaybackNotificationTransport.notificationActionModelFor(
+            state = LegatoAndroidPlaybackState.PLAYING,
+            capabilities = LegatoAndroidTransportCapabilities(
+                canSkipNext = true,
+                canSkipPrevious = true,
+                canSeek = true,
+            ),
+            mode = LegatoAndroidServiceMode.PLAYBACK_ACTIVE,
+        )
+
+        assertEquals(
+            listOf(
+                LegatoPlaybackNotificationTransport.ACTION_PREVIOUS,
+                LegatoPlaybackNotificationTransport.ACTION_PLAY,
+                LegatoPlaybackNotificationTransport.ACTION_NEXT,
+            ),
+            pausedActions.map { it.intentAction },
+        )
+        assertEquals(
+            listOf(
+                LegatoPlaybackNotificationTransport.ACTION_PREVIOUS,
+                LegatoPlaybackNotificationTransport.ACTION_PAUSE,
+                LegatoPlaybackNotificationTransport.ACTION_NEXT,
+            ),
+            resumedActions.map { it.intentAction },
+        )
+    }
+
+    @Test
+    fun `media-session playback projection remains track-consistent across interrupted pause then resume`() {
+        val pausedProjection = projectMediaSessionPlaybackState(
+            state = LegatoAndroidPlaybackState.PAUSED,
+            snapshotPositionMs = 12_000L,
+            activeTrackId = "track-1",
+            previousProjection = MediaSessionPlaybackProjection(
+                playbackStateCode = android.media.session.PlaybackState.STATE_PLAYING,
+                positionMs = 11_800L,
+                playbackSpeed = 1f,
+                activeTrackId = "track-1",
+            ),
+        )
+        val resumedProjection = projectMediaSessionPlaybackState(
+            state = LegatoAndroidPlaybackState.PLAYING,
+            snapshotPositionMs = 12_050L,
+            activeTrackId = "track-1",
+            previousProjection = pausedProjection,
+        )
+
+        assertEquals("track-1", pausedProjection.activeTrackId)
+        assertEquals(android.media.session.PlaybackState.STATE_PAUSED, pausedProjection.playbackStateCode)
+        assertEquals("track-1", resumedProjection.activeTrackId)
+        assertEquals(android.media.session.PlaybackState.STATE_PLAYING, resumedProjection.playbackStateCode)
+        assertNotEquals(0L, resumedProjection.positionMs)
     }
 }

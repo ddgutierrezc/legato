@@ -11,7 +11,7 @@ enum class LegatoAndroidAudioFocusGainHint {
 data class LegatoAndroidAudioFocusPolicy(
     val gainHint: LegatoAndroidAudioFocusGainHint,
     val pauseOnTransientLoss: Boolean,
-    val duckOnTransientCanDuck: Boolean,
+    val pauseOnTransientCanDuck: Boolean,
     val resumeAfterGainIfNotUserPaused: Boolean,
 )
 
@@ -22,6 +22,8 @@ sealed interface LegatoAndroidInterruptionSignal {
 
     data object AudioFocusLostTransientCanDuck : LegatoAndroidInterruptionSignal
 
+    data object AudioFocusDenied : LegatoAndroidInterruptionSignal
+
     data object AudioFocusGained : LegatoAndroidInterruptionSignal
 
     data object BecomingNoisy : LegatoAndroidInterruptionSignal
@@ -31,7 +33,7 @@ object LegatoAndroidSessionDefaults {
     val MILESTONE1_AUDIO_FOCUS_POLICY = LegatoAndroidAudioFocusPolicy(
         gainHint = LegatoAndroidAudioFocusGainHint.AUDIOFOCUS_GAIN,
         pauseOnTransientLoss = true,
-        duckOnTransientCanDuck = true,
+        pauseOnTransientCanDuck = true,
         resumeAfterGainIfNotUserPaused = false,
     )
 }

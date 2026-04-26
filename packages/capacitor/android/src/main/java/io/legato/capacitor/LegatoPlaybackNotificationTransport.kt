@@ -71,13 +71,18 @@ internal object LegatoPlaybackNotificationTransport {
     fun notificationActionModelFor(
         state: LegatoAndroidPlaybackState,
         capabilities: LegatoAndroidTransportCapabilities,
+        mode: LegatoAndroidServiceMode? = null,
     ): List<NotificationActionModel> {
         val actions = mutableListOf<NotificationActionModel>()
         if (capabilities.canSkipPrevious) {
             actions += NotificationActionModel(intentAction = ACTION_PREVIOUS, label = "Previous")
         }
 
-        val projectedControl = projectedControlFor(state)
+        val projectedControl = if (mode == LegatoAndroidServiceMode.RESUME_PENDING_INTERRUPTION) {
+            LegatoAndroidMediaSessionBridge.TransportControl.PLAY
+        } else {
+            projectedControlFor(state)
+        }
         actions += NotificationActionModel(
             intentAction = if (projectedControl == LegatoAndroidMediaSessionBridge.TransportControl.PAUSE) ACTION_PAUSE else ACTION_PLAY,
             label = if (projectedControl == LegatoAndroidMediaSessionBridge.TransportControl.PAUSE) "Pause" else "Play",

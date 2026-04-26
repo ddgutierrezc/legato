@@ -267,6 +267,9 @@ No smoke run yet.</pre>
             <button id="run-case-remote-play" class="native-action" type="button">Case: remote play resume parity</button>
             <button id="run-case-remote-skip" class="native-action" type="button">Case: remote next/previous parity</button>
             <button id="run-case-remote-seek" class="native-action" type="button">Case: remote seek parity</button>
+            <button id="run-case-focus-denied" class="native-action" type="button">Case: focus-denied lifecycle check</button>
+            <button id="run-case-can-duck" class="native-action" type="button">Case: CAN_DUCK interruption pause</button>
+            <button id="run-case-background-transition" class="native-action" type="button">Case: background transition coherence</button>
           </div>
         </section>
 
@@ -342,6 +345,9 @@ checks=none yet</pre>
             <li>Background play/pause parity: run guided buttons <code>Case: remote pause parity</code> and <code>Case: remote play resume parity</code>, then verify pass/fail trail in logs/checks.</li>
             <li>Remote next/previous parity: run <code>Case: remote next/previous parity</code>; next and previous must round-trip queue index as prompted.</li>
             <li>Remote seek parity: run <code>Case: remote seek parity</code>; remote seek must produce a visible snapshot position jump.</li>
+            <li>Focus-denied lifecycle: run <code>Case: focus-denied lifecycle check</code>; if focus request is denied playback must settle non-playing (paused/interrupted) without auto-loop retries.</li>
+            <li>CAN_DUCK policy: run <code>Case: CAN_DUCK interruption pause</code>; in v1 this interruption must pause playback (not volume-duck behavior).</li>
+            <li>Background transition coherence: run <code>Case: background transition coherence</code>; queue + state should remain coherent while process is alive, with notification controls visible in background.</li>
             <li>Boundary behavior parity: previous at first track restarts to 0, next at last track transitions to ended + playbackEnded event.</li>
             <li>Interruption ingestion check: while playing, trigger focus-loss/noisy (headphones unplug/Bluetooth disconnect) and confirm snapshot moves to paused; keep <code>Recent events/progress</code> + <code>Raw operation log</code> for copyable evidence.</li>
             <li>Capability projection parity: canSkipNext/canSkipPrevious/canSeek summary must align with queue index + ended/empty states.</li>

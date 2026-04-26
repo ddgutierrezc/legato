@@ -39,6 +39,9 @@ const remotePauseCaseButton = document.querySelector<HTMLButtonElement>('#run-ca
 const remotePlayCaseButton = document.querySelector<HTMLButtonElement>('#run-case-remote-play');
 const remoteSkipCaseButton = document.querySelector<HTMLButtonElement>('#run-case-remote-skip');
 const remoteSeekCaseButton = document.querySelector<HTMLButtonElement>('#run-case-remote-seek');
+const focusDeniedCaseButton = document.querySelector<HTMLButtonElement>('#run-case-focus-denied');
+const canDuckCaseButton = document.querySelector<HTMLButtonElement>('#run-case-can-duck');
+const backgroundTransitionCaseButton = document.querySelector<HTMLButtonElement>('#run-case-background-transition');
 const copyLogButton = document.querySelector<HTMLButtonElement>('#copy-log');
 const copyEventsButton = document.querySelector<HTMLButtonElement>('#copy-events');
 const copySmokeReportButton = document.querySelector<HTMLButtonElement>('#copy-smoke-report');
@@ -81,6 +84,9 @@ if (
   || !remotePlayCaseButton
   || !remoteSkipCaseButton
   || !remoteSeekCaseButton
+  || !focusDeniedCaseButton
+  || !canDuckCaseButton
+  || !backgroundTransitionCaseButton
   || !copyLogButton
   || !copyEventsButton
   || !copySmokeReportButton
@@ -1270,6 +1276,77 @@ const runRemoteSeekCaseFlow = async (): Promise<void> => {
   log('[guided-case] end | remote seek parity');
 };
 
+const runFocusDeniedCaseFlow = async (): Promise<void> => {
+  const baseline = await setupGuidedRemoteCaseBaseline('focus-denied lifecycle check');
+  const baselineState = baseline.state;
+
+  log('[guided-case] action required: keep this track selected, start another app that owns audio focus, then press PLAY here again within 15s.');
+  log('[guided-case] expected: playback should not continue as playing when focus request is denied; it should settle paused/interrupted.');
+
+  await playAction('legato');
+  await waitForCondition(
+    () => latestSnapshot?.state === 'paused' || latestSnapshot?.state === 'playing',
+    guidedCaseTimeoutMs,
+  );
+  await sleep(guidedCaseSettleMs);
+  await snapshotAction('legato');
+
+  const finalState = latestSnapshot?.state;
+  const deniedProjectionLooksHealthy = finalState === 'paused';
+
+  caseCheck(
+    'Focus-denied projection keeps runtime non-playing',
+    deniedProjectionLooksHealthy,
+    `baseline=${baselineState}, final=${finalState ?? 'unknown'} (expected paused on denied focus).`,
+  );
+  log('[guided-case] end | focus-denied lifecycle check');
+};
+
+const runCanDuckCaseFlow = async (): Promise<void> => {
+  await setupGuidedRemoteCaseBaseline('can-duck interruption policy check');
+
+  log('[guided-case] action required: while this track is playing, trigger a CAN_DUCK interruption (voice prompt/navigation/assistant) within 15s.');
+  log('[guided-case] expected v1 policy: CAN_DUCK is treated as pause/interruption, no auto-resume on focus gain.');
+
+  const pausedObserved = await waitForCondition(
+    () => latestSnapshot?.state === 'paused',
+    guidedCaseTimeoutMs,
+  );
+
+  if (pausedObserved) {
+    await sleep(guidedCaseSettleMs);
+  }
+  await snapshotAction('legato');
+
+  const finalState = latestSnapshot?.state;
+  caseCheck(
+    'CAN_DUCK maps to interruption pause',
+    finalState === 'paused',
+    `final state=${finalState ?? 'unknown'} (expected paused).`,
+  );
+  log('[guided-case] end | can-duck interruption policy check');
+};
+
+const runBackgroundTransitionCaseFlow = async (): Promise<void> => {
+  const baseline = await setupGuidedRemoteCaseBaseline('background transition coherence check');
+  const baselineQueue = queueLengthFromSnapshot(baseline);
+
+  log('[guided-case] action required: send app to background for ~8s, verify notification controls are visible, then return to app.');
+  await sleep(8000);
+  await snapshotAction('legato');
+
+  const finalSnapshot = latestSnapshot;
+  const finalQueue = finalSnapshot ? queueLengthFromSnapshot(finalSnapshot) : 0;
+  const finalState = finalSnapshot?.state;
+
+  caseCheck(
+    'Background transition keeps active queue/session while process is alive',
+    Boolean(finalSnapshot) && finalQueue === baselineQueue && finalState !== 'idle' && finalState !== 'error',
+    `baselineQueue=${baselineQueue}, finalQueue=${finalQueue}, finalState=${finalState ?? 'unknown'}`,
+  );
+  log('[guided-case] end | background transition coherence check');
+};
+
 const setPlaybackSurface = (surface: PlaybackSurface): void => {
   activePlaybackSurface = surface;
   renderBoundarySummary();
@@ -1318,6 +1395,18 @@ remoteSkipCaseButton.addEventListener('click', () => {
 
 remoteSeekCaseButton.addEventListener('click', () => {
   void runNativeAction('run guided case: remote seek parity', runRemoteSeekCaseFlow);
+});
+
+focusDeniedCaseButton.addEventListener('click', () => {
+  void runNativeAction('run guided case: focus-denied lifecycle check', runFocusDeniedCaseFlow);
+});
+
+canDuckCaseButton.addEventListener('click', () => {
+  void runNativeAction('run guided case: CAN_DUCK interruption policy check', runCanDuckCaseFlow);
+});
+
+backgroundTransitionCaseButton.addEventListener('click', () => {
+  void runNativeAction('run guided case: background transition coherence check', runBackgroundTransitionCaseFlow);
 });
 
 setupButton.addEventListener('click', () => {

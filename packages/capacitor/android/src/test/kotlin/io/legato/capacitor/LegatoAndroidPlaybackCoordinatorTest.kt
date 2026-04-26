@@ -25,6 +25,7 @@ import io.legato.core.snapshot.LegatoAndroidSnapshotStore
 import io.legato.core.state.LegatoAndroidStateMachine
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -221,6 +222,43 @@ class LegatoAndroidPlaybackCoordinatorTest {
         assertEquals(LegatoAndroidPlaybackState.PAUSED, coordinator.currentPlaybackState())
         assertTrue(projectedStates.contains(LegatoAndroidPlaybackState.PLAYING))
         assertTrue(projectedStates.contains(LegatoAndroidPlaybackState.PAUSED))
+    }
+
+    @Test
+    fun `coordinator play is gated by focus denial and emits canonical denied interruption without entering playing`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val focusGate = RecordingPlaybackFocusGate(granted = false)
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+            focusGate = focusGate,
+        )
+        val events = mutableListOf<io.legato.core.core.LegatoAndroidEvent>()
+        coordinator.addCoreEventListener { event -> events += event }
+
+        coordinator.setup()
+        coordinator.load(
+            listOf(
+                LegatoAndroidTrack(
+                    id = "track-1",
+                    url = "https://example.com/track.mp3",
+                ),
+            ),
+        )
+
+        coordinator.play()
+
+        assertEquals("play should be blocked when focus gate denies", 0, runtime.playCallCount)
+        assertEquals("state must remain non-playing after denied play attempt", LegatoAndroidPlaybackState.READY, coordinator.currentPlaybackState())
+        val interruptions = events
+            .filter { it.name == io.legato.core.core.LegatoAndroidEventName.PLAYBACK_INTERRUPTION }
+            .mapNotNull { it.payload as? io.legato.core.core.LegatoAndroidEventPayload.PlaybackInterruption }
+        assertTrue(
+            "focus-denied interruption should be emitted",
+            interruptions.any { it.reason == io.legato.core.core.LegatoAndroidInterruptionReason.FOCUS_DENIED },
+        )
+        assertEquals("focus gate should be consulted exactly once", 1, focusGate.requestCalls)
     }
 
     @Test
@@ -439,6 +477,13 @@ class LegatoAndroidPlaybackCoordinatorTest {
         assertEquals(LegatoAndroidPauseOrigin.INTERRUPTION, coordinator.currentPauseOrigin())
     }
 
+    @Test
+    fun `service runtime mode projection starts service only for active interruption modes`() {
+        assertFalse(shouldEnsureServiceRunning(LegatoAndroidServiceMode.OFF))
+        assertTrue(shouldEnsureServiceRunning(LegatoAndroidServiceMode.PLAYBACK_ACTIVE))
+        assertTrue(shouldEnsureServiceRunning(LegatoAndroidServiceMode.RESUME_PENDING_INTERRUPTION))
+    }
+
     private fun buildCore(
         runtime: RecordingPlaybackRuntime,
         sessionRuntime: RecordingSessionRuntime,
@@ -532,7 +577,7 @@ private class RecordingSessionRuntime : LegatoAndroidSessionRuntime {
         LegatoAndroidAudioFocusPolicy(
             gainHint = LegatoAndroidAudioFocusGainHint.AUDIOFOCUS_GAIN,
             pauseOnTransientLoss = true,
-            duckOnTransientCanDuck = true,
+            pauseOnTransientCanDuck = true,
             resumeAfterGainIfNotUserPaused = false,
         )
 
@@ -555,4 +600,18 @@ private class RecordingSessionRuntime : LegatoAndroidSessionRuntime {
     fun emit(signal: LegatoAndroidInterruptionSignal) {
         listener?.invoke(signal)
     }
+}
+
+private class RecordingPlaybackFocusGate(
+    private val granted: Boolean,
+) : LegatoAndroidPlaybackFocusGate {
+    var requestCalls: Int = 0
+        private set
+
+    override fun requestPlaybackFocus(): Boolean {
+        requestCalls += 1
+        return granted
+    }
+
+    override fun abandonPlaybackFocus() = Unit
 }
