@@ -55,7 +55,7 @@
   "devDependencies": {
     "@capacitor/core": "^8.0.0",
     "@ddgutierrezc/legato-contract": "^0.1.5",
-    "typescript": "^5.6.3"
+    "typescript": "^6.0.3"
   },
   "capacitor": {
     "ios": {
