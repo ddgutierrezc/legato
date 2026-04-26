@@ -37,6 +37,7 @@ apps/capacitor-demo/artifacts/
 # SwiftPM local build and resolution artifacts
 packages/capacitor/.build/
 packages/capacitor/Package.resolved
+native/ios/LegatoCore/.build/
 
 # Android Studio
 *.iml
