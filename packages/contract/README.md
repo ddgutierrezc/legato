@@ -36,6 +36,23 @@ Supported import contract:
 - Event payload types/maps
 - Event constants: `PLAYER_EVENT_NAMES`, `MEDIA_SESSION_EVENT_NAMES`, `LEGACY_PLAYER_EVENT_NAMES`, `LEGATO_EVENT_NAMES`
 - `capability`, `invariants`
+- `binding-adapter` (transport-neutral adapter contract primitives)
+
+## Binding adapter contract foundation (v1)
+
+`packages/contract/src/binding-adapter.ts` defines an adapter-agnostic surface for future bindings:
+
+- lifecycle/setup (`setup`)
+- playback command/query contract
+- typed event subscription + neutral listener handle (`BindingListenerHandle`)
+- capabilities projection (`BindingCapabilitiesSnapshot`)
+- typed adapter error envelope (`BindingAdapterError`)
+
+This is a **foundation contract only** for architecture alignment in v1.
+
+- It does not implement runtime adapters for Flutter or React Native.
+- It does not change current Capacitor runtime behavior.
+- It does not promise parity timelines for future bindings.
 
 Maintainer verification map: [`../../docs/maintainers/package-documentation-foundation-v1-source-map.md`](../../docs/maintainers/package-documentation-foundation-v1-source-map.md)
 

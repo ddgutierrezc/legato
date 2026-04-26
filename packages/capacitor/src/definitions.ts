@@ -1,5 +1,5 @@
-import type { PluginListenerHandle } from '@capacitor/core';
 import type {
+  Capability,
   LegatoEventName as ContractLegatoEventName,
   LegatoEventPayloadMap as ContractLegatoEventPayloadMap,
   LegatoError,
@@ -41,6 +41,14 @@ export type LegatoListener<E extends LegatoEventName> = (
   payload: LegatoEventPayloadMap[E],
 ) => void;
 
+export interface BindingListenerHandle {
+  remove(): Promise<void> | void;
+}
+
+export interface BindingCapabilitiesSnapshot {
+  supported: Capability[];
+}
+
 export interface AddOptions {
   tracks: Track[];
   startIndex?: number;
@@ -59,7 +67,7 @@ export interface SkipToOptions {
   index: number;
 }
 
-export interface AudioPlayerApi {
+export interface BindingAdapter {
   setup(): Promise<void>;
   add(options: AddOptions): Promise<PlaybackSnapshot>;
   remove(options: RemoveOptions): Promise<PlaybackSnapshot>;
@@ -77,10 +85,40 @@ export interface AudioPlayerApi {
   getCurrentTrack(): Promise<Track | null>;
   getQueue(): Promise<QueueSnapshot>;
   getSnapshot(): Promise<PlaybackSnapshot>;
+  getCapabilities(): Promise<BindingCapabilitiesSnapshot>;
+  addListener<E extends LegatoEventName>(
+    eventName: E,
+    listener: LegatoListener<E>,
+  ): Promise<BindingListenerHandle>;
+  removeAllListeners(): Promise<void>;
+}
+
+type BindingAdapterPlaybackSurface = Pick<
+  BindingAdapter,
+  | 'setup'
+  | 'add'
+  | 'remove'
+  | 'reset'
+  | 'play'
+  | 'pause'
+  | 'stop'
+  | 'seekTo'
+  | 'skipTo'
+  | 'skipToNext'
+  | 'skipToPrevious'
+  | 'getState'
+  | 'getPosition'
+  | 'getDuration'
+  | 'getCurrentTrack'
+  | 'getQueue'
+  | 'getSnapshot'
+>;
+
+export interface AudioPlayerApi extends BindingAdapterPlaybackSurface {
   addListener<E extends AudioPlayerEventName>(
     eventName: E,
     listener: AudioPlayerListener<E>,
-  ): Promise<PluginListenerHandle>;
+  ): Promise<BindingListenerHandle>;
   removeAllListeners(): Promise<void>;
 }
 
@@ -89,7 +127,7 @@ export interface MediaSessionApi {
   addListener<E extends MediaSessionEventName>(
     eventName: E,
     listener: MediaSessionListener<E>,
-  ): Promise<PluginListenerHandle>;
+  ): Promise<BindingListenerHandle>;
   removeAllListeners(): Promise<void>;
 }
 
@@ -99,6 +137,6 @@ export interface LegatoEventApi {
   addListener<E extends LegatoEventName>(
     eventName: E,
     listener: LegatoListener<E>,
-  ): Promise<PluginListenerHandle>;
+  ): Promise<BindingListenerHandle>;
   removeAllListeners(): Promise<void>;
 }
