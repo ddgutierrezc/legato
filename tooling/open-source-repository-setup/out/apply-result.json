@@ -1,0 +1,63 @@
+{
+  "files": {
+    "applied": [],
+    "skipped": [
+      {
+        "path": "LICENSE",
+        "reason": "present-compatible"
+      },
+      {
+        "path": "CONTRIBUTING.md",
+        "reason": "present-compatible"
+      },
+      {
+        "path": "CODE_OF_CONDUCT.md",
+        "reason": "present-compatible"
+      },
+      {
+        "path": "SECURITY.md",
+        "reason": "present-compatible"
+      },
+      {
+        "path": ".github/CODEOWNERS",
+        "reason": "present-compatible"
+      },
+      {
+        "path": ".github/PULL_REQUEST_TEMPLATE.md",
+        "reason": "present-compatible"
+      },
+      {
+        "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
+        "reason": "present-compatible"
+      },
+      {
+        "path": ".github/ISSUE_TEMPLATE/feature_request.yml",
+        "reason": "present-compatible"
+      },
+      {
+        "path": ".github/ISSUE_TEMPLATE/config.yml",
+        "reason": "present-compatible"
+      },
+      {
+        "path": ".github/dependabot.yml",
+        "reason": "present-compatible"
+      },
+      {
+        "path": "README.md",
+        "reason": "present-compatible"
+      }
+    ],
+    "blocked": [],
+    "suggestions": []
+  },
+  "api": {
+    "applied": [],
+    "blocked": [],
+    "skipped": [
+      {
+        "id": "branch-protection",
+        "reason": "dry-run"
+      }
+    ]
+  }
+}

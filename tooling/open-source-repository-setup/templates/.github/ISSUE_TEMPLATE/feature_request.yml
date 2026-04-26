@@ -1,0 +1,22 @@
+name: Feature request
+description: Propose an improvement.
+title: "feature: "
+labels: ["type:feature", "status:needs-review"]
+body:
+  - type: markdown
+    attributes:
+      value: "Please describe the user need and expected outcomes."
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / opportunity
+      placeholder: What should improve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: What are you proposing?
+    validations:
+      required: true

@@ -1,0 +1,22 @@
+name: Bug report
+description: Report something that is broken.
+title: "bug: "
+labels: ["type:bug", "status:needs-review"]
+body:
+  - type: markdown
+    attributes:
+      value: "Please include reproducible steps and expected behavior."
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      placeholder: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: Step by step
+    validations:
+      required: true

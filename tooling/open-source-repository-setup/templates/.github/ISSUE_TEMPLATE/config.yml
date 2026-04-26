@@ -1,0 +1,7 @@
+contact_links:
+  - name: Security policy
+    url: https://github.com/ddgutierrezc/legato/blob/main/SECURITY.md
+    about: Read security disclosure guidance before reporting vulnerabilities.
+  - name: Maintainers scope notes
+    url: https://github.com/ddgutierrezc/legato/tree/main/docs/maintainers
+    about: Maintainer process, release constraints, and scope boundaries.

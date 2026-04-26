@@ -1,0 +1,21 @@
+version: 2
+
+# OSS_DEPENDABOT:START
+updates:
+  - package-ecosystem: "npm"
+    directory: "/apps/capacitor-demo"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/packages/capacitor"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/packages/contract"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+# OSS_DEPENDABOT:END

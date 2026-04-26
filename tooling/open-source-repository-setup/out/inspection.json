@@ -1,0 +1,337 @@
+{
+  "git": {
+    "defaultBranch": "main"
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "status": "present-compatible"
+    },
+    {
+      "path": "LICENSE",
+      "status": "present-compatible"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "status": "present-compatible"
+    },
+    {
+      "path": "CODE_OF_CONDUCT.md",
+      "status": "present-compatible"
+    },
+    {
+      "path": "SECURITY.md",
+      "status": "present-compatible"
+    },
+    {
+      "path": ".github/CODEOWNERS",
+      "status": "present-compatible"
+    },
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "status": "present-compatible"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
+      "status": "present-compatible"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/feature_request.yml",
+      "status": "present-compatible"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/config.yml",
+      "status": "present-compatible"
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "status": "present-compatible"
+    }
+  ],
+  "workflows": [
+    {
+      "path": ".github/workflows/release-control.yml",
+      "missing": false,
+      "sha256": "5dbc5b01cc63c821b6ed2a15b5ef8725fadf20daedf96ec3af108088daf27148"
+    },
+    {
+      "path": ".github/workflows/release-npm.yml",
+      "missing": false,
+      "sha256": "32f1c20f750c7ba8aaba5fcf12bdbc2bfb7f2bb248795d219520ac2f18befadb"
+    },
+    {
+      "path": ".github/workflows/release-android.yml",
+      "missing": false,
+      "sha256": "63c49e7962b228d37a0712ce398c45584760d6a312677bebe974d7f02f16c0ff"
+    },
+    {
+      "path": ".github/workflows/npm-release-readiness.yml",
+      "missing": false,
+      "sha256": "1cdae6712f6ec0079d4a4a823b5697527dceb44d2d8a8d267c7575117b193d85"
+    }
+  ],
+  "github": {
+    "repoSettings": {
+      "allow_auto_merge": false,
+      "delete_branch_on_merge": true,
+      "allow_update_branch": true,
+      "has_discussions": false,
+      "allow_merge_commit": true,
+      "allow_rebase_merge": true,
+      "allow_squash_merge": true,
+      "security_and_analysis": {
+        "dependabot_security_updates": {
+          "status": "enabled"
+        },
+        "secret_scanning": {
+          "status": "enabled"
+        },
+        "secret_scanning_non_provider_patterns": {
+          "status": "disabled"
+        },
+        "secret_scanning_push_protection": {
+          "status": "enabled"
+        },
+        "secret_scanning_validity_checks": {
+          "status": "disabled"
+        }
+      }
+    },
+    "topics": [
+      "audio",
+      "capacitor",
+      "legato",
+      "opensource"
+    ],
+    "labels": [
+      {
+        "id": 10733039275,
+        "node_id": "LA_kwDOSGxLUs8AAAACf70uqw",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/bug",
+        "name": "bug",
+        "color": "d73a4a",
+        "default": true,
+        "description": "Something isn't working"
+      },
+      {
+        "id": 10796089613,
+        "node_id": "LA_kwDOSGxLUs8AAAACg39BDQ",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/dependencies",
+        "name": "dependencies",
+        "color": "0366d6",
+        "default": false,
+        "description": "Pull requests that update a dependency file"
+      },
+      {
+        "id": 10733039290,
+        "node_id": "LA_kwDOSGxLUs8AAAACf70uug",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/documentation",
+        "name": "documentation",
+        "color": "0075ca",
+        "default": true,
+        "description": "Improvements or additions to documentation"
+      },
+      {
+        "id": 10733039303,
+        "node_id": "LA_kwDOSGxLUs8AAAACf70uxw",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/duplicate",
+        "name": "duplicate",
+        "color": "cfd3d7",
+        "default": true,
+        "description": "This issue or pull request already exists"
+      },
+      {
+        "id": 10733039314,
+        "node_id": "LA_kwDOSGxLUs8AAAACf70u0g",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/enhancement",
+        "name": "enhancement",
+        "color": "a2eeef",
+        "default": true,
+        "description": "New feature or request"
+      },
+      {
+        "id": 10733039334,
+        "node_id": "LA_kwDOSGxLUs8AAAACf70u5g",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/good%20first%20issue",
+        "name": "good first issue",
+        "color": "7057ff",
+        "default": true,
+        "description": "Good for newcomers"
+      },
+      {
+        "id": 10733039327,
+        "node_id": "LA_kwDOSGxLUs8AAAACf70u3w",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/help%20wanted",
+        "name": "help wanted",
+        "color": "008672",
+        "default": true,
+        "description": "Extra attention is needed"
+      },
+      {
+        "id": 10733039345,
+        "node_id": "LA_kwDOSGxLUs8AAAACf70u8Q",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/invalid",
+        "name": "invalid",
+        "color": "e4e669",
+        "default": true,
+        "description": "This doesn't seem right"
+      },
+      {
+        "id": 10796089617,
+        "node_id": "LA_kwDOSGxLUs8AAAACg39BEQ",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/javascript",
+        "name": "javascript",
+        "color": "168700",
+        "default": false,
+        "description": "Pull requests that update javascript code"
+      },
+      {
+        "id": 10733039354,
+        "node_id": "LA_kwDOSGxLUs8AAAACf70u-g",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/question",
+        "name": "question",
+        "color": "d876e3",
+        "default": true,
+        "description": "Further information is requested"
+      },
+      {
+        "id": 10784246457,
+        "node_id": "LA_kwDOSGxLUs8AAAACgsqKuQ",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/status:approved",
+        "name": "status:approved",
+        "color": "0e8a16",
+        "default": false,
+        "description": "Approved for implementation"
+      },
+      {
+        "id": 10796081429,
+        "node_id": "LA_kwDOSGxLUs8AAAACg38hFQ",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/status:needs-review",
+        "name": "status:needs-review",
+        "color": "d4c5f9",
+        "default": false,
+        "description": "Needs reviewer triage"
+      },
+      {
+        "id": 10784316504,
+        "node_id": "LA_kwDOSGxLUs8AAAACgsucWA",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/type:bug",
+        "name": "type:bug",
+        "color": "d73a4a",
+        "default": false,
+        "description": "Bug fix"
+      },
+      {
+        "id": 10784246475,
+        "node_id": "LA_kwDOSGxLUs8AAAACgsqKyw",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/type:chore",
+        "name": "type:chore",
+        "color": "c5def5",
+        "default": false,
+        "description": "Maintenance or tooling change"
+      },
+      {
+        "id": 10788755403,
+        "node_id": "LA_kwDOSGxLUs8AAAACgw9Xyw",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/type:docs",
+        "name": "type:docs",
+        "color": "0075ca",
+        "default": false,
+        "description": "Documentation only"
+      },
+      {
+        "id": 10787796789,
+        "node_id": "LA_kwDOSGxLUs8AAAACgwC3NQ",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/type:feature",
+        "name": "type:feature",
+        "color": "0e8a16",
+        "default": false,
+        "description": "New feature"
+      },
+      {
+        "id": 10733039362,
+        "node_id": "LA_kwDOSGxLUs8AAAACf70vAg",
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/labels/wontfix",
+        "name": "wontfix",
+        "color": "ffffff",
+        "default": true,
+        "description": "This will not be worked on"
+      }
+    ],
+    "rulesets": [],
+    "branchProtection": {
+      "url": "https://api.github.com/repos/ddgutierrezc/legato/branches/main/protection",
+      "required_status_checks": {
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/branches/main/protection/required_status_checks",
+        "strict": true,
+        "contexts": [
+          "npm-readiness"
+        ],
+        "contexts_url": "https://api.github.com/repos/ddgutierrezc/legato/branches/main/protection/required_status_checks/contexts",
+        "checks": [
+          {
+            "context": "npm-readiness",
+            "app_id": 15368
+          }
+        ]
+      },
+      "required_pull_request_reviews": {
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/branches/main/protection/required_pull_request_reviews",
+        "dismiss_stale_reviews": false,
+        "require_code_owner_reviews": false,
+        "require_last_push_approval": false,
+        "required_approving_review_count": 1
+      },
+      "required_signatures": {
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/branches/main/protection/required_signatures",
+        "enabled": false
+      },
+      "enforce_admins": {
+        "url": "https://api.github.com/repos/ddgutierrezc/legato/branches/main/protection/enforce_admins",
+        "enabled": false
+      },
+      "required_linear_history": {
+        "enabled": false
+      },
+      "allow_force_pushes": {
+        "enabled": false
+      },
+      "allow_deletions": {
+        "enabled": false
+      },
+      "block_creations": {
+        "enabled": false
+      },
+      "required_conversation_resolution": {
+        "enabled": false
+      },
+      "lock_branch": {
+        "enabled": false
+      },
+      "allow_fork_syncing": {
+        "enabled": false
+      }
+    },
+    "securityAndAnalysis": {
+      "dependabot_security_updates": {
+        "status": "enabled"
+      },
+      "secret_scanning": {
+        "status": "enabled"
+      },
+      "secret_scanning_non_provider_patterns": {
+        "status": "disabled"
+      },
+      "secret_scanning_push_protection": {
+        "status": "enabled"
+      },
+      "secret_scanning_validity_checks": {
+        "status": "disabled"
+      }
+    }
+  },
+  "blockers": [],
+  "permissions": {
+    "admin": true
+  }
+}

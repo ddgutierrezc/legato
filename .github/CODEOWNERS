@@ -1,0 +1,5 @@
+# Default owner coverage
+* @ddgutierrezc
+
+# Workflows and release automation
+.github/workflows/* @ddgutierrezc
