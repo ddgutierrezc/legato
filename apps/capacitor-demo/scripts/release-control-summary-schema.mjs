@@ -78,3 +78,46 @@ export const createNotSelectedSummary = (target) => normalizeTargetSummary({
 });
 
 export const RELEASE_CONTROL_TERMINAL_STATUSES = Object.freeze([...TERMINAL_STATUSES]);
+
+export const validateReleaseNotesFactContract = (candidate = {}) => {
+  const errors = [];
+  const releaseId = String(candidate?.release_id ?? '').trim();
+  const sourceCommit = String(candidate?.source_commit ?? '').trim();
+  const versions = candidate?.versions ?? {};
+
+  if (!releaseId) {
+    errors.push('release_id is required.');
+  }
+  if (!sourceCommit) {
+    errors.push('source_commit is required.');
+  }
+
+  const requiredVersionPaths = [
+    ['versions.npm.capacitor.name', versions?.npm?.capacitor?.name],
+    ['versions.npm.capacitor.version', versions?.npm?.capacitor?.version],
+    ['versions.npm.contract.name', versions?.npm?.contract?.name],
+    ['versions.npm.contract.version', versions?.npm?.contract?.version],
+    ['versions.android.group', versions?.android?.group],
+    ['versions.android.artifact', versions?.android?.artifact],
+    ['versions.android.version', versions?.android?.version],
+    ['versions.ios.package_name', versions?.ios?.package_name],
+    ['versions.ios.version', versions?.ios?.version],
+  ];
+  for (const [label, value] of requiredVersionPaths) {
+    if (!String(value ?? '').trim()) {
+      errors.push(`${label} is required.`);
+    }
+  }
+
+  const durable = Array.isArray(candidate?.evidence?.durable) ? candidate.evidence.durable : [];
+  const hasDurableEvidence = durable.some((entry) => String(entry?.url ?? entry?.path ?? '').trim());
+  if (!hasDurableEvidence) {
+    errors.push('evidence.durable must contain at least one URL or path.');
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    value: candidate,
+  };
+};

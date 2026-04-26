@@ -80,3 +80,19 @@ test('release control workflow passes source commit into aggregate summary outpu
   assert.match(workflow, /NPM_SUMMARY_RAW:/i);
   assert.match(workflow, /process\.env\.NPM_SUMMARY_RAW/i);
 });
+
+test('release control workflow enforces release communications reconciliation gate', async () => {
+  const workflow = await readFile(workflowPath, 'utf8');
+
+  assert.match(workflow, /release-changelog-facts\.mjs/i);
+  assert.match(workflow, /generate-github-release-notes\.mjs/i);
+  assert.match(workflow, /validate-release-reconciliation\.mjs/i);
+  assert.match(workflow, /release-notes-/i);
+  assert.match(workflow, /CHANGELOG\.md/i);
+});
+
+test('release control workflow grants contents write for changelog and release body updates', async () => {
+  const workflow = await readFile(workflowPath, 'utf8');
+
+  assert.match(workflow, /permissions:[\s\S]*contents:\s*write/i);
+});

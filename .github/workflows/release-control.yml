@@ -40,7 +40,7 @@ on:
           - contract
 
 permissions:
-  contents: read
+  contents: write
   packages: read
   id-token: write
 
@@ -220,6 +220,10 @@ jobs:
     if: ${{ always() }}
     needs: [validate-dispatch, android-lane, ios-lane, npm-lane]
     runs-on: ubuntu-latest
+    outputs:
+      release_notes_markdown: ${{ steps.release-communications.outputs.release_notes_markdown }}
+      release_tag: ${{ steps.release-communications.outputs.release_tag }}
+      release_title: ${{ steps.release-communications.outputs.release_title }}
     defaults:
       run:
         working-directory: apps/capacitor-demo
@@ -337,3 +341,70 @@ jobs:
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/npm-summary.json
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/summary.json
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/summary.md
+
+      - name: Generate and validate release communications
+        id: release-communications
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "./artifacts/release-control/${RELEASE_ID}"
+          narrative_file="../../docs/releases/notes/${RELEASE_ID}.json"
+          if [[ ! -f "$narrative_file" ]]; then
+            echo "Missing required narrative file: $narrative_file" >&2
+            echo "Copy docs/releases/notes/release-narrative.template.json and fill required fields." >&2
+            exit 1
+          fi
+
+          node ./scripts/release-changelog-facts.mjs \
+            --release-id "$RELEASE_ID" \
+            --summary "./artifacts/release-control/${RELEASE_ID}/summary.json" \
+            --output "./artifacts/release-control/${RELEASE_ID}/release-facts.json" >/dev/null
+
+          node ./scripts/generate-github-release-notes.mjs \
+            --facts "./artifacts/release-control/${RELEASE_ID}/release-facts.json" \
+            --narrative "$narrative_file" \
+            --changelog-anchor "CHANGELOG.md#r-${RELEASE_ID,,}" \
+            --out-json "./artifacts/release-control/${RELEASE_ID}/github-release.json" \
+            --out-markdown "./artifacts/release-control/${RELEASE_ID}/github-release.md" >/dev/null
+
+          node ./scripts/validate-release-reconciliation.mjs \
+            --facts "./artifacts/release-control/${RELEASE_ID}/release-facts.json" \
+            --release-notes "./artifacts/release-control/${RELEASE_ID}/github-release.md" \
+            --changelog "../../CHANGELOG.md" > "./artifacts/release-control/${RELEASE_ID}/reconciliation-report.json"
+
+          node ./scripts/persist-release-evidence-index.mjs \
+            --repo-root ../.. \
+            --release-id "$RELEASE_ID" \
+            --source-commit "${{ github.sha }}" \
+            --durable "$(node -e 'const fs=require("node:fs");const f=JSON.parse(fs.readFileSync("./artifacts/release-control/'"${RELEASE_ID}"'/release-facts.json","utf8"));process.stdout.write(JSON.stringify(f.evidence?.durable ?? []));')" \
+            --ephemeral "$(node -e 'const fs=require("node:fs");const f=JSON.parse(fs.readFileSync("./artifacts/release-control/'"${RELEASE_ID}"'/release-facts.json","utf8"));process.stdout.write(JSON.stringify(f.evidence?.ephemeral ?? []));')" >/dev/null
+
+          {
+            echo 'release_notes_markdown<<EOF'
+            cat "./artifacts/release-control/${RELEASE_ID}/github-release.md"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+          echo "release_tag=release/${RELEASE_ID}" >> "$GITHUB_OUTPUT"
+          echo "release_title=Release ${RELEASE_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release notes reconciliation artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-notes-${{ inputs.release_id }}
+          path: |
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/release-facts.json
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/github-release.json
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/github-release.md
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/reconciliation-report.json
+
+  publish-github-release-notes:
+    needs: aggregate-release-summary
+    if: ${{ needs.aggregate-release-summary.result == 'success' }}
+    uses: ./.github/workflows/release-github-notes.yml
+    with:
+      release_id: ${{ inputs.release_id }}
+      release_tag: ${{ needs.aggregate-release-summary.outputs.release_tag }}
+      release_title: ${{ needs.aggregate-release-summary.outputs.release_title }}
+      release_notes_markdown: ${{ needs.aggregate-release-summary.outputs.release_notes_markdown }}
