@@ -464,6 +464,10 @@ class LegatoAndroidPlayerEngine(
         }
     }
 
+    fun handleExternalInterruption(signal: LegatoAndroidInterruptionSignal) {
+        onInterruption(signal)
+    }
+
     fun release() {
         if (!isSetup) {
             return
@@ -672,15 +676,24 @@ class LegatoAndroidPlayerEngine(
                 // v1 policy: no automatic resume.
             }
 
+            LegatoAndroidInterruptionSignal.AudioFocusDenied -> {
+                val state = snapshotStore.getPlaybackSnapshot().state
+                if (state == LegatoAndroidPlaybackState.PLAYING || state == LegatoAndroidPlaybackState.BUFFERING) {
+                    pauseForInterruption(signal)
+                } else {
+                    publishInterruption(signal)
+                }
+            }
+
             LegatoAndroidInterruptionSignal.AudioFocusLost,
             LegatoAndroidInterruptionSignal.AudioFocusLostTransient,
             LegatoAndroidInterruptionSignal.AudioFocusLostTransientCanDuck,
             LegatoAndroidInterruptionSignal.BecomingNoisy,
-            -> pauseForInterruption()
+            -> pauseForInterruption(signal)
         }
     }
 
-    private fun pauseForInterruption() {
+    private fun pauseForInterruption(signal: LegatoAndroidInterruptionSignal) {
         val state = snapshotStore.getPlaybackSnapshot().state
         if (state != LegatoAndroidPlaybackState.PLAYING && state != LegatoAndroidPlaybackState.BUFFERING) {
             return
@@ -691,6 +704,27 @@ class LegatoAndroidPlayerEngine(
         }
         pauseOrigin = LegatoAndroidPauseOrigin.INTERRUPTION
         transitionTo(LegatoAndroidStateMachine.LegatoAndroidStateInput.PAUSE)
+        publishInterruption(signal)
+    }
+
+    private fun publishInterruption(signal: LegatoAndroidInterruptionSignal) {
+        val reason = when (signal) {
+            LegatoAndroidInterruptionSignal.AudioFocusDenied -> LegatoAndroidInterruptionReason.FOCUS_DENIED
+            LegatoAndroidInterruptionSignal.AudioFocusLost -> LegatoAndroidInterruptionReason.AUDIO_FOCUS_LOSS
+            LegatoAndroidInterruptionSignal.AudioFocusLostTransient -> LegatoAndroidInterruptionReason.AUDIO_FOCUS_LOSS_TRANSIENT
+            LegatoAndroidInterruptionSignal.AudioFocusLostTransientCanDuck -> LegatoAndroidInterruptionReason.AUDIO_FOCUS_LOSS_TRANSIENT_CAN_DUCK
+            LegatoAndroidInterruptionSignal.BecomingNoisy -> LegatoAndroidInterruptionReason.BECOMING_NOISY
+            LegatoAndroidInterruptionSignal.AudioFocusGained -> return
+        }
+
+        val resumable = reason != LegatoAndroidInterruptionReason.FOCUS_DENIED
+        eventEmitter.emit(
+            name = LegatoAndroidEventName.PLAYBACK_INTERRUPTION,
+            payload = LegatoAndroidEventPayload.PlaybackInterruption(
+                reason = reason,
+                resumable = resumable,
+            ),
+        )
     }
 
     private fun onRemoteCommand(command: LegatoAndroidRemoteCommand) {

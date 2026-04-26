@@ -2,6 +2,8 @@ package io.legato.capacitor
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.os.Build
 import androidx.media3.exoplayer.ExoPlayer
 import io.legato.core.core.LegatoAndroidCoreComponents
@@ -47,6 +49,7 @@ internal class LegatoAndroidAppServiceRuntime(
 internal class LegatoAndroidPlaybackCoordinator(
     val core: LegatoAndroidCoreComponents,
     private var serviceRuntime: LegatoAndroidCoordinatorServiceRuntime = NoopLegatoAndroidCoordinatorServiceRuntime,
+    private val focusGate: LegatoAndroidPlaybackFocusGate = AlwaysGrantedLegatoAndroidPlaybackFocusGate,
 ) {
     private val modeListeners = linkedMapOf<Long, (LegatoAndroidServiceMode) -> Unit>()
     private val playbackStateListeners = linkedMapOf<Long, (LegatoAndroidPlaybackState) -> Unit>()
@@ -98,6 +101,15 @@ internal class LegatoAndroidPlaybackCoordinator(
     }
 
     fun play() {
+        if (!focusGate.requestPlaybackFocus()) {
+            core.playerEngine.handleExternalInterruption(
+                io.legato.core.session.LegatoAndroidInterruptionSignal.AudioFocusDenied,
+            )
+            projectServiceMode()
+            projectPlaybackState()
+            projectNowPlayingMetadata()
+            return
+        }
         kotlinx.coroutines.runBlocking { core.playerEngine.play() }
         projectServiceMode()
         projectPlaybackState()
@@ -347,8 +359,10 @@ internal class LegatoAndroidPlaybackCoordinator(
             runtime = serviceRuntime
         }
 
-        if (nextMode != LegatoAndroidServiceMode.OFF) {
+        if (shouldEnsureServiceRunning(nextMode)) {
             runtime.ensureServiceRunning(nextMode)
+        } else {
+            focusGate.abandonPlaybackFocus()
         }
 
         if (shouldNotify) {
@@ -419,6 +433,70 @@ internal class LegatoAndroidPlaybackCoordinator(
         )
 }
 
+internal fun shouldEnsureServiceRunning(mode: LegatoAndroidServiceMode): Boolean {
+    return mode != LegatoAndroidServiceMode.OFF
+}
+
+internal interface LegatoAndroidPlaybackFocusGate {
+    fun requestPlaybackFocus(): Boolean
+
+    fun abandonPlaybackFocus()
+}
+
+internal object AlwaysGrantedLegatoAndroidPlaybackFocusGate : LegatoAndroidPlaybackFocusGate {
+    override fun requestPlaybackFocus(): Boolean = true
+
+    override fun abandonPlaybackFocus() = Unit
+}
+
+internal class AndroidAudioManagerPlaybackFocusGate(
+    private val appContext: Context,
+) : LegatoAndroidPlaybackFocusGate {
+    private val audioManager: AudioManager? = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+    private var focusRequest: AudioFocusRequest? = null
+    private var hasFocus: Boolean = false
+
+    override fun requestPlaybackFocus(): Boolean {
+        if (hasFocus) {
+            return true
+        }
+        val manager = audioManager ?: return true
+
+        val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = focusRequest ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAcceptsDelayedFocusGain(false)
+                .setWillPauseWhenDucked(true)
+                .setOnAudioFocusChangeListener { }
+                .build()
+                .also { created -> focusRequest = created }
+            manager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            @Suppress("DEPRECATION")
+            manager.requestAudioFocus(
+                null,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN,
+            ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+        hasFocus = granted
+        return granted
+    }
+
+    override fun abandonPlaybackFocus() {
+        if (!hasFocus) {
+            return
+        }
+        val manager = audioManager ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            focusRequest?.let { manager.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            manager.abandonAudioFocus(null)
+        }
+        hasFocus = false
+    }
+}
+
 internal object LegatoAndroidPlaybackCoordinatorStore {
     private val lock = Any()
     private var coordinator: LegatoAndroidPlaybackCoordinator? = null
@@ -432,6 +510,7 @@ internal object LegatoAndroidPlaybackCoordinatorStore {
                     ),
                 ),
             ),
+            focusGate = AndroidAudioManagerPlaybackFocusGate(appContext),
         ).also {
             coordinator = it
         }

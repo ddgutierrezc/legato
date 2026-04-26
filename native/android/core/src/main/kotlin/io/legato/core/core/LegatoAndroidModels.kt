@@ -110,12 +110,21 @@ enum class LegatoAndroidEventName(val wireValue: String) {
     PLAYBACK_QUEUE_CHANGED("playback-queue-changed"),
     PLAYBACK_PROGRESS("playback-progress"),
     PLAYBACK_ENDED("playback-ended"),
+    PLAYBACK_INTERRUPTION("playback-interruption"),
     PLAYBACK_ERROR("playback-error"),
     REMOTE_PLAY("remote-play"),
     REMOTE_PAUSE("remote-pause"),
     REMOTE_NEXT("remote-next"),
     REMOTE_PREVIOUS("remote-previous"),
     REMOTE_SEEK("remote-seek"),
+}
+
+enum class LegatoAndroidInterruptionReason(val wireValue: String) {
+    FOCUS_DENIED("focus-denied"),
+    AUDIO_FOCUS_LOSS("audio-focus-loss"),
+    AUDIO_FOCUS_LOSS_TRANSIENT("audio-focus-loss-transient"),
+    AUDIO_FOCUS_LOSS_TRANSIENT_CAN_DUCK("audio-focus-loss-transient-can-duck"),
+    BECOMING_NOISY("becoming-noisy"),
 }
 
 sealed interface LegatoAndroidEventPayload {
@@ -129,6 +138,10 @@ sealed interface LegatoAndroidEventPayload {
     ) : LegatoAndroidEventPayload
 
     data class PlaybackEnded(val snapshot: LegatoAndroidPlaybackSnapshot) : LegatoAndroidEventPayload
+    data class PlaybackInterruption(
+        val reason: LegatoAndroidInterruptionReason,
+        val resumable: Boolean,
+    ) : LegatoAndroidEventPayload
     data class PlaybackError(val error: LegatoAndroidError) : LegatoAndroidEventPayload
 
     object RemotePlay : LegatoAndroidEventPayload

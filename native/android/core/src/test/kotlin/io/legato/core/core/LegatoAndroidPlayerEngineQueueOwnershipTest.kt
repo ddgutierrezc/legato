@@ -113,7 +113,7 @@ class LegatoAndroidPlayerEngineQueueOwnershipTest {
                 LegatoAndroidAudioFocusPolicy(
                     gainHint = LegatoAndroidAudioFocusGainHint.AUDIOFOCUS_GAIN,
                     pauseOnTransientLoss = true,
-                    duckOnTransientCanDuck = true,
+                    pauseOnTransientCanDuck = true,
                     resumeAfterGainIfNotUserPaused = false,
                 )
 

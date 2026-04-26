@@ -21,7 +21,13 @@ The module ships a real Media3 runtime path and also keeps default no-op adapter
 
 - Focus loss (`AUDIOFOCUS_LOSS`, `AUDIOFOCUS_LOSS_TRANSIENT`, `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK`) and becoming noisy signals pause playback with interruption pause origin.
 - Focus gain does **not** auto-resume playback in v1.
+- Focus request denial is handled as deterministic non-playing lifecycle behavior (no implicit retry loop / no auto-play continuation).
 - Service/app adapters ingest Android callbacks and forward canonical interruption signals to the session runtime.
+
+### Explicit non-goal boundary (android-background-lifecycle-v1)
+
+- This pass hardens **live-process** Android lifecycle semantics only.
+- It does **not** claim process-death restore, broad OEM completeness, or a large MediaSession rewrite.
 
 ## Gradle module bootstrap
 

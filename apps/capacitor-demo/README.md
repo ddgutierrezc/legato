@@ -106,6 +106,14 @@ Manual parity checklist to close milestone validation:
 7. Validate capability projection summary: mid-queue enables next/previous, first track disables previous, ended disables all (`canSkipNext=false`, `canSkipPrevious=false`, `canSeek=false`).
 8. Run `Run artwork race` and confirm no stale artwork survives rapid track switches/fallback.
 9. (Android lifecycle carry-over) `stop()` + idle tears down foreground service/notification.
+10. Run `Case: focus-denied lifecycle check` and capture copyable log/events showing non-playing outcome after denied focus.
+11. Run `Case: CAN_DUCK interruption pause` and capture snapshot evidence that CAN_DUCK pauses (no implicit auto-resume).
+12. Run `Case: background transition coherence` and capture snapshot summary + raw JSON after background/foreground return.
+
+Scope boundary for this lifecycle pass:
+
+- ✅ Guarantees targeted **in-process** lifecycle behavior (focus denial/interruption/background transition/notification coherence).
+- ❌ Does **not** claim process-death restoration or OEM-complete lifecycle resilience.
 
 ## Quick smoke checklist (manual, lightweight)
 

@@ -12,6 +12,7 @@ class LegatoAndroidAudioFocusSessionRuntimeTest {
         val policy = runtime.audioFocusPolicy()
 
         assertEquals(LegatoAndroidAudioFocusGainHint.AUDIOFOCUS_GAIN, policy.gainHint)
+        assertEquals(true, policy.pauseOnTransientCanDuck)
         assertFalse(policy.resumeAfterGainIfNotUserPaused)
     }
 

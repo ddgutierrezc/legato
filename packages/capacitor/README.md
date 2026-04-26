@@ -133,6 +133,7 @@ Maintainer-heavy CLI/release/SPM operational details are documented in [`../../d
 - Android runtime playback is implemented (Media3/ExoPlayer runtime + foreground service transport controls) for package-supported flows.
 - This binding bridges current native core semantics/state/events and keeps queue/state/event ownership aligned.
 - Interruption handling policy in runtime-v1 is explicit: focus loss/noisy pauses playback; focus gain does not auto-resume.
+- Lifecycle hardening boundary (`android-background-lifecycle-v1`) is explicit: focus denial/CAN_DUCK/background transition behavior is in scope only while process is alive.
 - Non-goals for this milestone: process-death restore, broad lifecycle/OEM hardening, and cross-platform parity expansion.
 - Those deferred items move to follow-up milestones (`android-background-lifecycle-v1` and platform parity tracks), not runtime-v1.
 
