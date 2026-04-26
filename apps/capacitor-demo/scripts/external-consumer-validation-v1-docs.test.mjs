@@ -8,15 +8,19 @@ const currentDir = dirname(fileURLToPath(import.meta.url));
 const docsPath = resolve(currentDir, '../../../docs/releases/external-consumer-validation-v1.md');
 const evidencePath = resolve(currentDir, '../../../docs/releases/external-consumer-validation-v2-evidence.md');
 
-test('external consumer runbook states v2 registry-first boundaries and non-goals', async () => {
+test('external consumer runbook states v3 profile boundaries and manual non-automation scope', async () => {
   const runbook = await readFile(docsPath, 'utf8');
 
   assert.match(runbook, /Registry-first release gate/i);
+  assert.match(runbook, /Scope Boundaries \(v3\)/i);
   assert.match(runbook, /manual proof in `\/Volumes\/S3\/daniel\/github\/legato-consumer-smoke`/i);
-  assert.match(runbook, /Do NOT use `file:`.*workspace.*tarball.*link/i);
+  assert.match(runbook, /Do NOT use `workspace:` or `link:` dependencies in any profile/i);
+  assert.match(runbook, /`file:` tarballs are allowed only for `ci-npm-readiness`/i);
+  assert.match(runbook, /Manual-only \/ Real-device Boundaries/i);
+  assert.match(runbook, /do \*\*not\*\* replace these checks/i);
 });
 
-test('external consumer runbook includes phase 0 npm-view gate and phase 1 evidence contract', async () => {
+test('external consumer runbook includes phase 0 npm-view gate and profile-specific automation commands', async () => {
   const runbook = await readFile(docsPath, 'utf8');
 
   assert.match(runbook, /npm view @ddgutierrezc\/legato-capacitor version peerDependencies --json/i);
@@ -24,7 +28,9 @@ test('external consumer runbook includes phase 0 npm-view gate and phase 1 evide
   assert.match(runbook, /npx cap add android/i);
   assert.match(runbook, /npx cap sync ios android/i);
   assert.match(runbook, /packageClassList/i);
-  assert.match(runbook, /run-external-consumer-validation\.mjs/i);
+  assert.match(runbook, /npm run validate:external:consumer:manual-proof/i);
+  assert.match(runbook, /npm run validate:external:consumer:ci-readiness/i);
+  assert.match(runbook, /summary-cli\.json/i);
 });
 
 test('runbook reflects current 0.1.2 registry truth and current proof path', async () => {

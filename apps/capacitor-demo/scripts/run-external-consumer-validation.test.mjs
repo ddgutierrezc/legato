@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 
@@ -8,6 +8,7 @@ import {
   ensureFixtureOutsideRepo,
   inspectIsolationLeaks,
   evaluateRegistryPeerAlignment,
+  parseArgs,
   runExternalConsumerValidation,
 } from './run-external-consumer-validation.mjs';
 
@@ -643,7 +644,7 @@ test('npm-readiness mode fails when documented root import runtime check fails',
   }
 });
 
-test('consumer-adoption mode fails on known contract root-import packaging mismatch', async () => {
+test('manual-consumer-proof keeps documented root-import mismatch as informational warning', async () => {
   const tempDir = await mkdtemp(join(tmpdir(), 'legato-external-orchestrator-runtime-proof-consumer-known-mismatch-'));
   const artifactsDir = join(tempDir, 'artifacts');
   const fixtureRoot = join(tempDir, 'fixture');
@@ -721,23 +722,25 @@ test('consumer-adoption mode fails on known contract root-import packaging misma
   };
 
   try {
-    const result = await runExternalConsumerValidation({
+      const result = await runExternalConsumerValidation({
       repoRoot,
       fixtureRoot,
       artifactsDir,
       keepFixture: true,
       commandRunner,
       skipPack: true,
-      registrySpecs: {
-        capacitor: '@ddgutierrezc/legato-capacitor@0.1.2',
-        contract: '@ddgutierrezc/legato-contract@0.1.2',
-      },
-      proofMode: 'consumer-adoption',
-    });
+        registrySpecs: {
+          capacitor: '@ddgutierrezc/legato-capacitor@0.1.2',
+          contract: '@ddgutierrezc/legato-contract@0.1.2',
+        },
+        proofMode: 'consumer-adoption',
+        validationProfile: 'manual-consumer-proof',
+      });
 
-    assert.equal(result.status, 'FAIL');
+    assert.equal(result.status, 'PASS');
     assert.equal(result.runtimeProof?.documentedImport?.status, 'FAIL');
-    assert.equal(result.failures.some((failure) => /Documented import runtime proof failed/i.test(failure)), true);
+    assert.equal(result.warnings.some((warning) => /informational/i.test(warning)), true);
+    assert.equal(result.failures.some((failure) => /Documented import runtime proof failed/i.test(failure)), false);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -1060,6 +1063,121 @@ test('orchestrator fails when undocumented deep import resolves unexpectedly', a
 
     assert.equal(result.status, 'FAIL');
     assert.match(result.failures.join('\n'), /undocumented deep import|ERR_PACKAGE_PATH_NOT_EXPORTED/i);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('cli parser rejects unknown arguments and missing values', () => {
+  assert.throws(() => parseArgs(['--unknown-flag']), /Unknown argument/i);
+  assert.throws(() => parseArgs(['--consumer-root']), /Missing value/i);
+});
+
+test('consumer-owned regeneration requires explicit destructive confirmation flag', async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), 'legato-external-orchestrator-regenerate-guard-'));
+  const artifactsDir = join(tempDir, 'artifacts');
+  const consumerRoot = join(tempDir, 'consumer-app');
+  const repoRoot = join(tempDir, 'repo-root');
+  await mkdir(repoRoot, { recursive: true });
+  await mkdir(consumerRoot, { recursive: true });
+
+  const commandRunner = async ({ command, args }) => {
+    if ((command === 'node' || command === 'npm' || command === 'npx') && args[0] === '--version') {
+      return { stdout: 'v1\n', stderr: '' };
+    }
+    if (command === 'npm' && args[0] === 'view' && args[1] === '@ddgutierrezc/legato-capacitor@0.1.1') {
+      return {
+        stdout: JSON.stringify({ version: '0.1.1', peerDependencies: { '@ddgutierrezc/legato-contract': '^0.1.1' } }),
+        stderr: '',
+      };
+    }
+    if (command === 'npm' && args[0] === 'view' && args[1] === '@ddgutierrezc/legato-contract@0.1.1') {
+      return { stdout: JSON.stringify('0.1.1'), stderr: '' };
+    }
+    if (command === 'npm' && args[0] === 'view' && args[1] === '@ddgutierrezc/legato-contract') {
+      return { stdout: JSON.stringify(['0.1.1']), stderr: '' };
+    }
+    return { stdout: 'ok', stderr: '' };
+  };
+
+  try {
+    const result = await runExternalConsumerValidation({
+      repoRoot,
+      consumerRoot,
+      artifactsDir,
+      keepFixture: true,
+      commandRunner,
+      skipPack: true,
+      hostStrategy: 'regenerate',
+    });
+
+    assert.equal(result.status, 'FAIL');
+    assert.equal(result.failures.some((failure) => /allow-consumer-root-regeneration/i.test(failure)), true);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('missing required evidence artifacts fail with explicit evidence contract violation', async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), 'legato-external-orchestrator-manifest-'));
+  const artifactsDir = join(tempDir, 'artifacts');
+  const fixtureRoot = join(tempDir, 'fixture');
+  const repoRoot = join(tempDir, 'repo-root');
+  await mkdir(repoRoot, { recursive: true });
+  await mkdir(fixtureRoot, { recursive: true });
+
+  const commandRunner = async ({ command, args }) => {
+    if ((command === 'node' || command === 'npm' || command === 'npx') && args[0] === '--version') {
+      return { stdout: 'v1\n', stderr: '' };
+    }
+    if (command === 'npm' && args[0] === 'view' && args[1] === '@ddgutierrezc/legato-capacitor@0.1.1') {
+      return {
+        stdout: JSON.stringify({ version: '0.1.1', peerDependencies: { '@ddgutierrezc/legato-contract': '^0.1.1' } }),
+        stderr: '',
+      };
+    }
+    if (command === 'npm' && args[0] === 'view' && args[1] === '@ddgutierrezc/legato-contract@0.1.1') {
+      return { stdout: JSON.stringify('0.1.1'), stderr: '' };
+    }
+    if (command === 'npm' && args[0] === 'view' && args[1] === '@ddgutierrezc/legato-contract') {
+      return { stdout: JSON.stringify(['0.1.1']), stderr: '' };
+    }
+    if (command === 'npm' && args[0] === 'install') {
+      throw new Error('install exploded');
+    }
+    return { stdout: 'ok', stderr: '' };
+  };
+
+  try {
+    const result = await runExternalConsumerValidation({
+      repoRoot,
+      fixtureRoot,
+      artifactsDir,
+      keepFixture: true,
+      commandRunner,
+      skipPack: true,
+      validationProfile: 'ci-npm-readiness',
+    });
+
+    assert.equal(result.status, 'FAIL');
+    assert.equal(
+      result.failures.some((failure) => /Evidence contract violation: missing required artifacts/i.test(failure)),
+      true,
+    );
+    assert.equal(
+      result.failures.some((failure) => /installMetadata|dependencyScan|typecheckLog|validatorSummary/i.test(failure)),
+      true,
+    );
+    const manifestRaw = await readFile(join(artifactsDir, 'run-manifest.json'), 'utf8');
+    const manifest = JSON.parse(manifestRaw);
+    assert.equal(manifest.validationProfile, 'ci-npm-readiness');
+    assert.equal(Array.isArray(manifest.artifacts), true);
+    assert.equal(manifest.artifacts.some((artifact) => artifact.key === 'summaryCli'), true);
+
+    const summaryCliRaw = await readFile(join(artifactsDir, 'summary-cli.json'), 'utf8');
+    const summaryCli = JSON.parse(summaryCliRaw);
+    assert.equal(summaryCli.validationProfile, 'ci-npm-readiness');
+    assert.equal(summaryCli.status, 'FAIL');
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
