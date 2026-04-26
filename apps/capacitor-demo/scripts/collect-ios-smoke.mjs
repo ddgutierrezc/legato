@@ -30,6 +30,18 @@ export const normalizeIosCollectorFailure = ({
   snapshotSummary: `collector retrieval failed (platform=ios, step=${step})`,
   recentEvents,
   errors: [message],
+  runtimeIntegrity: {
+    transportCommandsObserved: false,
+    progressAdvancedWhilePlaying: false,
+    trackEndTransitionObserved: false,
+    snapshotProjectionCoherent: false,
+    details: {
+      transport: `collector failed before transport verification (step=${step})`,
+      progress: `collector failed before progress verification (step=${step})`,
+      trackEnd: `collector failed before track-end verification (step=${step})`,
+      snapshot: `collector failed before snapshot verification (step=${step})`,
+    },
+  },
   metadata: {
     platform: 'ios',
     collectedAt,
@@ -45,6 +57,15 @@ const parseMarkerPayload = (line) => {
 
   return line.slice(markerIndex + LEGATO_SMOKE_REPORT_MARKER.length).trim();
 };
+
+const hasRuntimeIntegrityPayload = (value) => value
+  && typeof value === 'object'
+  && typeof value.transportCommandsObserved === 'boolean'
+  && typeof value.progressAdvancedWhilePlaying === 'boolean'
+  && typeof value.trackEndTransitionObserved === 'boolean'
+  && typeof value.snapshotProjectionCoherent === 'boolean'
+  && value.details
+  && typeof value.details === 'object';
 
 export const collectIosSmokeReportFromLog = (
   logText,
@@ -65,6 +86,14 @@ export const collectIosSmokeReportFromLog = (
       return normalizeIosCollectorFailure({
         step: 'parse-marker-json',
         message: 'Malformed smoke marker payload: JSON parse failed.',
+        collectedAt,
+      });
+    }
+
+    if (!hasRuntimeIntegrityPayload(parsed.runtimeIntegrity)) {
+      return normalizeIosCollectorFailure({
+        step: 'validate-runtime-integrity-payload',
+        message: 'Smoke marker payload is missing runtime integrity checks (transport/progress/track-end/snapshot).',
         collectedAt,
       });
     }

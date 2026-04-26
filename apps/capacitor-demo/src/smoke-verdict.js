@@ -9,6 +9,19 @@ const FLOW_BOUNDARY = 'boundary';
 
 const createCheck = (label, ok, detail) => ({ label, ok, detail });
 
+const normalizeRuntimeIntegrity = (value) => ({
+  transportCommandsObserved: value?.transportCommandsObserved === true,
+  progressAdvancedWhilePlaying: value?.progressAdvancedWhilePlaying === true,
+  trackEndTransitionObserved: value?.trackEndTransitionObserved === true,
+  snapshotProjectionCoherent: value?.snapshotProjectionCoherent === true,
+  details: {
+    transport: typeof value?.details?.transport === 'string' ? value.details.transport : 'transport evidence unavailable',
+    progress: typeof value?.details?.progress === 'string' ? value.details.progress : 'progress evidence unavailable',
+    trackEnd: typeof value?.details?.trackEnd === 'string' ? value.details.trackEnd : 'track-end evidence unavailable',
+    snapshot: typeof value?.details?.snapshot === 'string' ? value.details.snapshot : 'snapshot evidence unavailable',
+  },
+});
+
 const asNumberOrNull = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 
 const readSnapshotMetrics = (snapshot) => ({
@@ -81,7 +94,7 @@ export const createSmokeSnapshotSummary = (snapshot) => {
   return formatSnapshotSummary(metrics);
 };
 
-export const buildSmokeReportV1 = ({ verdict, recentEvents = [] }) => ({
+export const buildSmokeReportV1 = ({ verdict, recentEvents = [], runtimeIntegrity }) => ({
   schemaVersion: 1,
   flow: 'smoke',
   status: verdict.status === PASS ? PASS : FAIL,
@@ -91,6 +104,7 @@ export const buildSmokeReportV1 = ({ verdict, recentEvents = [] }) => ({
   errors: verdict.status === FAIL
     ? [verdict.errorSummary ?? 'One or more smoke checks failed.'].filter((entry) => typeof entry === 'string' && entry.trim() !== '')
     : [],
+  runtimeIntegrity: normalizeRuntimeIntegrity(runtimeIntegrity),
 });
 
 export const createInitialSmokeVerdict = () => ({

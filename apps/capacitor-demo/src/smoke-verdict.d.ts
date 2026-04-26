@@ -24,6 +24,18 @@ export type SmokeReportV1 = {
   snapshotSummary: string;
   recentEvents: string[];
   errors: string[];
+  runtimeIntegrity: {
+    transportCommandsObserved: boolean;
+    progressAdvancedWhilePlaying: boolean;
+    trackEndTransitionObserved: boolean;
+    snapshotProjectionCoherent: boolean;
+    details: {
+      transport: string;
+      progress: string;
+      trackEnd: string;
+      snapshot: string;
+    };
+  };
 };
 
 export type SmokeVerdictAction =
@@ -36,6 +48,21 @@ export function createInitialSmokeVerdict(): SmokeVerdict;
 export function createSmokeChecks(flow: SmokeFlow | null, snapshot: unknown): SmokeVerdictCheck[];
 export function createSmokeSnapshotSummary(snapshot: unknown): string;
 export function deriveSmokeStatusFromChecks(checks: SmokeVerdictCheck[], errorSummary?: string | null): 'PASS' | 'FAIL';
-export function buildSmokeReportV1(input: { verdict: SmokeVerdict; recentEvents?: string[] }): SmokeReportV1;
+export function buildSmokeReportV1(input: {
+  verdict: SmokeVerdict;
+  recentEvents?: string[];
+  runtimeIntegrity?: {
+    transportCommandsObserved?: boolean;
+    progressAdvancedWhilePlaying?: boolean;
+    trackEndTransitionObserved?: boolean;
+    snapshotProjectionCoherent?: boolean;
+    details?: {
+      transport?: string;
+      progress?: string;
+      trackEnd?: string;
+      snapshot?: string;
+    };
+  };
+}): SmokeReportV1;
 export function reduceSmokeVerdict(state: SmokeVerdict, action: SmokeVerdictAction): SmokeVerdict;
 export function summarizeSmokeVerdict(verdict: SmokeVerdict): string;

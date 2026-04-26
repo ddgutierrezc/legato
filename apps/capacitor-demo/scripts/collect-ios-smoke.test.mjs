@@ -71,6 +71,7 @@ test('failure helper keeps v1 required keys present and non-null for iOS', () =>
     'flow',
     'metadata',
     'recentEvents',
+    'runtimeIntegrity',
     'schemaVersion',
     'snapshotSummary',
     'status',
@@ -79,4 +80,23 @@ test('failure helper keeps v1 required keys present and non-null for iOS', () =>
   assert.equal(report.errors.length > 0, true);
   assert.equal(report.metadata.platform, 'ios');
   assert.equal(report.metadata.step, 'ios-log-stream');
+});
+
+test('collector fails with actionable diagnostics when smoke marker omits runtime integrity payload', () => {
+  const line = 'LEGATO_SMOKE_REPORT ' + JSON.stringify({
+    schemaVersion: 1,
+    flow: 'smoke',
+    status: 'PASS',
+    checks: [{ label: 'current track present', ok: true, detail: 'track=Demo Track 1' }],
+    snapshotSummary: 'state=paused | track=Demo Track 1 | position=1200 | duration=3000',
+    recentEvents: ['setup finished', 'play finished'],
+    errors: [],
+    metadata: { platform: 'ios' },
+  });
+
+  const report = collectIosSmokeReportFromLog(line);
+
+  assert.equal(report.status, 'FAIL');
+  assert.equal(report.metadata.step, 'validate-runtime-integrity-payload');
+  assert.match(report.errors[0], /runtime integrity/i);
 });

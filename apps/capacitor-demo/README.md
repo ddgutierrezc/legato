@@ -1,8 +1,16 @@
 # Capacitor Demo App (`apps/capacitor-demo`)
 
-Minimal host app to stage the **first real manual smoke path** for `@ddgutierrezc/legato-capacitor`, without pretending playback is already fully integrated.
+Native debugging harness for `@ddgutierrezc/legato-capacitor` runtime validation.
+This app is intentionally operator-focused (smoke + manual controls), not polished product UI.
 
 ## Milestone status
+
+### 2026-04-25 — iOS runtime playback integrity closure
+
+iOS runtime playback is already implemented and routed through AVPlayer-backed native runtime.
+This milestone hardens runtime integrity closure (canonical ownership + direct runtime evidence + stale-doc cleanup), while keeping lifecycle/background production hardening out of scope.
+
+Scope guardrails: `docs/architecture/ios-runtime-playback-v1-scope-guardrails.md`.
 
 ### 2026-04-19 — Android smoke passed (real host app)
 
@@ -21,7 +29,7 @@ Not validated by this milestone:
 - Production-grade playback/runtime behavior (long sessions, interruptions, lifecycle edge cases)
 - Background mode correctness and lockscreen/remote control behavior
 - Real transport reliability guarantees across devices/OS versions
-- iOS host parity
+- iOS full lifecycle/background production hardening
 
 ## Smoke objective (namespaced-first, compatibility-aware)
 
@@ -152,20 +160,20 @@ npm run cap:open:ios
 - Production-grade runtime behavior (stable progress ticks, lockscreen/remote controls, background lifecycle correctness).
 - Complete ExoPlayer/AVPlayer parity.
 
-### 2026-04-19 — iOS host scaffold generated (prep only)
+### iOS runtime validation status
 
-`apps/capacitor-demo/ios` now exists and was generated via `npx cap add ios`.
+`apps/capacitor-demo/ios` is an active smoke/evidence host for runtime checks.
 
-What this gives us now:
+Validated in current runtime-integrity scope:
 
-- Real Xcode host project scaffold (`ios/App/App.xcodeproj`)
-- Capacitor iOS app shell with bundled web assets (`ios/App/App/public`)
-- Plugin registration surface already generated (`ios/App/App/capacitor.config.json` with `LegatoPlugin`)
+- setup/add/play/pause/seek/snapshot transport path through AVPlayer runtime
+- marker-based smoke artifact capture + shared validation
+- runtime-integrity payload checks (transport, progress, track-end evidence signal, snapshot coherence)
 
-What this does **not** give us yet:
+Still not production-hardened lifecycle/background scope:
 
-- Verified iOS smoke execution end-to-end
-- Captured iOS smoke logs/evidence for setup/add/play/pause/getSnapshot
+- long-lived background interruption recovery matrix
+- full lifecycle parity guarantees across devices/OS versions
 
 ## Native linking caveats (current seam status)
 

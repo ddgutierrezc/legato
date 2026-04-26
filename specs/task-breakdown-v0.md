@@ -40,6 +40,6 @@
 ## Deferred
 - [ ] Android process-death queue/session restoration hardening (`android-background-lifecycle-v1`).
 - [ ] Broad Android background lifecycle + OEM matrix parity hardening (`android-background-lifecycle-v1` follow-ups).
-- [ ] iOS runtime parity closure and cross-platform behavior convergence (parity milestone tracks).
+- [ ] iOS runtime parity remains deferred to dedicated parity tracks (historical wording from pre-`ios-runtime-playback-v1` runtime-integrity closure).
 - [ ] Framework binding implementations.
 - [ ] CI/tooling automation.

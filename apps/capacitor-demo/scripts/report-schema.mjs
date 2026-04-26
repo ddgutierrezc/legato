@@ -8,6 +8,7 @@ export const SMOKE_REPORT_V1_REQUIRED_KEYS = Object.freeze([
   'snapshotSummary',
   'recentEvents',
   'errors',
+  'runtimeIntegrity',
 ]);
 
 export const SMOKE_REPORT_V1_SEMANTIC_SIGNATURES = Object.freeze({
@@ -18,6 +19,7 @@ export const SMOKE_REPORT_V1_SEMANTIC_SIGNATURES = Object.freeze({
   snapshotSummary: 'string-summary',
   recentEvents: 'array-recent-events',
   errors: 'array-error-message',
+  runtimeIntegrity: 'runtime-integrity-payload',
 });
 
 const PASS = 'PASS';
@@ -33,6 +35,21 @@ const hasCheckEntries = (value) => Array.isArray(value)
     && entry.label.trim() !== ''
     && typeof entry.ok === 'boolean'
     && typeof entry.detail === 'string');
+
+const hasRuntimeIntegrityPayload = (value) => isPlainObject(value)
+  && typeof value.transportCommandsObserved === 'boolean'
+  && typeof value.progressAdvancedWhilePlaying === 'boolean'
+  && typeof value.trackEndTransitionObserved === 'boolean'
+  && typeof value.snapshotProjectionCoherent === 'boolean'
+  && isPlainObject(value.details)
+  && typeof value.details.transport === 'string'
+  && value.details.transport.trim() !== ''
+  && typeof value.details.progress === 'string'
+  && value.details.progress.trim() !== ''
+  && typeof value.details.trackEnd === 'string'
+  && value.details.trackEnd.trim() !== ''
+  && typeof value.details.snapshot === 'string'
+  && value.details.snapshot.trim() !== '';
 
 export const validateSmokeReportV1 = (candidate) => {
   const errors = [];
@@ -78,6 +95,10 @@ export const validateSmokeReportV1 = (candidate) => {
 
   if (!hasStringEntries(candidate.errors)) {
     errors.push('errors must be a string[]');
+  }
+
+  if (!hasRuntimeIntegrityPayload(candidate.runtimeIntegrity)) {
+    errors.push('runtimeIntegrity must include boolean checks plus non-empty details for transport/progress/trackEnd/snapshot');
   }
 
   if (candidate.status === FAIL && (!Array.isArray(candidate.errors) || candidate.errors.length === 0)) {

@@ -57,28 +57,17 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
         do {
             let rawTracks = call.getArray("tracks") ?? []
             let tracks = rawTracks.compactMap { $0 as? [String: Any] }.map(LegatoCapacitorMapper.track)
-            let mappedTracks = try core.trackMapper.mapContractTracks(tracks)
 
             if let startIndex = call.getInt("startIndex") {
-                let mergedItems = core.queueManager.getQueueSnapshot().items + mappedTracks
+                let mergedItems = core.playerEngine.snapshot().queue.items + tracks
                 try core.playerEngine.load(tracks: mergedItems, startIndex: startIndex)
                 let snapshot = core.playerEngine.snapshot()
                 call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(snapshot)])
                 return
             }
 
-            let queueSnapshot = core.queueManager.addToQueue(mappedTracks)
-
-            let previous = core.snapshotStore.getPlaybackSnapshot()
-            let next = snapshotWithQueue(previous: previous, queue: queueSnapshot)
-            core.snapshotStore.replacePlaybackSnapshot(next)
-            publishQueueTrackProgress(next)
-
-            if previous.state != next.state {
-                core.eventEmitter.emit(name: .playbackStateChanged, payload: .playbackStateChanged(state: next.state))
-            }
-
-            call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(next)])
+            let snapshot = try core.playerEngine.appendToQueue(tracks)
+            call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(snapshot)])
         } catch {
             reject(call, error)
         }
@@ -87,58 +76,20 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func remove(_ call: CAPPluginCall) {
         do {
             let index = try resolveRemovalIndex(call)
-            let queue = core.queueManager.getQueueSnapshot()
-
-            guard queue.items.indices.contains(index) else {
-                throw LegatoiOSError(code: .invalidIndex, message: "remove index out of bounds")
-            }
-
-            var items = queue.items
-            items.remove(at: index)
-
-            let previous = core.snapshotStore.getPlaybackSnapshot()
-            if items.isEmpty {
-                core.queueManager.clear()
-                core.snapshotStore.replacePlaybackSnapshot(LegatoiOSSnapshotStore.emptySnapshot)
-            } else {
-                let nextIndex: Int
-                if let currentIndex = queue.currentIndex {
-                    if currentIndex > index {
-                        nextIndex = currentIndex - 1
-                    } else if currentIndex == index {
-                        nextIndex = min(index, items.count - 1)
-                    } else {
-                        nextIndex = min(currentIndex, items.count - 1)
-                    }
-                } else {
-                    nextIndex = 0
-                }
-
-                let nextQueue = try core.queueManager.replaceQueue(items, startIndex: nextIndex)
-                core.snapshotStore.replacePlaybackSnapshot(snapshotWithQueue(previous: previous, queue: nextQueue))
-            }
-
-            let next = core.snapshotStore.getPlaybackSnapshot()
-            publishQueueTrackProgress(next)
-            if previous.state != next.state {
-                core.eventEmitter.emit(name: .playbackStateChanged, payload: .playbackStateChanged(state: next.state))
-            }
-
-            call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(next)])
+            let snapshot = try core.playerEngine.removeFromQueue(at: index)
+            call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(snapshot)])
         } catch {
             reject(call, error)
         }
     }
 
     @objc func reset(_ call: CAPPluginCall) {
-        core.queueManager.clear()
-        core.snapshotStore.replacePlaybackSnapshot(LegatoiOSSnapshotStore.emptySnapshot)
-
-        let snapshot = core.snapshotStore.getPlaybackSnapshot()
-        publishQueueTrackProgress(snapshot)
-        core.eventEmitter.emit(name: .playbackStateChanged, payload: .playbackStateChanged(state: snapshot.state))
-
-        call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(snapshot)])
+        do {
+            let snapshot = try core.playerEngine.resetQueue()
+            call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(snapshot)])
+        } catch {
+            reject(call, error)
+        }
     }
 
     @objc func play(_ call: CAPPluginCall) {
@@ -187,17 +138,8 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
                 throw LegatoiOSError(code: .invalidIndex, message: "skipTo.index is required")
             }
 
-            let queue = core.queueManager.getQueueSnapshot()
-            guard queue.items.indices.contains(index) else {
-                throw LegatoiOSError(code: .invalidIndex, message: "skipTo.index out of bounds")
-            }
-
-            let nextQueue = try core.queueManager.replaceQueue(queue.items, startIndex: index)
-            let previous = core.snapshotStore.getPlaybackSnapshot()
-            let next = snapshotWithQueue(previous: previous, queue: nextQueue)
-            core.snapshotStore.replacePlaybackSnapshot(next)
-            publishQueueTrackProgress(next)
-            call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(next)])
+            let snapshot = try core.playerEngine.skipTo(index: index)
+            call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(snapshot)])
         } catch {
             reject(call, error)
         }
@@ -250,52 +192,6 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(core.playerEngine.snapshot())])
     }
 
-    private func publishQueueTrackProgress(_ snapshot: LegatoiOSPlaybackSnapshot) {
-        core.eventEmitter.emit(name: .playbackQueueChanged, payload: .queueChanged(snapshot: snapshot.queue))
-        core.eventEmitter.emit(
-            name: .playbackActiveTrackChanged,
-            payload: .activeTrackChanged(track: snapshot.currentTrack, index: snapshot.currentIndex)
-        )
-        core.eventEmitter.emit(
-            name: .playbackProgress,
-            payload: .playbackProgress(
-                positionMs: snapshot.positionMs,
-                durationMs: snapshot.durationMs,
-                bufferedPositionMs: snapshot.bufferedPositionMs
-            )
-        )
-    }
-
-    private func snapshotWithQueue(
-        previous: LegatoiOSPlaybackSnapshot,
-        queue: LegatoiOSQueueSnapshot
-    ) -> LegatoiOSPlaybackSnapshot {
-        let fallbackIndex = queue.items.isEmpty ? nil : 0
-        let nextIndex = queue.currentIndex ?? fallbackIndex
-        let track = nextIndex.flatMap { queue.items.indices.contains($0) ? queue.items[$0] : nil }
-
-        let nextState: LegatoiOSPlaybackState
-        if queue.items.isEmpty {
-            nextState = .idle
-        } else if previous.state == .idle {
-            nextState = .ready
-        } else {
-            nextState = previous.state
-        }
-
-        let sameTrack = previous.currentTrack?.id == track?.id
-
-        return LegatoiOSPlaybackSnapshot(
-            state: nextState,
-            currentTrack: track,
-            currentIndex: nextIndex,
-            positionMs: sameTrack ? previous.positionMs : 0,
-            durationMs: track?.durationMs,
-            bufferedPositionMs: sameTrack ? previous.bufferedPositionMs : 0,
-            queue: queue
-        )
-    }
-
     private func resolveRemovalIndex(_ call: CAPPluginCall) throws -> Int {
         if let index = call.getInt("index") {
             return index
@@ -305,7 +201,7 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
             throw LegatoiOSError(code: .invalidIndex, message: "remove requires index or id")
         }
 
-        let queue = core.queueManager.getQueueSnapshot()
+        let queue = core.playerEngine.snapshot().queue
         guard let resolved = queue.items.firstIndex(where: { $0.id == id }) else {
             throw LegatoiOSError(code: .invalidIndex, message: "remove.id was not found in queue")
         }

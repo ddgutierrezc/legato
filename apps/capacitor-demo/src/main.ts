@@ -133,6 +133,18 @@ const isNative = Capacitor.isNativePlatform();
 type PlaybackSurface = 'legato' | 'audioPlayer';
 type BoundaryCheck = { label: string; ok: boolean; detail: string };
 type SyncEventRecord = { name: string; summary: string; timestamp: number };
+type RuntimeIntegrityPayload = {
+  transportCommandsObserved: boolean;
+  progressAdvancedWhilePlaying: boolean;
+  trackEndTransitionObserved: boolean;
+  snapshotProjectionCoherent: boolean;
+  details: {
+    transport: string;
+    progress: string;
+    trackEnd: string;
+    snapshot: string;
+  };
+};
 
 let syncController: LegatoSyncController | null = null;
 let latestSnapshot: PlaybackSnapshot | null = null;
@@ -513,6 +525,69 @@ const renderAutomationPanel = (): void => {
   });
 };
 
+const deriveRuntimeIntegrityPayload = (): RuntimeIntegrityPayload => {
+  const normalizedRecentEvents = recentEvents.map((event) => event.toLowerCase());
+  const transportSteps = ['setup finished', 'add finished', 'play finished', 'pause finished'];
+  const transportCommandsObserved = transportSteps.every((step) => normalizedRecentEvents.some((event) => event.includes(step)));
+
+  const playingSamples = recentProgressSamples.filter((sample) => sample.state === 'playing');
+  const progressSpread = playingSamples.length > 1
+    ? Math.max(...playingSamples.map((sample) => sample.positionMs)) - Math.min(...playingSamples.map((sample) => sample.positionMs))
+    : 0;
+  const progressAdvancedWhilePlaying = progressSpread >= 350;
+
+  const trackEndTransitionObserved = normalizedRecentEvents.some((event) => /playback-ended|state=ended/.test(event))
+    || latestSnapshot?.state === 'ended';
+
+  const snapshotProjectionCoherent = (() => {
+    if (!latestSnapshot) {
+      return false;
+    }
+
+    const queueItems = (latestSnapshot.queue as { items?: Array<{ id?: string }>; tracks?: Array<{ id?: string }> }).items
+      ?? (latestSnapshot.queue as { items?: Array<{ id?: string }>; tracks?: Array<{ id?: string }> }).tracks
+      ?? [];
+    const queueLength = queueItems.length;
+
+    if (queueLength === 0) {
+      return latestSnapshot.currentTrack == null && latestSnapshot.currentIndex == null;
+    }
+
+    if (typeof latestSnapshot.currentIndex !== 'number' || !Number.isInteger(latestSnapshot.currentIndex)) {
+      return false;
+    }
+
+    if (latestSnapshot.currentIndex < 0 || latestSnapshot.currentIndex >= queueLength) {
+      return false;
+    }
+
+    const queueTrack = queueItems[latestSnapshot.currentIndex];
+    const activeTrack = latestSnapshot.currentTrack as { id?: string } | null | undefined;
+    return typeof queueTrack?.id === 'string' && queueTrack.id === activeTrack?.id;
+  })();
+
+  return {
+    transportCommandsObserved,
+    progressAdvancedWhilePlaying,
+    trackEndTransitionObserved,
+    snapshotProjectionCoherent,
+    details: {
+      transport: transportCommandsObserved
+        ? 'setup/add/play/pause command completion observed in harness log.'
+        : 'Missing one or more transport completion events (setup/add/play/pause).',
+      progress: progressAdvancedWhilePlaying
+        ? `Progress moved during playing samples (spread=${progressSpread}ms).`
+        : `Insufficient playing movement evidence (spread=${progressSpread}ms).`,
+      trackEnd: trackEndTransitionObserved
+        ? 'Track-end transition observed (state=ended or playback-ended signal).'
+        : 'Track-end transition not observed in this smoke run (run let-end/boundary for explicit end evidence).',
+      snapshot: snapshotProjectionCoherent
+        ? 'Snapshot projection coherent (queue/currentIndex/currentTrack alignment).'
+        : 'Snapshot projection mismatch or missing snapshot evidence.',
+    },
+  };
+};
+
 const startSmokeVerdict = (flow: SmokeFlow): void => {
   activeSmokeFlow = flow;
   smokeVerdict = reduceSmokeVerdict(smokeVerdict, { type: 'start', flow });
@@ -529,6 +604,7 @@ const completeSmokeVerdict = (): void => {
     latestSmokeReport = buildSmokeReportV1({
       verdict: smokeVerdict,
       recentEvents,
+      runtimeIntegrity: deriveRuntimeIntegrityPayload(),
     });
     log(buildSmokeMarkerLine(latestSmokeReport));
     renderAutomationPanel();
@@ -545,6 +621,7 @@ const failSmokeVerdict = (errorSummary: string): void => {
     latestSmokeReport = buildSmokeReportV1({
       verdict: smokeVerdict,
       recentEvents,
+      runtimeIntegrity: deriveRuntimeIntegrityPayload(),
     });
     log(buildSmokeMarkerLine(latestSmokeReport));
     renderAutomationPanel();
