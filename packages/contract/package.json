@@ -35,6 +35,6 @@
     "pack:check": "npm run build && npm run readiness:entries && node ../capacitor/scripts/inspect-tarball.mjs --package-root . --profile contract"
   },
   "devDependencies": {
-    "typescript": "^5.6.3"
+    "typescript": "^6.0.3"
   }
 }
