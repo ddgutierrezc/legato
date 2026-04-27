@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - GitHub Release communications contract (facts + required human narrative) wired to release-control evidence.
 
+## [contract-publish-0-1-7-004] - 2026-04-27
+
+### Added
+- This release publishes the streaming semantics update for the shared contract package so downstream bindings and consumers rely on a clear, source-backed model for capabilities, duration, seekability, and media-type semantics.
+- Version matrix: npm `@ddgutierrezc/legato-capacitor@0.1.10`, npm `@ddgutierrezc/legato-contract@0.1.7`, Android `dev.dgutierrez:legato-android-core:0.1.3`, iOS `LegatoCore@0.1.2`.
+- Clarifies capability and seekability semantics by media type.
+- Aligns duration expectations for streaming-like media.
+- Provides the semantic contract used by the current Capacitor runtimes.
+- Durable evidence: https://www.npmjs.com/package/@ddgutierrezc%2Flegato-capacitor/v/0.1.10, https://www.npmjs.com/package/@ddgutierrezc%2Flegato-contract/v/0.1.7, https://repo1.maven.org/maven2/dev/dgutierrez/legato-android-core/0.1.3/, https://github.com/ddgutierrezc/legato-ios-core/releases/tag/v0.1.2.
+
+### Changed
+- User impact: Consumers of `@ddgutierrezc/legato-contract` now receive the updated streaming/non-streaming semantics used by current runtime parity and playback behavior across platforms.
+- Upgrade notes: Upgrade to `@ddgutierrezc/legato-contract@0.1.7`. Downstream packages that depend on the contract should align to this version to get the clarified semantics model.
+- Breaking changes: None.
+
 ## [capacitor-publish-0-1-10-001] - 2026-04-27
 
 ### Added
