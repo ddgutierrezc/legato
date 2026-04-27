@@ -140,6 +140,8 @@ public final class LegatoiOSNoopPlaybackRuntime: LegatoiOSPlaybackRuntime {
 /// - no interruptions/remote command orchestration
 public final class LegatoiOSAVPlayerPlaybackRuntime: LegatoiOSPlaybackRuntime {
     private let player: AVPlayer
+    private let assetRequestLoaderFactory: LegatoiOSAssetRequestLoaderFactory
+    private let requestEvidenceSink: LegatoiOSRequestEvidenceSink
     private var trackSources: [LegatoiOSRuntimeTrackSource] = []
     private var currentIndex: Int?
     private weak var observer: LegatoiOSPlaybackRuntimeObserver?
@@ -150,9 +152,20 @@ public final class LegatoiOSAVPlayerPlaybackRuntime: LegatoiOSPlaybackRuntime {
     private var currentItemStatusObservation: NSKeyValueObservation?
     private var didEmitEndForCurrentItem = false
     private var didReceivePlayForCurrentItem = false
+    private var activeRequestLoaderContext: LegatoiOSAssetRequestLoaderContext?
 
-    public init(player: AVPlayer = AVPlayer()) {
+    public init(
+        player: AVPlayer = AVPlayer(),
+        assetRequestLoaderFactory: LegatoiOSAssetRequestLoaderFactory = LegatoiOSDefaultAssetRequestLoaderFactory(),
+        requestEvidenceSink: LegatoiOSRequestEvidenceSink = LegatoiOSNoOpRequestEvidenceSink()
+    ) {
         self.player = player
+        self.assetRequestLoaderFactory = assetRequestLoaderFactory
+        self.requestEvidenceSink = requestEvidenceSink
+    }
+
+    var activeRequestLoaderTrackId: String? {
+        activeRequestLoaderContext?.trackId
     }
 
     public func configure() {
@@ -169,6 +182,7 @@ public final class LegatoiOSAVPlayerPlaybackRuntime: LegatoiOSPlaybackRuntime {
         trackSources = items
 
         guard !items.isEmpty else {
+            disposeActiveRequestLoaderContext()
             currentIndex = nil
             player.replaceCurrentItem(with: nil)
             didEmitEndForCurrentItem = false
@@ -269,6 +283,7 @@ public final class LegatoiOSAVPlayerPlaybackRuntime: LegatoiOSPlaybackRuntime {
         currentItemStatusObservation = nil
 
         observer = nil
+        disposeActiveRequestLoaderContext()
         player.pause()
         player.replaceCurrentItem(with: nil)
         trackSources = []
@@ -287,16 +302,31 @@ public final class LegatoiOSAVPlayerPlaybackRuntime: LegatoiOSPlaybackRuntime {
             throw LegatoiOSError(code: .invalidURL, message: "Track URL is invalid: \(source.url)")
         }
 
-        // Keep the audible-playback MVP on public AVFoundation APIs only.
-        // Demo smoke URLs currently do not require custom headers.
-        let asset = AVURLAsset(url: url)
-        let item = AVPlayerItem(asset: asset)
+        disposeActiveRequestLoaderContext()
+        let item: AVPlayerItem
+        if source.headers.isEmpty {
+            let asset = AVURLAsset(url: url)
+            item = AVPlayerItem(asset: asset)
+        } else {
+            let context = assetRequestLoaderFactory.make(
+                trackId: source.id,
+                headers: source.headers,
+                evidenceSink: requestEvidenceSink
+            )
+            item = try context.makePlayerItem(url: url)
+            activeRequestLoaderContext = context
+        }
 
         player.replaceCurrentItem(with: item)
         currentIndex = index
         didEmitEndForCurrentItem = false
         didReceivePlayForCurrentItem = false
         publishSnapshotUpdate()
+    }
+
+    private func disposeActiveRequestLoaderContext() {
+        activeRequestLoaderContext?.dispose()
+        activeRequestLoaderContext = nil
     }
 
     private func installPeriodicTimeObserverIfNeeded() {

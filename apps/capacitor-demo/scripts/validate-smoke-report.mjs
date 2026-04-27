@@ -70,6 +70,25 @@ const evaluateArtifact = ({ path, report }) => {
     if (!hasParityEvidence) {
       failures.push(`[${platform}] ${path}: PASS reports must include parity evidence payload (add(startIndex), remote order, event/state/snapshot, capabilities).`);
     }
+
+    const requestEvidence = report?.requestEvidence;
+    const hasRequestEvidence = requestEvidence
+      && typeof requestEvidence === 'object'
+      && typeof requestEvidence.byRuntime === 'object'
+      && requestEvidence.byRuntime !== null
+      && Array.isArray(requestEvidence.assertions);
+
+    if (!hasRequestEvidence) {
+      failures.push(`[${platform}] ${path}: PASS reports must include requestEvidence payload with runtime/track request records and assertions.`);
+    } else {
+      const failingAssertions = requestEvidence.assertions
+        .filter((assertion) => assertion?.ok === false)
+        .map((assertion) => `${assertion.label}: ${assertion.detail}`);
+
+      if (failingAssertions.length > 0) {
+        failures.push(`[${platform}] ${path}: requestEvidence assertions failed: ${failingAssertions.join(' | ')}`);
+      }
+    }
   }
 
   if (report?.status === FAIL) {

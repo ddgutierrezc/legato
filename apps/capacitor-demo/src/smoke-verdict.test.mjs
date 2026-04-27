@@ -111,3 +111,51 @@ test('buildSmokeReportV1 includes explicit ios runtime integrity checks payload'
   assert.equal(report.runtimeIntegrity.trackEndTransitionObserved, false);
   assert.equal(report.runtimeIntegrity.snapshotProjectionCoherent, true);
 });
+
+test('buildSmokeReportV1 keeps request evidence payload keyed by runtime + track', () => {
+  const started = reduceSmokeVerdict(createInitialSmokeVerdict(), { type: 'start', flow: 'smoke' });
+  const withSnapshot = reduceSmokeVerdict(started, { type: 'snapshot', snapshot });
+  const completed = reduceSmokeVerdict(withSnapshot, { type: 'complete' });
+
+  const report = buildSmokeReportV1({
+    verdict: completed,
+    recentEvents: ['setup finished', 'smoke flow finished'],
+    requestEvidence: {
+      byRuntime: {
+        android: {
+          byTrack: {
+            'track-auth-a': {
+              requests: [
+                {
+                  requestUrl: 'https://media.example.com/auth-a.m3u8',
+                  requestHeaders: { Authorization: 'Bearer track-a' },
+                },
+              ],
+            },
+            'track-public': {
+              requests: [
+                {
+                  requestUrl: 'https://media.example.com/public.mp3',
+                  requestHeaders: {},
+                },
+              ],
+            },
+          },
+        },
+      },
+      assertions: [
+        {
+          label: 'auth track includes authorization header',
+          ok: true,
+          detail: 'track-auth-a request carried Authorization header',
+        },
+      ],
+    },
+  });
+
+  assert.equal(report.requestEvidence.byRuntime.android.byTrack['track-auth-a'].requests.length, 1);
+  assert.equal(
+    report.requestEvidence.byRuntime.android.byTrack['track-auth-a'].requests[0].requestHeaders.Authorization,
+    'Bearer track-a',
+  );
+});

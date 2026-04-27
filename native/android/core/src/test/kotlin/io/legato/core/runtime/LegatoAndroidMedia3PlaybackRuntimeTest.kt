@@ -9,6 +9,10 @@ import org.junit.Test
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
 
+private const val AUTH_HEADER = "Authorization"
+private const val AUTH_VALUE_A = "Bearer track-a"
+private const val AUTH_VALUE_B = "Bearer track-b"
+
 class LegatoAndroidMedia3PlaybackRuntimeTest {
     @Test
     fun `dispatch progress updates snapshot and emits callback`() {
@@ -133,6 +137,88 @@ class LegatoAndroidMedia3PlaybackRuntimeTest {
         val snapshot = runtime.snapshot()
         assertEquals(null, snapshot.currentIndex)
         assertEquals(0L, snapshot.progress.positionMs)
+    }
+
+    @Test
+    fun `track request transformer injects configured headers and records evidence`() {
+        val sink = RecordingLegatoAndroidRequestEvidenceSink()
+        val transformer = LegatoAndroidTrackRequestTransformer(
+            trackId = "track-auth",
+            trackHeaders = mapOf(AUTH_HEADER to AUTH_VALUE_A),
+            evidenceSink = sink,
+        )
+
+        val transformed = transformer.transform(
+            requestUrl = "https://media.example.com/auth-a.m3u8",
+            existingHeaders = emptyMap(),
+        )
+
+        assertEquals(AUTH_VALUE_A, transformed[AUTH_HEADER])
+        assertEquals(1, sink.records.size)
+        assertEquals("android", sink.records.first().runtime)
+        assertEquals("track-auth", sink.records.first().trackId)
+        assertEquals(AUTH_VALUE_A, sink.records.first().requestHeaders[AUTH_HEADER])
+    }
+
+    @Test
+    fun `track request transformer with empty headers does not inject synthetic auth`() {
+        val sink = RecordingLegatoAndroidRequestEvidenceSink()
+        val transformer = LegatoAndroidTrackRequestTransformer(
+            trackId = "track-public",
+            trackHeaders = emptyMap(),
+            evidenceSink = sink,
+        )
+
+        val transformed = transformer.transform(
+            requestUrl = "https://media.example.com/public.mp3",
+            existingHeaders = emptyMap(),
+        )
+
+        assertTrue(transformed.isEmpty())
+        assertEquals(1, sink.records.size)
+        assertTrue(sink.records.first().requestHeaders.isEmpty())
+    }
+
+    @Test
+    fun `track request transformers keep headers isolated across queue transitions`() {
+        val sink = RecordingLegatoAndroidRequestEvidenceSink()
+        val authTrackTransformer = LegatoAndroidTrackRequestTransformer(
+            trackId = "track-auth-a",
+            trackHeaders = mapOf(AUTH_HEADER to AUTH_VALUE_A),
+            evidenceSink = sink,
+        )
+        val publicTrackTransformer = LegatoAndroidTrackRequestTransformer(
+            trackId = "track-public",
+            trackHeaders = emptyMap(),
+            evidenceSink = sink,
+        )
+        val secondAuthTrackTransformer = LegatoAndroidTrackRequestTransformer(
+            trackId = "track-auth-b",
+            trackHeaders = mapOf(AUTH_HEADER to AUTH_VALUE_B),
+            evidenceSink = sink,
+        )
+
+        val authRequest = authTrackTransformer.transform(
+            requestUrl = "https://media.example.com/auth-a.m3u8",
+            existingHeaders = emptyMap(),
+        )
+        val publicRequest = publicTrackTransformer.transform(
+            requestUrl = "https://media.example.com/public.mp3",
+            existingHeaders = emptyMap(),
+        )
+        val secondAuthRequest = secondAuthTrackTransformer.transform(
+            requestUrl = "https://media.example.com/auth-b.m3u8",
+            existingHeaders = emptyMap(),
+        )
+
+        assertEquals(AUTH_VALUE_A, authRequest[AUTH_HEADER])
+        assertTrue(publicRequest.isEmpty())
+        assertEquals(AUTH_VALUE_B, secondAuthRequest[AUTH_HEADER])
+
+        assertEquals(3, sink.records.size)
+        assertEquals(AUTH_VALUE_A, sink.records[0].requestHeaders[AUTH_HEADER])
+        assertTrue(sink.records[1].requestHeaders.isEmpty())
+        assertEquals(AUTH_VALUE_B, sink.records[2].requestHeaders[AUTH_HEADER])
     }
 }
 

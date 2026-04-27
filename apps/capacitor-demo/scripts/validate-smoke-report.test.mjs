@@ -53,6 +53,42 @@ const createPassReport = (platform) => ({
       capabilities: 'getCapabilities payload matched projected transport capabilities.',
     },
   },
+  requestEvidence: {
+    byRuntime: {
+      [platform]: {
+        byTrack: {
+          'track-auth-a': {
+            requests: [
+              {
+                requestUrl: 'https://media.example.com/auth-a.m3u8',
+                requestHeaders: { Authorization: 'Bearer auth-a' },
+              },
+            ],
+          },
+          'track-public': {
+            requests: [
+              {
+                requestUrl: 'https://media.example.com/public.mp3',
+                requestHeaders: {},
+              },
+            ],
+          },
+        },
+      },
+    },
+    assertions: [
+      {
+        label: 'auth track includes authorization header',
+        ok: true,
+        detail: 'track-auth-a request carried Authorization header',
+      },
+      {
+        label: 'public track has no leaked authorization header',
+        ok: true,
+        detail: 'track-public request headers were empty',
+      },
+    ],
+  },
 });
 
 const withRuntimeIntegrity = (report) => ({
@@ -244,4 +280,37 @@ test('shared validator fails PASS artifacts when parity evidence payload is miss
   assert.equal(result.status, 'FAIL');
   assert.equal(result.platforms.android.status, 'FAIL');
   assert.match(result.failures[0], /parity.?evidence/i);
+});
+
+test('shared validator fails PASS artifacts when request evidence payload is missing', () => {
+  const reportWithoutRequestEvidence = createPassReport('android');
+  delete reportWithoutRequestEvidence.requestEvidence;
+
+  const result = validateSmokeReports([
+    { path: 'android.json', report: reportWithoutRequestEvidence },
+  ]);
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.platforms.android.status, 'FAIL');
+  assert.match(result.failures[0], /request.?evidence/i);
+});
+
+test('shared validator fails PASS artifacts when request evidence assertions flag leakage', () => {
+  const leakedReport = createPassReport('ios');
+  leakedReport.requestEvidence.assertions = [
+    {
+      label: 'public track has no leaked authorization header',
+      ok: false,
+      detail: 'track-public request leaked Authorization header from previous track',
+    },
+  ];
+
+  const result = validateSmokeReports([
+    { path: 'ios.json', report: leakedReport },
+  ]);
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.platforms.ios.status, 'FAIL');
+  assert.match(result.failures[0], /request.?evidence/i);
+  assert.match(result.failures[0], /leaked Authorization/i);
 });
