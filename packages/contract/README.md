@@ -38,6 +38,16 @@ Supported import contract:
 - `capability`, `invariants`
 - `binding-adapter` (transport-neutral adapter contract primitives)
 
+## Streaming semantics interpretation (v1)
+
+This package keeps contract shape stable while semantics are projected at runtime.
+
+- `Track.type` declares media class (`file`, `progressive`, `hls`, `dash`).
+- `PlaybackSnapshot.duration` (nullable) is evidence:
+  - `null` means unknown/live-like timeline.
+  - finite number means finite length evidence, not an automatic seek guarantee.
+- `seek` capability is projector-owned behavior (not queue-length-only inference).
+
 ## Binding adapter contract foundation (v1)
 
 `packages/contract/src/binding-adapter.ts` defines an adapter-agnostic surface for future bindings:

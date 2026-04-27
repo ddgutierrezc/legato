@@ -2,6 +2,7 @@ package io.legato.core.queue
 
 import io.legato.core.core.LegatoAndroidPlaybackSnapshot
 import io.legato.core.core.LegatoAndroidPlaybackState
+import io.legato.core.core.LegatoAndroidTrackType
 import io.legato.core.core.LegatoAndroidTransportCapabilities
 
 object LegatoAndroidTransportCapabilitiesProjector {
@@ -22,10 +23,19 @@ object LegatoAndroidTransportCapabilitiesProjector {
         }
 
         val index = checkNotNull(currentIndex)
+        val activeTrack = queue[index]
+        val canSeek = when (activeTrack.type) {
+            LegatoAndroidTrackType.HLS,
+            LegatoAndroidTrackType.DASH,
+            -> snapshot.durationMs != null && snapshot.isSeekableHint == true
+
+            else -> true
+        }
+
         return LegatoAndroidTransportCapabilities(
             canSkipNext = index < queue.lastIndex,
             canSkipPrevious = index > 0,
-            canSeek = true,
+            canSeek = canSeek,
         )
     }
 }

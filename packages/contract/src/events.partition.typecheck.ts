@@ -6,6 +6,8 @@ import type {
   PlayerEventName,
   PlayerEventPayload,
 } from './events';
+import type { PlaybackSnapshot } from './snapshot';
+import type { TrackType } from './track';
 
 const playbackEvent: PlayerEventName = 'playback-progress';
 const mediaSessionEvent: MediaSessionEventName = 'remote-play';
@@ -53,3 +55,14 @@ void invalidPlaybackBoundary;
 void invalidMediaSessionBoundary;
 void invalidPlaybackPayload;
 void invalidMediaSessionPayload;
+
+const allowedTrackTypes: TrackType[] = ['file', 'progressive', 'hls', 'dash'];
+void allowedTrackTypes;
+
+const durationSupportsNull: PlaybackSnapshot['duration'] = null;
+void durationSupportsNull;
+
+// @ts-expect-error stream semantic closure keeps public contract shape unchanged (no isLive field).
+const invalidSnapshotFieldAccess: PlaybackSnapshot['isLive'] = true;
+
+void invalidSnapshotFieldAccess;

@@ -3,6 +3,7 @@ package io.legato.core.core
 import io.legato.core.errors.LegatoAndroidErrorMapper
 import io.legato.core.events.LegatoAndroidEventEmitter
 import io.legato.core.mapping.LegatoAndroidTrackMapper
+import io.legato.core.queue.LegatoAndroidTransportCapabilitiesProjector
 import io.legato.core.queue.LegatoAndroidQueueManager
 import io.legato.core.remote.LegatoAndroidRemoteCommandManager
 import io.legato.core.runtime.LegatoAndroidPlaybackRuntime
@@ -42,6 +43,9 @@ class LegatoAndroidPlayerEngine(
         remoteCommandManager.bind(::onRemoteCommand)
         playbackRuntime.setListener(runtimeListener)
         playbackRuntime.configure()
+        remoteCommandManager.updateTransportCapabilities(
+            LegatoAndroidTransportCapabilitiesProjector.fromSnapshot(snapshotStore.getPlaybackSnapshot()),
+        )
         isSetup = true
     }
 
@@ -64,6 +68,7 @@ class LegatoAndroidPlayerEngine(
                 currentIndex = runtimeSnapshot.currentIndex ?: queueSnapshot.currentIndex,
                 positionMs = runtimeSnapshot.progress.positionMs,
                 durationMs = runtimeSnapshot.progress.durationMs ?: currentTrack?.durationMs,
+                isSeekableHint = runtimeSnapshot.progress.isSeekableHint,
                 bufferedPositionMs = runtimeSnapshot.progress.bufferedPositionMs,
                 queue = queueSnapshot,
             )
@@ -107,6 +112,7 @@ class LegatoAndroidPlayerEngine(
                 currentIndex = runtimeSnapshot.currentIndex ?: queueSnapshot.currentIndex,
                 positionMs = if (isSameTrack) previousSnapshot.positionMs else runtimeSnapshot.progress.positionMs,
                 durationMs = runtimeSnapshot.progress.durationMs ?: currentTrack?.durationMs,
+                isSeekableHint = if (isSameTrack) previousSnapshot.isSeekableHint else runtimeSnapshot.progress.isSeekableHint,
                 bufferedPositionMs = if (isSameTrack) {
                     previousSnapshot.bufferedPositionMs
                 } else {
@@ -148,6 +154,7 @@ class LegatoAndroidPlayerEngine(
                 positionMs = runtimeSnapshot.progress.positionMs,
                 bufferedPositionMs = runtimeSnapshot.progress.bufferedPositionMs,
                 durationMs = runtimeSnapshot.progress.durationMs ?: it.durationMs,
+                isSeekableHint = runtimeSnapshot.progress.isSeekableHint,
             )
         }
         publishProgress(snapshotStore.getPlaybackSnapshot())
@@ -207,6 +214,7 @@ class LegatoAndroidPlayerEngine(
                     currentIndex = runtimeSnapshot.currentIndex ?: updatedQueue.currentIndex,
                     positionMs = if (isSameTrack) previousSnapshot.positionMs else runtimeSnapshot.progress.positionMs,
                     durationMs = runtimeSnapshot.progress.durationMs ?: currentTrack?.durationMs,
+                    isSeekableHint = if (isSameTrack) previousSnapshot.isSeekableHint else runtimeSnapshot.progress.isSeekableHint,
                     bufferedPositionMs = if (isSameTrack) {
                         previousSnapshot.bufferedPositionMs
                     } else {
@@ -305,6 +313,7 @@ class LegatoAndroidPlayerEngine(
                 positionMs = runtimeSnapshot.progress.positionMs,
                 bufferedPositionMs = runtimeSnapshot.progress.bufferedPositionMs,
                 durationMs = runtimeSnapshot.progress.durationMs ?: snapshot.durationMs,
+                isSeekableHint = runtimeSnapshot.progress.isSeekableHint,
             )
         }
         publishProgress(snapshotStore.getPlaybackSnapshot())
@@ -342,6 +351,7 @@ class LegatoAndroidPlayerEngine(
                 currentTrack = track,
                 currentIndex = runtimeSnapshot.currentIndex ?: movedIndex,
                 durationMs = runtimeSnapshot.progress.durationMs ?: track?.durationMs,
+                isSeekableHint = runtimeSnapshot.progress.isSeekableHint,
                 positionMs = runtimeSnapshot.progress.positionMs,
                 bufferedPositionMs = runtimeSnapshot.progress.bufferedPositionMs,
                 queue = queueManager.getQueueSnapshot(),
@@ -371,6 +381,7 @@ class LegatoAndroidPlayerEngine(
                 currentTrack = track,
                 currentIndex = runtimeSnapshot.currentIndex ?: index,
                 durationMs = runtimeSnapshot.progress.durationMs ?: track?.durationMs,
+                isSeekableHint = runtimeSnapshot.progress.isSeekableHint,
                 positionMs = runtimeSnapshot.progress.positionMs,
                 bufferedPositionMs = runtimeSnapshot.progress.bufferedPositionMs,
                 queue = updatedQueue,
@@ -410,6 +421,7 @@ class LegatoAndroidPlayerEngine(
                 currentTrack = track,
                 currentIndex = runtimeSnapshot.currentIndex ?: movedIndex,
                 durationMs = runtimeSnapshot.progress.durationMs ?: track?.durationMs,
+                isSeekableHint = runtimeSnapshot.progress.isSeekableHint,
                 positionMs = runtimeSnapshot.progress.positionMs,
                 bufferedPositionMs = runtimeSnapshot.progress.bufferedPositionMs,
                 queue = queueManager.getQueueSnapshot(),
@@ -506,6 +518,7 @@ class LegatoAndroidPlayerEngine(
                     durationMs = projectedProgress.durationMs
                         ?: syncedSnapshot.currentTrack?.durationMs
                         ?: syncedSnapshot.durationMs,
+                    isSeekableHint = projectedProgress.isSeekableHint,
                     bufferedPositionMs = projectedProgress.bufferedPositionMs,
                 )
             }
@@ -586,6 +599,7 @@ class LegatoAndroidPlayerEngine(
             currentTrack = syncedTrack,
             currentIndex = resolvedIndex,
             durationMs = syncedTrack?.durationMs,
+            isSeekableHint = null,
             queue = syncedQueue,
         )
     }
@@ -613,6 +627,7 @@ class LegatoAndroidPlayerEngine(
                 index = snapshot.currentIndex,
             ),
         )
+        publishTransportCapabilities(snapshot)
     }
 
     private fun publishState(state: LegatoAndroidPlaybackState) {
@@ -622,6 +637,7 @@ class LegatoAndroidPlayerEngine(
         )
         sessionManager.updatePlaybackState(state)
         remoteCommandManager.updatePlaybackState(state)
+        publishTransportCapabilities(snapshotStore.getPlaybackSnapshot())
     }
 
     private fun publishProgress(snapshot: LegatoAndroidPlaybackSnapshot) {
@@ -640,6 +656,13 @@ class LegatoAndroidPlayerEngine(
             ),
         )
         sessionManager.updateProgress(progress)
+        publishTransportCapabilities(snapshot)
+    }
+
+    private fun publishTransportCapabilities(snapshot: LegatoAndroidPlaybackSnapshot) {
+        remoteCommandManager.updateTransportCapabilities(
+            LegatoAndroidTransportCapabilitiesProjector.fromSnapshot(snapshot),
+        )
     }
 
     private fun publishMetadata(track: LegatoAndroidTrack?) {

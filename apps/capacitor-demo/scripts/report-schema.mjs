@@ -58,6 +58,7 @@ const hasParityEvidencePayload = (value) => isPlainObject(value)
   && typeof value.remoteOrderConverged === 'boolean'
   && typeof value.eventStateSnapshotConverged === 'boolean'
   && typeof value.capabilitiesConverged === 'boolean'
+  && typeof value.seekSemanticsConverged === 'boolean'
   && isPlainObject(value.details)
   && typeof value.details.addStartIndex === 'string'
   && value.details.addStartIndex.trim() !== ''
@@ -66,7 +67,9 @@ const hasParityEvidencePayload = (value) => isPlainObject(value)
   && typeof value.details.eventStateSnapshot === 'string'
   && value.details.eventStateSnapshot.trim() !== ''
   && typeof value.details.capabilities === 'string'
-  && value.details.capabilities.trim() !== '';
+  && value.details.capabilities.trim() !== ''
+  && typeof value.details.seekSemantics === 'string'
+  && value.details.seekSemantics.trim() !== '';
 
 const hasRequestEvidencePayload = (value) => {
   if (!isPlainObject(value)) {
@@ -161,7 +164,7 @@ export const validateSmokeReportV1 = (candidate) => {
   }
 
   if (!hasParityEvidencePayload(candidate.parityEvidence)) {
-    errors.push('parityEvidence must include boolean checks plus non-empty details for addStartIndex/remoteOrder/eventStateSnapshot/capabilities');
+    errors.push('parityEvidence must include boolean checks plus non-empty details for addStartIndex/remoteOrder/eventStateSnapshot/capabilities/seekSemantics');
   }
 
   if (candidate.requestEvidence !== undefined && !hasRequestEvidencePayload(candidate.requestEvidence)) {

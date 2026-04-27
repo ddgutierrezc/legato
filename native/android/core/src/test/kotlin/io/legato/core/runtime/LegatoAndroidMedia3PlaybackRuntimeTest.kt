@@ -20,13 +20,35 @@ class LegatoAndroidMedia3PlaybackRuntimeTest {
         val listener = RecordingListener()
         runtime.setListener(listener)
 
-        runtime.dispatchProgress(positionMs = 2_000L, durationMs = 120_000L, bufferedPositionMs = 8_000L)
+        runtime.dispatchProgress(
+            positionMs = 2_000L,
+            durationMs = 120_000L,
+            bufferedPositionMs = 8_000L,
+            isSeekableHint = true,
+        )
 
         val snapshot = runtime.snapshot()
         assertEquals(2_000L, snapshot.progress.positionMs)
         assertEquals(120_000L, snapshot.progress.durationMs)
         assertEquals(8_000L, snapshot.progress.bufferedPositionMs)
+        assertEquals(true, snapshot.progress.isSeekableHint)
         assertEquals(1, listener.progressCalls)
+    }
+
+    @Test
+    fun `dispatch progress keeps seekable hint unknown when runtime evidence is ambiguous`() {
+        val runtime = LegatoAndroidMedia3PlaybackRuntime()
+
+        runtime.dispatchProgress(
+            positionMs = 2_000L,
+            durationMs = null,
+            bufferedPositionMs = 8_000L,
+            isSeekableHint = null,
+        )
+
+        val snapshot = runtime.snapshot()
+        assertEquals(null, snapshot.progress.durationMs)
+        assertEquals(null, snapshot.progress.isSeekableHint)
     }
 
     @Test

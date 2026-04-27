@@ -46,6 +46,7 @@ class LegatoAndroidMedia3PlaybackRuntime(
                                 durationMs = player.duration.takeIf { it >= 0L },
                                 bufferedPositionMs = player.bufferedPosition,
                                 currentIndex = player.currentMediaItemIndex.takeIf { it >= 0 },
+                                isSeekableHint = player.currentSeekabilityHint(),
                             )
                         }
                     }
@@ -143,11 +144,18 @@ class LegatoAndroidMedia3PlaybackRuntime(
         }
     }
 
-    fun dispatchProgress(positionMs: Long, durationMs: Long?, bufferedPositionMs: Long?, currentIndex: Int? = runtimeSnapshot.currentIndex) {
+    fun dispatchProgress(
+        positionMs: Long,
+        durationMs: Long?,
+        bufferedPositionMs: Long?,
+        currentIndex: Int? = runtimeSnapshot.currentIndex,
+        isSeekableHint: Boolean? = runtimeSnapshot.progress.isSeekableHint,
+    ) {
         val progress = LegatoAndroidRuntimeProgress(
             positionMs = positionMs.coerceAtLeast(0L),
             durationMs = durationMs?.takeIf { it >= 0L },
             bufferedPositionMs = bufferedPositionMs?.coerceAtLeast(0L),
+            isSeekableHint = isSeekableHint,
         )
 
         runtimeSnapshot = runtimeSnapshot.copy(currentIndex = currentIndex, progress = progress)
@@ -176,6 +184,15 @@ class LegatoAndroidMedia3PlaybackRuntime(
             isBufferingHint = false,
         )
         listener?.onFatalError(error)
+    }
+}
+
+private fun Player.currentSeekabilityHint(): Boolean? {
+    val finiteDuration = duration.takeIf { it >= 0L } ?: return null
+    return if (isCurrentMediaItemSeekable) {
+        finiteDuration >= 0L
+    } else {
+        false
     }
 }
 

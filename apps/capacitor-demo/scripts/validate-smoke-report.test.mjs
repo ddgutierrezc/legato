@@ -46,11 +46,13 @@ const createPassReport = (platform) => ({
     remoteOrderConverged: true,
     eventStateSnapshotConverged: true,
     capabilitiesConverged: true,
+    seekSemanticsConverged: true,
     details: {
       addStartIndex: 'add(startIndex) activated expected queue index.',
       remoteOrder: 'remote events emitted after canonical mutation events.',
       eventStateSnapshot: 'single assertion contract matched event/state/snapshot outputs.',
       capabilities: 'getCapabilities payload matched projected transport capabilities.',
+      seekSemantics: 'seekability matrix aligned with media type, duration evidence, and runtime support.',
     },
   },
   requestEvidence: {
@@ -137,11 +139,13 @@ const createCollectorFailReport = (platform) => ({
     remoteOrderConverged: false,
     eventStateSnapshotConverged: false,
     capabilitiesConverged: false,
+    seekSemanticsConverged: false,
     details: {
       addStartIndex: 'collector failed before add(startIndex) verification',
       remoteOrder: 'collector failed before remote order verification',
       eventStateSnapshot: 'collector failed before event/state/snapshot verification',
       capabilities: 'collector failed before capabilities verification',
+      seekSemantics: 'collector failed before seek semantics verification',
     },
   },
 });
@@ -280,6 +284,20 @@ test('shared validator fails PASS artifacts when parity evidence payload is miss
   assert.equal(result.status, 'FAIL');
   assert.equal(result.platforms.android.status, 'FAIL');
   assert.match(result.failures[0], /parity.?evidence/i);
+});
+
+test('shared validator fails PASS artifacts when seek semantics parity does not converge', () => {
+  const report = createPassReport('android');
+  report.parityEvidence.seekSemanticsConverged = false;
+  report.parityEvidence.details.seekSemantics = 'streaming-like fixture reported seek=true with no finite evidence';
+
+  const result = validateSmokeReports([
+    { path: 'android.json', report },
+  ]);
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.platforms.android.status, 'FAIL');
+  assert.match(result.failures[0], /seek-semantics parity/i);
 });
 
 test('shared validator fails PASS artifacts when request evidence payload is missing', () => {
