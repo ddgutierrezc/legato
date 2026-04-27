@@ -8,12 +8,16 @@ const currentDir = dirname(fileURLToPath(import.meta.url));
 const runbookPath = resolve(currentDir, '../../../docs/releases/publication-pipeline-v2.md');
 const readmePath = resolve(currentDir, '../../../README.md');
 const changelogPath = resolve(currentDir, '../../../CHANGELOG.md');
+const governancePath = resolve(currentDir, '../../../docs/releases/release-communication-governance-v1.md');
+const policyPath = resolve(currentDir, '../../../docs/releases/release-notes-policy-v1.md');
 
 test('release docs and root readme link canonical changelog and github release notes flow', async () => {
-  const [runbook, readme, changelog] = await Promise.all([
+  const [runbook, readme, changelog, governance, policy] = await Promise.all([
     readFile(runbookPath, 'utf8'),
     readFile(readmePath, 'utf8'),
     readFile(changelogPath, 'utf8'),
+    readFile(governancePath, 'utf8'),
+    readFile(policyPath, 'utf8'),
   ]);
 
   assert.match(runbook, /release-template\.md/i);
@@ -26,4 +30,11 @@ test('release docs and root readme link canonical changelog and github release n
 
   assert.match(changelog, /^# Changelog/m);
   assert.match(changelog, /^## \[Unreleased\]/m);
+
+  assert.match(governance, /canonical/i);
+  assert.match(governance, /derivative/i);
+  assert.match(governance, /legato-ios-core/i);
+  assert.match(policy, /durable/i);
+  assert.match(policy, /ephemeral/i);
+  assert.match(policy, /stop-the-line/i);
 });

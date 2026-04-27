@@ -8,6 +8,19 @@ This runbook defines the v2 control plane in `.github/workflows/release-control.
 - iOS publish authority is CI-owned and scoped to the distribution repository (`legato-ios-core`) via GitHub App token.
 - npm `protected-publish` uses npm Trusted Publishing (OIDC) from GitHub Actions, performs real `npm publish --access public`, and verifies release visibility with `npm view`.
 - All selected lanes use one immutable `release_id` and produce a single terminal summary.
+- Canonical cross-platform communication authority is `legato`; `legato-ios-core` is derivative communication except for immutable iOS distribution facts.
+
+Governance references:
+
+- `docs/releases/release-communication-governance-v1.md`
+- `docs/releases/release-notes-policy-v1.md`
+- `docs/releases/reconciliation-stop-the-line-rules-v1.md`
+- `docs/releases/contracts/android-deploy-procedure-contract-v1.md`
+- `docs/releases/contracts/npm-deploy-procedure-contract-v1.md`
+- `docs/releases/contracts/ios-distribution-deploy-procedure-contract-v1.md`
+- `docs/releases/contracts/future-release-skill-io-contract-v1.md`
+- `docs/releases/templates/release-note-template-governance-v1.md`
+- `docs/releases/templates/ios-derivative-release-template.md`
 
 ## Dispatch contract
 
@@ -78,6 +91,8 @@ Files:
 Template and required sections:
 
 - `.github/release-template.md`
+- Canonical-vs-derivative template policy: `docs/releases/templates/release-note-template-governance-v1.md`
+- iOS derivative template: `docs/releases/templates/ios-derivative-release-template.md`
 - Required order: Summary, Highlights, Compatibility Matrix, Installation/Upgrade, Evidence, Known Limitations, Full Changelog Link
 - Highlights MUST include required human narrative fields:
   - Why it matters
@@ -96,14 +111,26 @@ Generation and validation commands:
 Narrative source file per release:
 
 - `docs/releases/notes/<release_id>.json` (copy from `docs/releases/notes/release-narrative.template.json`)
+- `docs/releases/notes/<release_id>-ios-derivative.md` (required when iOS lane is selected; use `docs/releases/templates/ios-derivative-release-template.md`)
 
 Canonical release surfaces that must stay aligned:
+
+- Canonical authority declaration (`legato`) and derivative backlink (`legato-ios-core` -> `legato` release/changelog)
 
 - `CHANGELOG.md`
 - GitHub Release body (`release-notes-<release_id>` artifact + release publish step)
 - `packages/capacitor/package.json`
 - `packages/contract/package.json`
 - `packages/capacitor/native-artifacts.json`
+
+Mandatory release communication lifecycle:
+
+1. Collect lane summaries (`android`, `ios`, `npm`) and generate `summary.json`.
+2. Generate facts (`release:changelog:facts`) including authority metadata and target procedure references.
+3. Render canonical notes (`release:notes:generate`) from facts + required human narrative.
+4. Validate reconciliation (`validate:release:reconciliation`) against `CHANGELOG.md`, durable evidence policy, and stop-the-line rules.
+5. Persist evidence dossier (`release:evidence:persist`) and publish canonical release surface.
+6. Produce derivative iOS communication using `docs/releases/templates/ios-derivative-release-template.md` with explicit backlinks to canonical `legato` release + changelog anchor.
 
 Fail-closed behavior:
 

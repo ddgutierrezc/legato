@@ -63,8 +63,15 @@ test('buildReleaseChangelogFacts derives target and version facts from summary +
   assert.equal(facts.versions.android.version, '0.1.3');
   assert.equal(facts.versions.ios.version, '0.1.1');
   assert.equal(facts.targets.length, 3);
+  assert.equal(facts.authority.canonical_repo, 'legato');
+  assert.equal(facts.authority.ios_distribution_repo, 'legato-ios-core');
+  assert.equal(facts.authority.ios_derivative_required, true);
+  assert.equal(facts.target_procedures.android.procedure_id, 'android.maven.publish.v1');
+  assert.equal(facts.target_procedures.npm.procedure_id, 'npm.protected_publish.v1');
+  assert.equal(facts.target_procedures.ios.procedure_id, 'ios.distribution_publish.v1');
   assert.match(JSON.stringify(facts.evidence.durable), /npmjs\.com\/package\//i);
   assert.match(JSON.stringify(facts.evidence.durable), /maven/i);
+  assert.match(JSON.stringify(facts.evidence.durable), /legato-ios-core\/releases\/tag/i);
   assert.match(JSON.stringify(facts.evidence.ephemeral), /summary\.json/i);
 });
 
