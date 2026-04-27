@@ -104,6 +104,7 @@ Template and required sections:
 Generation and validation commands:
 
 - `npm run release:changelog:facts`
+- `npm run release:changelog:update`
 - `npm run release:notes:generate`
 - `npm run validate:release:reconciliation`
 - `npm run release:evidence:persist`
@@ -127,9 +128,10 @@ Mandatory release communication lifecycle:
 
 1. Collect lane summaries (`android`, `ios`, `npm`) and generate `summary.json`.
 2. Generate facts (`release:changelog:facts`) including authority metadata and target procedure references.
-3. Render canonical notes (`release:notes:generate`) from facts + required human narrative.
-4. Validate reconciliation (`validate:release:reconciliation`) against `CHANGELOG.md`, durable evidence policy, and stop-the-line rules.
-5. Persist evidence dossier (`release:evidence:persist`) and publish canonical release surface.
+3. Update canonical changelog entry (`release:changelog:update`) from facts + required human narrative.
+4. Render canonical notes (`release:notes:generate`) from facts + required human narrative.
+5. Validate reconciliation (`validate:release:reconciliation`) against `CHANGELOG.md`, durable evidence policy, and stop-the-line rules.
+6. Persist evidence dossier (`release:evidence:persist`) and publish canonical release surface.
 6. Produce derivative iOS communication using `docs/releases/templates/ios-derivative-release-template.md` with explicit backlinks to canonical `legato` release + changelog anchor.
 
 Fail-closed behavior:

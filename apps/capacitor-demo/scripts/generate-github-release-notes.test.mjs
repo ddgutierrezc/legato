@@ -20,9 +20,13 @@ const facts = {
     { target: 'ios', selected: true, terminal_status: 'published' },
     { target: 'npm', selected: true, terminal_status: 'published' },
   ],
+  authority: {
+    canonical_repo: 'legato',
+  },
   evidence: {
     durable: [
       { label: 'npm capacitor', url: 'https://www.npmjs.com/package/@ddgutierrezc/legato-capacitor/v/0.1.9' },
+      { label: 'ios distribution release tag', url: 'https://github.com/ddgutierrezc/legato-ios-core/releases/tag/v0.1.1' },
     ],
     ephemeral: [
       { label: 'summary artifact', path: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.26.1/summary.json' },
@@ -63,9 +67,27 @@ test('generateGithubReleaseNotes renders deterministic section order and facts b
   assert.match(rendered.markdown, /^## Summary/m);
   assert.match(rendered.markdown, /^## Highlights/m);
   assert.match(rendered.markdown, /Why it matters/i);
+  assert.match(rendered.markdown, /canonical_repo:\s*`legato`/i);
+  assert.match(rendered.markdown, /ios_derivative_release:\s*`https:\/\/github\.com\/ddgutierrezc\/legato-ios-core\/releases\/tag\/v0\.1\.1`/i);
   assert.match(rendered.markdown, /```json\n\{[\s\S]*"release_id": "R-2026\.04\.26\.1"/m);
   assert.match(rendered.markdown, /CHANGELOG\.md#r-202604261---2026-04-26/i);
   assert.match(rendered.markdown, /@ddgutierrezc\/legato-capacitor/i);
+});
+
+test('generateGithubReleaseNotes omits ios_derivative_release when ios target not selected', () => {
+  const rendered = generateGithubReleaseNotes({
+    facts: {
+      ...facts,
+      targets: [
+        { target: 'android', selected: true, terminal_status: 'published' },
+        { target: 'ios', selected: false, terminal_status: 'not_selected' },
+        { target: 'npm', selected: true, terminal_status: 'published' },
+      ],
+    },
+    narrative,
+  });
+
+  assert.doesNotMatch(rendered.markdown, /ios_derivative_release/i);
 });
 
 test('generateGithubReleaseNotes rejects missing required human narrative fields', () => {

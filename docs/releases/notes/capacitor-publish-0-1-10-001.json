@@ -1,0 +1,16 @@
+{
+  "why_it_matters": "This release publishes the iOS background lifecycle hardening work to the public Capacitor package so host apps benefit from stronger interruption, route-change, and foreground/active reassert behavior.",
+  "user_impact": "Capacitor consumers on iOS get more stable playback lifecycle behavior while the process stays alive, plus the package now points to `LegatoCore` distribution `v0.1.2` for the corresponding native core changes.",
+  "upgrade_notes": "Upgrade to `@ddgutierrezc/legato-capacitor@0.1.10`. No `@ddgutierrezc/legato-contract` change is required. Regenerate or resync iOS hosts if you want the latest package-distributed lifecycle behavior and distribution reference updates.",
+  "breaking_changes": "None.",
+  "affected_platforms": "ios, npm",
+  "highlights": [
+    "Improved interruption and route-change handling while process is alive.",
+    "Adds lifecycle reassertion support for foreground/active transitions.",
+    "Aligns package distribution with `legato-ios-core` release `v0.1.2`."
+  ],
+  "known_limitations": [
+    "Process-death restore remains out of scope.",
+    "Full cross-platform lifecycle parity is still tracked separately."
+  ]
+}
