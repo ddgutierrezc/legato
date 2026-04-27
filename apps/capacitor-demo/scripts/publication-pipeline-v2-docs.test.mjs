@@ -56,3 +56,19 @@ test('publication pipeline v2 runbook documents release-confidence pre-canary te
   assert.match(runbook, /typecheck/i);
   assert.match(runbook, /out of scope/i);
 });
+
+test('publication pipeline v2 runbook links governance policies, templates, and deploy contracts', async () => {
+  const runbook = await readFile(docsPath, 'utf8');
+
+  assert.match(runbook, /release-communication-governance-v1\.md/i);
+  assert.match(runbook, /release-notes-policy-v1\.md/i);
+  assert.match(runbook, /reconciliation-stop-the-line-rules-v1\.md/i);
+  assert.match(runbook, /release-note-template-governance-v1\.md/i);
+  assert.match(runbook, /ios-derivative-release-template\.md/i);
+  assert.match(runbook, /android-deploy-procedure-contract-v1\.md/i);
+  assert.match(runbook, /npm-deploy-procedure-contract-v1\.md/i);
+  assert.match(runbook, /ios-distribution-deploy-procedure-contract-v1\.md/i);
+  assert.match(runbook, /future-release-skill-io-contract-v1\.md/i);
+  assert.match(runbook, /docs\/releases\/notes\/<release_id>-ios-derivative\.md/i);
+  assert.match(runbook, /required when ios lane is selected/i);
+});
