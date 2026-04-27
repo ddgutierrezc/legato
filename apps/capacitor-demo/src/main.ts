@@ -27,6 +27,9 @@ import {
   createBoundarySurfaceSnapshot,
   summarizeBoundaryValidation,
 } from './boundary-harness.js';
+import {
+  buildLifecycleCheckpointSummary,
+} from './lifecycle-harness.js';
 
 type LegatoSyncController = ReturnType<typeof createAudioPlayerSync>;
 
@@ -42,6 +45,7 @@ const remoteSeekCaseButton = document.querySelector<HTMLButtonElement>('#run-cas
 const focusDeniedCaseButton = document.querySelector<HTMLButtonElement>('#run-case-focus-denied');
 const canDuckCaseButton = document.querySelector<HTMLButtonElement>('#run-case-can-duck');
 const backgroundTransitionCaseButton = document.querySelector<HTMLButtonElement>('#run-case-background-transition');
+const iosLifecycleReassertCaseButton = document.querySelector<HTMLButtonElement>('#run-case-ios-lifecycle-reassert');
 const copyLogButton = document.querySelector<HTMLButtonElement>('#copy-log');
 const copyEventsButton = document.querySelector<HTMLButtonElement>('#copy-events');
 const copySmokeReportButton = document.querySelector<HTMLButtonElement>('#copy-smoke-report');
@@ -87,6 +91,7 @@ if (
   || !focusDeniedCaseButton
   || !canDuckCaseButton
   || !backgroundTransitionCaseButton
+  || !iosLifecycleReassertCaseButton
   || !copyLogButton
   || !copyEventsButton
   || !copySmokeReportButton
@@ -163,6 +168,7 @@ const observedSyncEvents = new Set<string>();
 let activePlaybackSurface: PlaybackSurface = 'legato';
 let boundaryChecks: BoundaryCheck[] = [];
 let syncEventHistory: SyncEventRecord[] = [];
+let lifecycleCheckpoints: Array<{ step: string; snapshotState: string; recentEvents: string[] }> = [];
 
 const resolvePlaybackApi = (surface: PlaybackSurface): AudioPlayerApi => (
   surface === 'audioPlayer' ? audioPlayer : Legato
@@ -805,6 +811,7 @@ const clearFlows = (): void => {
   logNode.value = '';
   recentEvents = [];
   syncEventHistory = [];
+  lifecycleCheckpoints = [];
   latestSmokeReport = null;
   observedSyncEvents.clear();
   renderRecentEvents();
@@ -1347,6 +1354,56 @@ const runBackgroundTransitionCaseFlow = async (): Promise<void> => {
   log('[guided-case] end | background transition coherence check');
 };
 
+const captureLifecycleCheckpoint = (step: string): void => {
+  const snapshotState = latestSnapshot?.state ?? 'unknown';
+  const recentSignals = recentEvents.slice(-8);
+  lifecycleCheckpoints = [
+    ...lifecycleCheckpoints,
+    {
+      step,
+      snapshotState,
+      recentEvents: recentSignals,
+    },
+  ];
+  log(`[lifecycle-evidence] ${step}`, {
+    snapshotState,
+    recentSignals,
+  });
+};
+
+const runIOSLifecycleReassertCaseFlow = async (): Promise<void> => {
+  await setupGuidedRemoteCaseBaseline('ios lifecycle reassert evidence');
+
+  log('[guided-case] action required: trigger and dismiss a real interruption (call/siri/navigation), then keep playback paused and return to app.');
+  await waitForCondition(
+    () => latestSnapshot?.state === 'paused',
+    guidedCaseTimeoutMs,
+  );
+  await sleep(guidedCaseSettleMs);
+  await snapshotAction('legato');
+  captureLifecycleCheckpoint('Interruption begin paused playback.');
+  captureLifecycleCheckpoint('Interruption end (shouldResume) reasserted surfaces without auto-play.');
+
+  log('[guided-case] action required: disconnect/reconnect output route (e.g. bluetooth/headphones) and keep playback paused.');
+  await waitForCondition(
+    () => latestSnapshot?.state === 'paused',
+    guidedCaseTimeoutMs,
+  );
+  await sleep(guidedCaseSettleMs);
+  await snapshotAction('legato');
+  captureLifecycleCheckpoint('Route available did not auto-resume playback.');
+
+  log('[guided-case] action required: background app for ~5s, bring to foreground, then capture snapshot for reassert evidence.');
+  await sleep(5000);
+  await snapshotAction('legato');
+  captureLifecycleCheckpoint('Foreground/active reassert projected metadata/progress/playback/capabilities.');
+
+  const lifecycleSummary = buildLifecycleCheckpointSummary(lifecycleCheckpoints);
+  boundarySummaryNode.textContent = `${boundarySummaryNode.textContent}\n\nLifecycle evidence checkpoints\n${lifecycleSummary}`;
+  snapshotJsonNode.value = JSON.stringify({ lifecycleCheckpoints }, null, 2);
+  log('[guided-case] lifecycle summary', lifecycleSummary);
+};
+
 const setPlaybackSurface = (surface: PlaybackSurface): void => {
   activePlaybackSurface = surface;
   renderBoundarySummary();
@@ -1407,6 +1464,10 @@ canDuckCaseButton.addEventListener('click', () => {
 
 backgroundTransitionCaseButton.addEventListener('click', () => {
   void runNativeAction('run guided case: background transition coherence check', runBackgroundTransitionCaseFlow);
+});
+
+iosLifecycleReassertCaseButton.addEventListener('click', () => {
+  void runNativeAction('run guided case: ios lifecycle reassert evidence', runIOSLifecycleReassertCaseFlow);
 });
 
 setupButton.addEventListener('click', () => {
