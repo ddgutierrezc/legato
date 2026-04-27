@@ -7,6 +7,7 @@ import io.legato.core.runtime.LegatoAndroidRuntimeSnapshot
 import io.legato.core.runtime.LegatoAndroidRuntimeTrackSource
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -289,6 +290,34 @@ class LegatoAndroidPlayerEngineRemoteCommandRoutingTest {
         assertEquals(1, playbackRuntime.seekCalls)
         assertEquals(45_000L, components.playerEngine.getSnapshot().positionMs)
         assertTrue(events.any { it.name == LegatoAndroidEventName.REMOTE_SEEK })
+    }
+
+    @Test
+    fun `remote next emits after canonical playback mutation events`() = runBlocking {
+        val playbackRuntime = RemoteRoutingPlaybackRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val dependencies = LegatoAndroidCoreDependencies(
+            eventEmitter = eventEmitter,
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event -> events += event }
+
+        components.playerEngine.setup()
+        components.playerEngine.load(tracks = listOf(track(id = "1"), track(id = "2")))
+        components.playerEngine.play()
+
+        val eventsBeforeRemote = events.size
+        dependencies.mediaSessionBridge.dispatchRemoteCommandForTesting(LegatoAndroidRemoteCommand.Next)
+
+        val remoteEvents = events.drop(eventsBeforeRemote)
+        val remoteIndex = remoteEvents.indexOfFirst { it.name == LegatoAndroidEventName.REMOTE_NEXT }
+        val trackChangeIndex = remoteEvents.indexOfFirst { it.name == LegatoAndroidEventName.PLAYBACK_ACTIVE_TRACK_CHANGED }
+
+        assertNotEquals(-1, remoteIndex)
+        assertNotEquals(-1, trackChangeIndex)
+        assertTrue("remote-next should emit after playback-active-track-changed", remoteIndex > trackChangeIndex)
     }
 
     private fun track(id: String = "remote-routing-track"): LegatoAndroidTrack = LegatoAndroidTrack(

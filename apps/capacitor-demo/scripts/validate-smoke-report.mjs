@@ -58,6 +58,20 @@ const evaluateArtifact = ({ path, report }) => {
     }
   }
 
+  if (report?.status === PASS) {
+    const parityEvidence = report?.parityEvidence;
+    const hasParityEvidence = parityEvidence
+      && typeof parityEvidence === 'object'
+      && typeof parityEvidence.addStartIndexConverged === 'boolean'
+      && typeof parityEvidence.remoteOrderConverged === 'boolean'
+      && typeof parityEvidence.eventStateSnapshotConverged === 'boolean'
+      && typeof parityEvidence.capabilitiesConverged === 'boolean';
+
+    if (!hasParityEvidence) {
+      failures.push(`[${platform}] ${path}: PASS reports must include parity evidence payload (add(startIndex), remote order, event/state/snapshot, capabilities).`);
+    }
+  }
+
   if (report?.status === FAIL) {
     const collectorError = report.errors?.[0] ?? 'status is FAIL with no actionable error provided';
     failures.push(`[${platform}] ${path}: collector retrieval failed or smoke reported FAIL: ${collectorError}`);

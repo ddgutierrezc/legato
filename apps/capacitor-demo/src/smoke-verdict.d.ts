@@ -36,6 +36,18 @@ export type SmokeReportV1 = {
       snapshot: string;
     };
   };
+  parityEvidence: {
+    addStartIndexConverged: boolean;
+    remoteOrderConverged: boolean;
+    eventStateSnapshotConverged: boolean;
+    capabilitiesConverged: boolean;
+    details: {
+      addStartIndex: string;
+      remoteOrder: string;
+      eventStateSnapshot: string;
+      capabilities: string;
+    };
+  };
 };
 
 export type SmokeVerdictAction =
@@ -61,6 +73,18 @@ export function buildSmokeReportV1(input: {
       progress?: string;
       trackEnd?: string;
       snapshot?: string;
+    };
+  };
+  parityEvidence?: {
+    addStartIndexConverged?: boolean;
+    remoteOrderConverged?: boolean;
+    eventStateSnapshotConverged?: boolean;
+    capabilitiesConverged?: boolean;
+    details?: {
+      addStartIndex?: string;
+      remoteOrder?: string;
+      eventStateSnapshot?: string;
+      capabilities?: string;
     };
   };
 }): SmokeReportV1;

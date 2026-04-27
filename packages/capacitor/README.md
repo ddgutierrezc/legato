@@ -54,7 +54,7 @@ Playback commands/queries (available on `audioPlayer` and legacy `Legato`):
 - `setup`, `add`, `remove`, `reset`
 - `play`, `pause`, `stop`, `seekTo`
 - `skipTo`, `skipToNext`, `skipToPrevious`
-- `getState`, `getPosition`, `getDuration`, `getCurrentTrack`, `getQueue`, `getSnapshot`
+- `getState`, `getPosition`, `getDuration`, `getCurrentTrack`, `getQueue`, `getSnapshot`, `getCapabilities`
 
 `mediaSession` is intentionally listener-first in v1 and currently exposes:
 
@@ -83,6 +83,17 @@ It also exports typed event helpers aligned with `@ddgutierrezc/legato-contract`
 | `Legato` facade calls (`Legato.play()`, etc.) | `audioPlayer` / `mediaSession` namespaces | Compatibility-only for existing flows |
 
 Compatibility-only (legacy Legato facade): `Legato`, `createLegatoSync`, `LEGATO_EVENTS`, and `addLegatoListener` remain supported and unchanged.
+
+### Runtime parity notes (`cross-platform-runtime-parity-v1`)
+
+- `getCapabilities()` is now first-class on `audioPlayer` and `Legato`.
+- `mediaSession` remains listener-first and intentionally does **not** expose playback controls/capability queries.
+- `add({ tracks, startIndex })` interprets `startIndex` relative to the appended batch (resolved queue index = previous queue length + startIndex).
+
+### Explicit deferred differences (non-goals)
+
+- Android-only telemetry like `playback-interruption` remains intentionally deferred from cross-platform parity assertions in v1.
+- Deep lifecycle/process-death parity redesign is out of scope for this change and tracked as follow-up work.
 
 ```ts
 import {

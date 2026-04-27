@@ -82,6 +82,7 @@ Harness now supports both one-click smoke and manual controls for:
 
 - `setup`, `sync.start`, `sync.stop`
 - `add`, `play`, `pause`, `stop`, `skipToPrevious`, `skipToNext`, `seekTo`, `getSnapshot`
+- `getCapabilities` (first-class runtime API evidence)
 - copy-friendly recent events + raw log + snapshot summary/json
 - a compact **Remote parity inspector** summary (state/progress trend/metadata presence/event signals)
 - a compact **Capability projection** summary (`canSkipNext`, `canSkipPrevious`, `canSeek`, queue/index)
@@ -109,11 +110,13 @@ Manual parity checklist to close milestone validation:
 10. Run `Case: focus-denied lifecycle check` and capture copyable log/events showing non-playing outcome after denied focus.
 11. Run `Case: CAN_DUCK interruption pause` and capture snapshot evidence that CAN_DUCK pauses (no implicit auto-resume).
 12. Run `Case: background transition coherence` and capture snapshot summary + raw JSON after background/foreground return.
+13. Run manual `getCapabilities()` (or `Run API boundary validation`) and confirm `supported` reflects snapshot capability projection (`seek`, `skip-next`, `skip-previous`) plus baseline controls.
 
 Scope boundary for this lifecycle pass:
 
 - ✅ Guarantees targeted **in-process** lifecycle behavior (focus denial/interruption/background transition/notification coherence).
 - ❌ Does **not** claim process-death restoration or OEM-complete lifecycle resilience.
+- ❌ Does **not** claim parity for Android-only interruption telemetry (`playback-interruption`); that remains explicitly deferred.
 
 ## Quick smoke checklist (manual, lightweight)
 

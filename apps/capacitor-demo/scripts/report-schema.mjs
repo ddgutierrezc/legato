@@ -9,6 +9,7 @@ export const SMOKE_REPORT_V1_REQUIRED_KEYS = Object.freeze([
   'recentEvents',
   'errors',
   'runtimeIntegrity',
+  'parityEvidence',
 ]);
 
 export const SMOKE_REPORT_V1_SEMANTIC_SIGNATURES = Object.freeze({
@@ -20,6 +21,7 @@ export const SMOKE_REPORT_V1_SEMANTIC_SIGNATURES = Object.freeze({
   recentEvents: 'array-recent-events',
   errors: 'array-error-message',
   runtimeIntegrity: 'runtime-integrity-payload',
+  parityEvidence: 'parity-evidence-payload',
 });
 
 const PASS = 'PASS';
@@ -50,6 +52,21 @@ const hasRuntimeIntegrityPayload = (value) => isPlainObject(value)
   && value.details.trackEnd.trim() !== ''
   && typeof value.details.snapshot === 'string'
   && value.details.snapshot.trim() !== '';
+
+const hasParityEvidencePayload = (value) => isPlainObject(value)
+  && typeof value.addStartIndexConverged === 'boolean'
+  && typeof value.remoteOrderConverged === 'boolean'
+  && typeof value.eventStateSnapshotConverged === 'boolean'
+  && typeof value.capabilitiesConverged === 'boolean'
+  && isPlainObject(value.details)
+  && typeof value.details.addStartIndex === 'string'
+  && value.details.addStartIndex.trim() !== ''
+  && typeof value.details.remoteOrder === 'string'
+  && value.details.remoteOrder.trim() !== ''
+  && typeof value.details.eventStateSnapshot === 'string'
+  && value.details.eventStateSnapshot.trim() !== ''
+  && typeof value.details.capabilities === 'string'
+  && value.details.capabilities.trim() !== '';
 
 export const validateSmokeReportV1 = (candidate) => {
   const errors = [];
@@ -99,6 +116,10 @@ export const validateSmokeReportV1 = (candidate) => {
 
   if (!hasRuntimeIntegrityPayload(candidate.runtimeIntegrity)) {
     errors.push('runtimeIntegrity must include boolean checks plus non-empty details for transport/progress/trackEnd/snapshot');
+  }
+
+  if (!hasParityEvidencePayload(candidate.parityEvidence)) {
+    errors.push('parityEvidence must include boolean checks plus non-empty details for addStartIndex/remoteOrder/eventStateSnapshot/capabilities');
   }
 
   if (candidate.status === FAIL && (!Array.isArray(candidate.errors) || candidate.errors.length === 0)) {

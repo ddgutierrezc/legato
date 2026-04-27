@@ -175,6 +175,43 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
     }
 
     @discardableResult
+    public func add(tracks: [LegatoiOSTrack], startIndex: Int? = nil) throws -> LegatoiOSPlaybackSnapshot {
+        try guardSetup()
+
+        if startIndex == nil {
+            return try appendToQueue(tracks)
+        }
+
+        let mappedTracks = try trackMapper.mapContractTracks(tracks)
+        let previousSnapshot = snapshotStore.getPlaybackSnapshot()
+        let previousQueue = queueManager.getQueueSnapshot()
+        let mergedItems = previousQueue.items + mappedTracks
+        let resolvedStartIndex = previousQueue.items.count + (startIndex ?? 0)
+        let nextQueue = try queueManager.replaceQueue(mergedItems, startIndex: resolvedStartIndex)
+        try performRuntimeOperation {
+            try playbackRuntime.replaceQueue(items: mergedItems.map(toRuntimeTrackSource), startIndex: resolvedStartIndex)
+        }
+
+        let runtimeSnapshot = playbackRuntime.snapshot()
+        let currentTrack = queueManager.getCurrentTrack()
+        applyRuntimeSnapshot(
+            runtimeSnapshot,
+            currentTrackOverride: currentTrack,
+            currentIndexFallback: nextQueue.currentIndex,
+            queueOverride: nextQueue
+        )
+
+        let snapshot = snapshotStore.getPlaybackSnapshot()
+        publishQueueAndTrack(snapshot)
+        if snapshot.state != previousSnapshot.state {
+            publishState(snapshot.state)
+        }
+        publishMetadata(snapshot.currentTrack)
+        publishProgress(snapshot)
+        return snapshot
+    }
+
+    @discardableResult
     public func removeFromQueue(at index: Int) throws -> LegatoiOSPlaybackSnapshot {
         try guardSetup()
 

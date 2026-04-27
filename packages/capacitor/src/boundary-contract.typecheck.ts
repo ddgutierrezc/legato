@@ -43,6 +43,7 @@ void mediaPayload;
 audioPlayerApi.setup();
 audioPlayerApi.play();
 audioPlayerApi.getSnapshot();
+audioPlayerApi.getCapabilities();
 audioPlayerApi.addListener('playback-progress', (payload) => {
   void payload.position;
 });
@@ -54,6 +55,7 @@ mediaSessionApi.addListener('remote-seek', (payload) => {
 });
 
 legatoApi.play();
+legatoApi.getCapabilities();
 legatoApi.addListener('playback-state-changed', (payload) => {
   void payload.state;
 });
@@ -67,6 +69,9 @@ mediaSessionApi.addListener('playback-progress', () => {});
 
 // @ts-expect-error playback controls are excluded from media-session boundary.
 mediaSessionApi.play();
+
+// @ts-expect-error getCapabilities is excluded from media-session boundary.
+mediaSessionApi.getCapabilities();
 
 // @ts-expect-error media-session event names exclude playback events.
 const invalidMediaSessionEventName: MediaSessionEventName = 'playback-ended';
@@ -92,13 +97,18 @@ pluginLegatoFacade.addListener('playback-progress', (payload) => {
 });
 
 indexAudioPlayer.getSnapshot();
+indexAudioPlayer.getCapabilities();
 indexMediaSession.addListener('remote-seek', (payload) => {
   void payload.position;
 });
 indexLegatoFacade.getDuration();
+indexLegatoFacade.getCapabilities();
 
 // @ts-expect-error media-session boundary excludes playback controls.
 pluginMediaSession.play();
 
 // @ts-expect-error audio-player boundary excludes media-session event names.
 pluginAudioPlayer.addListener('remote-next', () => {});
+
+// @ts-expect-error media-session boundary excludes playback capability queries.
+pluginMediaSession.getCapabilities();

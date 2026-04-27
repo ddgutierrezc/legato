@@ -70,6 +70,7 @@ test('failure helper keeps v1 required keys present and non-null for iOS', () =>
     'errors',
     'flow',
     'metadata',
+    'parityEvidence',
     'recentEvents',
     'runtimeIntegrity',
     'schemaVersion',
@@ -99,4 +100,35 @@ test('collector fails with actionable diagnostics when smoke marker omits runtim
   assert.equal(report.status, 'FAIL');
   assert.equal(report.metadata.step, 'validate-runtime-integrity-payload');
   assert.match(report.errors[0], /runtime integrity/i);
+});
+
+test('collector fails with actionable diagnostics when smoke marker omits parity evidence payload', () => {
+  const line = 'LEGATO_SMOKE_REPORT ' + JSON.stringify({
+    schemaVersion: 1,
+    flow: 'smoke',
+    status: 'PASS',
+    checks: [{ label: 'current track present', ok: true, detail: 'track=Demo Track 1' }],
+    snapshotSummary: 'state=paused | track=Demo Track 1 | position=1200 | duration=3000',
+    recentEvents: ['setup finished', 'play finished'],
+    errors: [],
+    metadata: { platform: 'ios' },
+    runtimeIntegrity: {
+      transportCommandsObserved: true,
+      progressAdvancedWhilePlaying: true,
+      trackEndTransitionObserved: false,
+      snapshotProjectionCoherent: true,
+      details: {
+        transport: 'ok',
+        progress: 'ok',
+        trackEnd: 'ok',
+        snapshot: 'ok',
+      },
+    },
+  });
+
+  const report = collectIosSmokeReportFromLog(line);
+
+  assert.equal(report.status, 'FAIL');
+  assert.equal(report.metadata.step, 'validate-parity-evidence-payload');
+  assert.match(report.errors[0], /parity evidence/i);
 });

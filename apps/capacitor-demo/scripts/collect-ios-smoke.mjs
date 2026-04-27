@@ -42,6 +42,18 @@ export const normalizeIosCollectorFailure = ({
       snapshot: `collector failed before snapshot verification (step=${step})`,
     },
   },
+  parityEvidence: {
+    addStartIndexConverged: false,
+    remoteOrderConverged: false,
+    eventStateSnapshotConverged: false,
+    capabilitiesConverged: false,
+    details: {
+      addStartIndex: `collector failed before add(startIndex) verification (step=${step})`,
+      remoteOrder: `collector failed before remote ordering verification (step=${step})`,
+      eventStateSnapshot: `collector failed before event/state/snapshot verification (step=${step})`,
+      capabilities: `collector failed before capabilities verification (step=${step})`,
+    },
+  },
   metadata: {
     platform: 'ios',
     collectedAt,
@@ -64,6 +76,15 @@ const hasRuntimeIntegrityPayload = (value) => value
   && typeof value.progressAdvancedWhilePlaying === 'boolean'
   && typeof value.trackEndTransitionObserved === 'boolean'
   && typeof value.snapshotProjectionCoherent === 'boolean'
+  && value.details
+  && typeof value.details === 'object';
+
+const hasParityEvidencePayload = (value) => value
+  && typeof value === 'object'
+  && typeof value.addStartIndexConverged === 'boolean'
+  && typeof value.remoteOrderConverged === 'boolean'
+  && typeof value.eventStateSnapshotConverged === 'boolean'
+  && typeof value.capabilitiesConverged === 'boolean'
   && value.details
   && typeof value.details === 'object';
 
@@ -94,6 +115,14 @@ export const collectIosSmokeReportFromLog = (
       return normalizeIosCollectorFailure({
         step: 'validate-runtime-integrity-payload',
         message: 'Smoke marker payload is missing runtime integrity checks (transport/progress/track-end/snapshot).',
+        collectedAt,
+      });
+    }
+
+    if (!hasParityEvidencePayload(parsed.parityEvidence)) {
+      return normalizeIosCollectorFailure({
+        step: 'validate-parity-evidence-payload',
+        message: 'Smoke marker payload is missing parity evidence checks (add(startIndex)/remote-order/event-state-snapshot/capabilities).',
         collectedAt,
       });
     }

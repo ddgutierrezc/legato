@@ -1,5 +1,6 @@
 package io.legato.capacitor
 
+import io.legato.core.core.LegatoAndroidTransportCapabilities
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -25,5 +26,35 @@ class LegatoCapacitorMapperTest {
         val value = coerceOptionalString(JSONObject.NULL)
 
         assertNull(value)
+    }
+
+    @Test
+    fun `supported capabilities include playback baseline and projected transport controls`() {
+        val mapper = LegatoCapacitorMapper()
+
+        val supported = mapper.supportedCapabilitiesFromTransport(
+            LegatoAndroidTransportCapabilities(
+                canSkipNext = true,
+                canSkipPrevious = false,
+                canSeek = true,
+            ),
+        )
+
+        assertEquals(listOf("play", "pause", "stop", "seek", "skip-next"), supported)
+    }
+
+    @Test
+    fun `supported capabilities omit unavailable transport controls`() {
+        val mapper = LegatoCapacitorMapper()
+
+        val supported = mapper.supportedCapabilitiesFromTransport(
+            LegatoAndroidTransportCapabilities(
+                canSkipNext = false,
+                canSkipPrevious = false,
+                canSeek = false,
+            ),
+        )
+
+        assertEquals(listOf("play", "pause", "stop"), supported)
     }
 }

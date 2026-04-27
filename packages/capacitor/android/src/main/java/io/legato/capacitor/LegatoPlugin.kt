@@ -9,6 +9,7 @@ import io.legato.core.core.LegatoAndroidEventName
 import io.legato.core.core.LegatoAndroidEventPayload
 import io.legato.core.core.LegatoAndroidPlaybackSnapshot
 import io.legato.core.core.LegatoAndroidErrorCode
+import io.legato.core.queue.LegatoAndroidTransportCapabilitiesProjector
 
 @CapacitorPlugin(name = "Legato")
 class LegatoPlugin : Plugin() {
@@ -168,6 +169,14 @@ class LegatoPlugin : Plugin() {
     @PluginMethod
     fun getSnapshot(call: PluginCall) {
         call.resolve(snapshotResult(core.playerEngine.getSnapshot()))
+    }
+
+    @PluginMethod
+    fun getCapabilities(call: PluginCall) {
+        val snapshot = core.playerEngine.getSnapshot()
+        val transportCapabilities = LegatoAndroidTransportCapabilitiesProjector.fromSnapshot(snapshot)
+        val supported = mapper.supportedCapabilitiesFromTransport(transportCapabilities)
+        call.resolve(mapper.capabilitiesToJs(supported))
     }
 
     private fun resolveRemovalIndex(call: PluginCall): Int {
