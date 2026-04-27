@@ -1,10 +1,38 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { access, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'));
+
+const pathExists = async (path) => access(path).then(() => true).catch(() => false);
+
+const isRepoRoot = async (candidateRoot) => {
+  const capacitorManifest = resolve(candidateRoot, 'packages/capacitor/package.json');
+  const contractManifest = resolve(candidateRoot, 'packages/contract/package.json');
+  return (await pathExists(capacitorManifest)) && (await pathExists(contractManifest));
+};
+
+const resolveRepoRoot = async (repoRoot) => {
+  if (repoRoot) {
+    return resolve(repoRoot);
+  }
+
+  const candidates = [
+    process.cwd(),
+    resolve(scriptDir, '../../..'),
+    resolve(scriptDir, '../..'),
+  ];
+
+  for (const candidate of candidates) {
+    if (await isRepoRoot(candidate)) {
+      return candidate;
+    }
+  }
+
+  return resolve(scriptDir, '../../..');
+};
 
 const toIso = () => new Date().toISOString();
 
@@ -29,12 +57,28 @@ const mavenVersionUrl = (group, artifact, version) => {
 };
 const iosTagUrl = (packageUrl, version) => `${String(packageUrl ?? '').replace(/\.git$/, '')}/releases/tag/v${String(version ?? '').replace(/^v/, '')}`;
 
-export const buildReleaseChangelogFacts = async ({ repoRoot = resolve(scriptDir, '../..'), releaseId, releaseSummaryPath } = {}) => {
-  const resolvedRoot = resolve(repoRoot);
+export const buildReleaseChangelogFacts = async ({ repoRoot, releaseId, releaseSummaryPath } = {}) => {
+  const resolvedRoot = await resolveRepoRoot(repoRoot);
   const effectiveReleaseId = String(releaseId ?? '').trim();
-  const summaryPath = releaseSummaryPath
-    ? resolve(releaseSummaryPath)
-    : resolve(resolvedRoot, 'apps/capacitor-demo/artifacts/release-control', effectiveReleaseId, 'summary.json');
+  let summaryPath = releaseSummaryPath ? resolve(releaseSummaryPath) : '';
+
+  if (!summaryPath) {
+    if (!effectiveReleaseId) {
+      throw new Error('release_id is required when --summary is not provided.');
+    }
+
+    const candidatePaths = [
+      resolve(resolvedRoot, 'apps/capacitor-demo/artifacts/release-control', effectiveReleaseId, 'summary.json'),
+      resolve(resolvedRoot, 'artifacts/release-control', effectiveReleaseId, 'summary.json'),
+    ];
+    summaryPath = candidatePaths[0];
+    for (const candidate of candidatePaths) {
+      if (await pathExists(candidate)) {
+        summaryPath = candidate;
+        break;
+      }
+    }
+  }
 
   const summary = await readJson(summaryPath).catch(() => {
     throw new Error(`Missing required release summary.json at ${summaryPath}`);

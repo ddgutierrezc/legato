@@ -29,6 +29,20 @@ const compatibilityRows = (facts) => {
   return rows.join('\n');
 };
 
+const iosSelected = (facts) => (Array.isArray(facts?.targets) ? facts.targets : [])
+  .some((entry) => String(entry?.target ?? '').trim() === 'ios' && Boolean(entry?.selected));
+
+const resolveIosDerivativeRelease = (facts) => {
+  const durableEvidence = Array.isArray(facts?.evidence?.durable) ? facts.evidence.durable : [];
+  const iosDurable = durableEvidence.find((entry) => /ios distribution release tag/i.test(String(entry?.label ?? '')));
+  if (String(iosDurable?.url ?? '').trim()) {
+    return String(iosDurable.url).trim();
+  }
+
+  const procedureReference = String(facts?.target_procedures?.ios?.durable_evidence_ref ?? '').trim();
+  return procedureReference;
+};
+
 export const generateGithubReleaseNotes = ({ facts, narrative, changelogAnchor } = {}) => {
   if (!facts || typeof facts !== 'object') {
     throw new Error('facts payload is required.');
@@ -38,6 +52,9 @@ export const generateGithubReleaseNotes = ({ facts, narrative, changelogAnchor }
   const normalizedAnchor = String(changelogAnchor ?? '').trim() || `CHANGELOG.md#${slugify(facts.release_id)}`;
   const highlights = Array.isArray(narrative.highlights) ? narrative.highlights : [];
   const limitations = Array.isArray(narrative.known_limitations) ? narrative.known_limitations : [];
+  const canonicalRepo = String(facts?.authority?.canonical_repo ?? 'legato').trim() || 'legato';
+  const iosDerivativeRelease = resolveIosDerivativeRelease(facts);
+  const includeIosDerivative = iosSelected(facts);
 
   const sectionOrder = [
     'Summary',
@@ -54,6 +71,8 @@ export const generateGithubReleaseNotes = ({ facts, narrative, changelogAnchor }
     `- release_id: \`${facts.release_id}\``,
     `- release_tag: \`${facts.release_tag}\``,
     `- source_commit: \`${facts.source_commit || 'unknown'}\``,
+    `- canonical_repo: \`${canonicalRepo}\``,
+    ...(includeIosDerivative ? [`- ios_derivative_release: \`${iosDerivativeRelease}\``] : []),
     '',
     '## Highlights',
     ...highlights.map((entry) => `- ${entry}`),
