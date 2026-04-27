@@ -8,6 +8,7 @@ import {
   collectRootExportInventory,
   evaluateJsdocClaimEvidence,
   evaluateStageClosure,
+  resolveTypeScriptRuntime,
   validateDeclarationJsdocCoverage,
 } from '../assert-package-entries.mjs';
 
@@ -204,4 +205,43 @@ test('evaluateStageClosure passes partial completion when scoped closure metadat
 
   assert.equal(result.status, 'PASS');
   assert.equal(result.failures.length, 0);
+});
+
+test('resolveTypeScriptRuntime prefers package-root node_modules when available', async () => {
+  const packageRoot = await createFixturePackage({
+    srcIndex: 'export {}\n',
+    distIndex: 'export {}\n',
+  });
+
+  const fakeTypescriptRoot = join(packageRoot, 'node_modules', 'typescript');
+  await mkdir(fakeTypescriptRoot, { recursive: true });
+  await writeJson(join(fakeTypescriptRoot, 'package.json'), {
+    name: 'typescript',
+    version: '0.0.0-fixture',
+    main: 'index.cjs',
+  });
+  await writeFile(join(fakeTypescriptRoot, 'index.cjs'), 'module.exports = { __fixtureMarker: "package-root" };\n', 'utf8');
+
+  try {
+    const runtime = resolveTypeScriptRuntime({ packageRoot });
+    assert.equal(runtime.ts.__fixtureMarker, 'package-root');
+    assert.match(runtime.modulePath, /node_modules\/typescript\/index\.cjs$/);
+  } finally {
+    await rm(packageRoot, { recursive: true, force: true });
+  }
+});
+
+test('resolveTypeScriptRuntime falls back when package-root has no TypeScript install', async () => {
+  const packageRoot = await createFixturePackage({
+    srcIndex: 'export {}\n',
+    distIndex: 'export {}\n',
+  });
+
+  try {
+    const runtime = resolveTypeScriptRuntime({ packageRoot });
+    assert.equal(typeof runtime.ts.createProgram, 'function');
+    assert.equal(runtime.modulePath.startsWith(join(packageRoot, 'node_modules')), false);
+  } finally {
+    await rm(packageRoot, { recursive: true, force: true });
+  }
 });

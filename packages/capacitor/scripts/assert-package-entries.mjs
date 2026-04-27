@@ -1,11 +1,63 @@
 import { readFile, lstat } from 'node:fs/promises';
 import { dirname, isAbsolute, resolve } from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const defaultPackageRoot = resolve(scriptDir, '..');
+const requireFromScript = createRequire(import.meta.url);
 const VALID_PROFILES = new Set(['capacitor', 'contract']);
+const typescriptRuntimeCache = new Map();
+
+const collectTypeScriptCandidateRoots = ({ packageRoot } = {}) => {
+  const candidates = [
+    packageRoot,
+    defaultPackageRoot,
+    process.cwd(),
+    scriptDir,
+  ]
+    .filter((value) => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => resolve(value));
+  return [...new Set(candidates)];
+};
+
+const resolveTypeScriptModulePath = ({ packageRoot } = {}) => {
+  const candidateRoots = collectTypeScriptCandidateRoots({ packageRoot });
+  for (const candidateRoot of candidateRoots) {
+    try {
+      const requireFromCandidate = createRequire(resolve(candidateRoot, 'package.json'));
+      const modulePath = requireFromCandidate.resolve('typescript');
+      if (modulePath) {
+        return modulePath;
+      }
+    } catch {
+      // Continue through fallback roots.
+    }
+  }
+
+  try {
+    return requireFromScript.resolve('typescript');
+  } catch {
+    const fallbackSummary = candidateRoots.length > 0
+      ? candidateRoots.join(', ')
+      : '<none>';
+    throw new Error(`Unable to resolve TypeScript runtime. Tried package-root and fallbacks: ${fallbackSummary}`);
+  }
+};
+
+export const resolveTypeScriptRuntime = ({ packageRoot } = {}) => {
+  const modulePath = resolveTypeScriptModulePath({ packageRoot });
+  if (!typescriptRuntimeCache.has(modulePath)) {
+    const loadedModule = requireFromScript(modulePath);
+    const tsRuntime = loadedModule?.default ?? loadedModule;
+    typescriptRuntimeCache.set(modulePath, tsRuntime);
+  }
+
+  return {
+    ts: typescriptRuntimeCache.get(modulePath),
+    modulePath,
+  };
+};
 
 const normalizeRelativePath = (value) => value.replaceAll('\\', '/').replace(/^\.\//, '');
 
@@ -69,13 +121,13 @@ const detectProfile = ({ profile, packageJson }) => {
 
 const mentionsLegatoCli = (readmeRaw) => /`?legato`?\s+native|\blegato\s+native\b/i.test(readmeRaw);
 
-const DEFAULT_TYPESCRIPT_COMPILER_OPTIONS = {
+const createDefaultTypescriptCompilerOptions = (ts) => ({
   target: ts.ScriptTarget.ES2022,
   module: ts.ModuleKind.NodeNext,
   moduleResolution: ts.ModuleResolutionKind.NodeNext,
   skipLibCheck: true,
   strict: false,
-};
+});
 
 const DEFAULT_ALLOWED_EVIDENCE_KINDS = new Set([
   'signature',
@@ -84,7 +136,7 @@ const DEFAULT_ALLOWED_EVIDENCE_KINDS = new Set([
   'maintainer-source-map',
 ]);
 
-const declarationKindSets = {
+const createDeclarationKindSets = (ts) => ({
   functionLike: new Set([
     ts.SyntaxKind.FunctionDeclaration,
     ts.SyntaxKind.MethodDeclaration,
@@ -100,7 +152,7 @@ const declarationKindSets = {
     ts.SyntaxKind.EnumDeclaration,
     ts.SyntaxKind.EnumMember,
   ]),
-};
+});
 
 const toRelativeFromPackageRoot = (packageRoot, absolutePath) => normalizeRelativePath(absolutePath.slice(packageRoot.length + 1));
 
@@ -114,7 +166,7 @@ const normalizeCommentText = (comment) => {
   return '';
 };
 
-const resolveAliasedSymbol = (checker, symbol) => {
+const resolveAliasedSymbol = (checker, symbol, ts) => {
   if ((symbol.flags & ts.SymbolFlags.Alias) !== 0) {
     return checker.getAliasedSymbol(symbol);
   }
@@ -208,7 +260,7 @@ export const evaluateStageClosure = ({
   };
 };
 
-const classifyExportCategory = (symbol) => {
+const classifyExportCategory = (symbol, declarationKindSets) => {
   const declarations = symbol.getDeclarations() ?? [];
   const symbolName = symbol.getName();
   const hasKind = (set) => declarations.some((declaration) => set.has(declaration.kind));
@@ -233,15 +285,15 @@ const classifyExportCategory = (symbol) => {
   return 'types/interfaces';
 };
 
-const loadPackageCompilerOptions = (packageRoot) => {
+const loadPackageCompilerOptions = (packageRoot, ts) => {
   const configPath = ts.findConfigFile(packageRoot, ts.sys.fileExists, 'tsconfig.json');
   if (!configPath) {
-    return DEFAULT_TYPESCRIPT_COMPILER_OPTIONS;
+    return createDefaultTypescriptCompilerOptions(ts);
   }
 
   const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
   if (configFile.error) {
-    return DEFAULT_TYPESCRIPT_COMPILER_OPTIONS;
+    return createDefaultTypescriptCompilerOptions(ts);
   }
 
   const parsed = ts.parseJsonConfigFileContent(
@@ -252,13 +304,13 @@ const loadPackageCompilerOptions = (packageRoot) => {
     configPath,
   );
   return {
-    ...DEFAULT_TYPESCRIPT_COMPILER_OPTIONS,
+    ...createDefaultTypescriptCompilerOptions(ts),
     ...parsed.options,
   };
 };
 
-const createCheckerForEntrypoint = (entrypointPath, packageRoot) => {
-  const program = ts.createProgram([entrypointPath], loadPackageCompilerOptions(packageRoot));
+const createCheckerForEntrypoint = (entrypointPath, packageRoot, ts) => {
+  const program = ts.createProgram([entrypointPath], loadPackageCompilerOptions(packageRoot, ts));
   const checker = program.getTypeChecker();
   const sourceFile = program.getSourceFile(entrypointPath);
   if (!sourceFile) {
@@ -273,17 +325,19 @@ const createCheckerForEntrypoint = (entrypointPath, packageRoot) => {
 
 export const collectRootExportInventory = async ({ packageRoot, sourceEntrypoint = 'src/index.ts' } = {}) => {
   const resolvedPackageRoot = resolve(packageRoot ?? defaultPackageRoot);
+  const { ts } = resolveTypeScriptRuntime({ packageRoot: resolvedPackageRoot });
   const entrypointPath = resolve(resolvedPackageRoot, sourceEntrypoint);
-  const { checker, moduleSymbol } = createCheckerForEntrypoint(entrypointPath, resolvedPackageRoot);
+  const { checker, moduleSymbol } = createCheckerForEntrypoint(entrypointPath, resolvedPackageRoot, ts);
+  const declarationKindSets = createDeclarationKindSets(ts);
   const exports = checker.getExportsOfModule(moduleSymbol);
 
   return exports
     .map((symbol) => {
-      const resolvedSymbol = resolveAliasedSymbol(checker, symbol);
+      const resolvedSymbol = resolveAliasedSymbol(checker, symbol, ts);
       const declaration = resolvedSymbol.getDeclarations()?.[0];
       return {
         symbol: symbol.getName(),
-        category: classifyExportCategory(resolvedSymbol),
+        category: classifyExportCategory(resolvedSymbol, declarationKindSets),
         sourceFile: declaration?.getSourceFile()?.fileName
           ? toRelativeFromPackageRoot(resolvedPackageRoot, declaration.getSourceFile().fileName)
           : undefined,
@@ -292,12 +346,12 @@ export const collectRootExportInventory = async ({ packageRoot, sourceEntrypoint
     .sort((left, right) => left.symbol.localeCompare(right.symbol));
 };
 
-const getPrimaryDeclaration = (symbol) => {
+const getPrimaryDeclaration = (symbol, ts) => {
   const declarations = symbol.getDeclarations() ?? [];
   return declarations.find((declaration) => declaration.kind !== ts.SyntaxKind.ExportSpecifier) ?? declarations[0];
 };
 
-const getTagValues = (declaration) => {
+const getTagValues = (declaration, ts) => {
   const tags = ts.getJSDocTags(declaration);
   const paramTags = new Set();
   let hasReturns = false;
@@ -318,7 +372,7 @@ const getTagValues = (declaration) => {
   };
 };
 
-const declarationHasSummary = (checker, symbol, declaration) => {
+const declarationHasSummary = (checker, symbol, declaration, ts) => {
   const symbolSummary = ts.displayPartsToString(symbol.getDocumentationComment(checker)).trim();
   if (symbolSummary.length > 0) {
     return true;
@@ -327,7 +381,7 @@ const declarationHasSummary = (checker, symbol, declaration) => {
   return jsdocNodes.some((node) => normalizeCommentText(node.comment).length > 0);
 };
 
-const declarationNeedsPropertyDocs = (symbol, category, declaration) => {
+const declarationNeedsPropertyDocs = (symbol, category, declaration, ts) => {
   const name = symbol.getName();
   if (category === 'event maps/payload types') {
     return true;
@@ -338,7 +392,7 @@ const declarationNeedsPropertyDocs = (symbol, category, declaration) => {
   return ts.isInterfaceDeclaration(declaration) && declaration.members.length > 0 && name.endsWith('Snapshot');
 };
 
-const collectMissingPropertyDocs = (declaration) => {
+const collectMissingPropertyDocs = (declaration, ts) => {
   if (!ts.isInterfaceDeclaration(declaration) && !ts.isTypeLiteralNode(declaration)) {
     return [];
   }
@@ -383,6 +437,7 @@ const resolveDeclarationSourceFromMap = async (declFilePath, packageRoot) => {
 
 export const validateDeclarationJsdocCoverage = async ({ packageRoot, profile } = {}) => {
   const resolvedPackageRoot = resolve(packageRoot ?? defaultPackageRoot);
+  const { ts } = resolveTypeScriptRuntime({ packageRoot: resolvedPackageRoot });
   const sourceEntrypointPath = resolve(resolvedPackageRoot, 'src/index.ts');
   const declarationEntrypoint = resolve(resolvedPackageRoot, 'dist/index.d.ts');
   if (!await pathExists(sourceEntrypointPath) || !await pathExists(declarationEntrypoint)) {
@@ -399,11 +454,11 @@ export const validateDeclarationJsdocCoverage = async ({ packageRoot, profile } 
   }
 
   const sourceInventory = await collectRootExportInventory({ packageRoot: resolvedPackageRoot });
-  const { checker, moduleSymbol } = createCheckerForEntrypoint(declarationEntrypoint, resolvedPackageRoot);
+  const { checker, moduleSymbol } = createCheckerForEntrypoint(declarationEntrypoint, resolvedPackageRoot, ts);
   const declarationExports = new Map(
     checker
       .getExportsOfModule(moduleSymbol)
-      .map((symbol) => [symbol.getName(), resolveAliasedSymbol(checker, symbol)]),
+      .map((symbol) => [symbol.getName(), resolveAliasedSymbol(checker, symbol, ts)]),
   );
 
   const failures = [];
@@ -422,7 +477,7 @@ export const validateDeclarationJsdocCoverage = async ({ packageRoot, profile } 
       continue;
     }
 
-    const declaration = getPrimaryDeclaration(symbol);
+    const declaration = getPrimaryDeclaration(symbol, ts);
     if (!declaration) {
       failures.push({
         packageName: profile,
@@ -436,13 +491,13 @@ export const validateDeclarationJsdocCoverage = async ({ packageRoot, profile } 
     }
 
     const missing = [];
-    const hasSummary = declarationHasSummary(checker, symbol, declaration);
+    const hasSummary = declarationHasSummary(checker, symbol, declaration, ts);
     if (!hasSummary) {
       missing.push('summary');
     }
 
     if (inventoryEntry.category === 'functions/methods') {
-      const { paramTags, hasReturns } = getTagValues(declaration);
+      const { paramTags, hasReturns } = getTagValues(declaration, ts);
       const parameters = 'parameters' in declaration ? declaration.parameters : [];
       for (const parameter of parameters) {
         if (ts.isIdentifier(parameter.name) && !paramTags.has(parameter.name.text)) {
@@ -456,8 +511,8 @@ export const validateDeclarationJsdocCoverage = async ({ packageRoot, profile } 
       }
     }
 
-    if (declarationNeedsPropertyDocs(symbol, inventoryEntry.category, declaration)) {
-      missing.push(...collectMissingPropertyDocs(declaration));
+    if (declarationNeedsPropertyDocs(symbol, inventoryEntry.category, declaration, ts)) {
+      missing.push(...collectMissingPropertyDocs(declaration, ts));
     }
 
     if (missing.length > 0) {
