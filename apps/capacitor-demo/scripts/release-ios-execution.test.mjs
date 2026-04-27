@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import nativeArtifacts from '../../../packages/capacitor/native-artifacts.json' with { type: 'json' };
 
 import {
   buildVerifyScratchPackageSwift,
@@ -13,13 +14,22 @@ import {
   closeoutIosPublication,
 } from './release-ios-execution.mjs';
 
+const IOS_PACKAGE_URL = String(nativeArtifacts?.ios?.packageUrl ?? '').trim();
+const IOS_PACKAGE_NAME = String(nativeArtifacts?.ios?.packageName ?? '').trim();
+const IOS_PRODUCT = String(nativeArtifacts?.ios?.product ?? '').trim();
+const IOS_VERSION = String(nativeArtifacts?.ios?.version ?? '').trim();
+const IOS_TAG = `v${IOS_VERSION}`;
+const IOS_RELEASE_URL = `${IOS_PACKAGE_URL.replace(/\.git$/i, '')}/releases/tag/${IOS_TAG}`;
+const IOS_MISMATCH_VERSION = IOS_VERSION === '0.1.1' ? '0.1.9' : '0.1.1';
+const IOS_MISMATCH_TAG = `v${IOS_MISMATCH_VERSION}`;
+
 const makePreflight = (overrides = {}) => ({
   status: 'PASS',
-  releaseTag: 'v0.1.1',
-  expectedVersion: '0.1.1',
-  expectedPackageUrl: 'https://github.com/ddgutierrezc/legato-ios-core.git',
-  expectedPackageName: 'LegatoCore',
-  expectedProduct: 'LegatoCore',
+  releaseTag: IOS_TAG,
+  expectedVersion: IOS_VERSION,
+  expectedPackageUrl: IOS_PACKAGE_URL,
+  expectedPackageName: IOS_PACKAGE_NAME,
+  expectedProduct: IOS_PRODUCT,
   readyForManualHandoff: true,
   generatedAt: '2026-04-24T00:00:00.000Z',
   failures: [],
@@ -29,13 +39,13 @@ const makePreflight = (overrides = {}) => ({
 const makeHandoff = (preflightPath, overrides = {}) => ({
   status: 'PASS',
   releaseId: 'rel-001',
-  releaseTag: 'v0.1.1',
-  version: '0.1.1',
-  externalRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
-  externalTag: 'v0.1.1',
+  releaseTag: IOS_TAG,
+  version: IOS_VERSION,
+  externalRepo: IOS_PACKAGE_URL,
+  externalTag: IOS_TAG,
   proofType: 'tag-release-url',
-  proofValue: 'https://github.com/ddgutierrezc/legato-ios-core/releases/tag/v0.1.1',
-  normalizedTagVersion: '0.1.1',
+  proofValue: IOS_RELEASE_URL,
+  normalizedTagVersion: IOS_VERSION,
   operator: 'ios-operator',
   publishedAt: '2026-04-24T00:10:00.000Z',
   preflightPath,
@@ -46,18 +56,18 @@ const makeHandoff = (preflightPath, overrides = {}) => ({
 const makeVerify = (overrides = {}) => ({
   status: 'PASS',
   releaseId: 'rel-001',
-  version: '0.1.1',
+  version: IOS_VERSION,
   attemptsConfigured: 3,
   attemptsUsed: 2,
   checks: {
-    remoteTag: { status: 'PASS', matchedTag: 'v0.1.1' },
+    remoteTag: { status: 'PASS', matchedTag: IOS_TAG },
     swiftPackageResolve: { status: 'PASS' },
   },
   proofReference: {
     proofType: 'tag-release-url',
-    proofValue: 'https://github.com/ddgutierrezc/legato-ios-core/releases/tag/v0.1.1',
-    externalRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
-    externalTag: 'v0.1.1',
+    proofValue: IOS_RELEASE_URL,
+    externalRepo: IOS_PACKAGE_URL,
+    externalTag: IOS_TAG,
   },
   retries: [
     { attempt: 1, remoteTag: 'FAIL', swiftPackageResolve: 'FAIL' },
@@ -70,14 +80,14 @@ const makeVerify = (overrides = {}) => ({
 
 test('verify scratch Package.swift pins remote URL and uses derived Swift package identity', () => {
   const packageSwift = buildVerifyScratchPackageSwift({
-    packageUrl: 'https://github.com/ddgutierrezc/legato-ios-core.git',
-    packageName: 'LegatoCore',
-    product: 'LegatoCore',
-    version: '0.1.1',
+    packageUrl: IOS_PACKAGE_URL,
+    packageName: IOS_PACKAGE_NAME,
+    product: IOS_PRODUCT,
+    version: IOS_VERSION,
   });
 
-  assert.match(packageSwift, /\.package\(url:\s*"https:\/\/github\.com\/ddgutierrezc\/legato-ios-core\.git",\s*\.exact\("0\.1\.1"\)\)/i);
-  assert.match(packageSwift, /\.product\(name:\s*"LegatoCore",\s*package:\s*"legato-ios-core"\)/i);
+  assert.match(packageSwift, new RegExp(`\\.package\\(url:\\s*"${IOS_PACKAGE_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}",\\s*\\.exact\\("${IOS_VERSION.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\\)\\)`, 'i'));
+  assert.match(packageSwift, new RegExp(`\\.product\\(name:\\s*"${IOS_PRODUCT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}",\\s*package:\\s*"legato-ios-core"\\)`, 'i'));
 });
 
 test('handoff fails when preflight artifact is missing', async () => {
@@ -85,8 +95,8 @@ test('handoff fails when preflight artifact is missing', async () => {
   const result = await recordIosPublishHandoff({
     releaseId: 'rel-001',
     artifactsDir: tempDir,
-    externalRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
-    externalTag: 'v0.1.1',
+    externalRepo: IOS_PACKAGE_URL,
+    externalTag: IOS_TAG,
     operator: 'ios-operator',
     publishedAt: '2026-04-24T00:10:00.000Z',
   });
@@ -127,8 +137,8 @@ test('handoff fails when external tag mismatches preflight pinned version', asyn
   const result = await recordIosPublishHandoff({
     releaseId: 'rel-001',
     artifactsDir: tempDir,
-    externalRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
-    externalTag: 'v0.1.9',
+    externalRepo: IOS_PACKAGE_URL,
+    externalTag: IOS_MISMATCH_TAG,
     operator: 'ios-operator',
     publishedAt: '2026-04-24T00:10:00.000Z',
   });
@@ -149,9 +159,9 @@ test('handoff fails when external repo diverges from native-artifacts iOS packag
     releaseId: 'rel-001',
     artifactsDir: tempDir,
     externalRepo: 'https://github.com/acme/legato-ios-core.git',
-    externalTag: 'v0.1.1',
+    externalTag: IOS_TAG,
     proofType: 'tag-release-url',
-    proofValue: 'https://github.com/acme/legato-ios-core/releases/tag/v0.1.1',
+    proofValue: `https://github.com/acme/legato-ios-core/releases/tag/${IOS_TAG}`,
     operator: 'ios-operator',
     publishedAt: '2026-04-24T00:10:00.000Z',
   });
@@ -172,24 +182,24 @@ test('handoff writes handoff.json when manual evidence is complete', async () =>
   const result = await recordIosPublishHandoff({
     releaseId: 'rel-001',
     artifactsDir: tempDir,
-    externalRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
-    externalTag: 'v0.1.1',
+    externalRepo: IOS_PACKAGE_URL,
+    externalTag: IOS_TAG,
     proofType: 'tag-release-url',
-    proofValue: 'https://github.com/ddgutierrezc/legato-ios-core/releases/tag/v0.1.1',
+    proofValue: IOS_RELEASE_URL,
     operator: 'ios-operator',
     publishedAt: '2026-04-24T00:10:00.000Z',
   });
 
   assert.equal(result.status, 'PASS');
-  assert.equal(result.version, '0.1.1');
+  assert.equal(result.version, IOS_VERSION);
   assert.equal(result.releaseId, 'rel-001');
-  assert.equal(result.normalizedTagVersion, '0.1.1');
+  assert.equal(result.normalizedTagVersion, IOS_VERSION);
   const raw = await readFile(result.handoffPath, 'utf8');
   const artifact = JSON.parse(raw);
   assert.equal(artifact.status, 'PASS');
   assert.equal(artifact.preflightPath, preflightPath);
   assert.equal(artifact.proofType, 'tag-release-url');
-  assert.equal(artifact.proofValue, 'https://github.com/ddgutierrezc/legato-ios-core/releases/tag/v0.1.1');
+  assert.equal(artifact.proofValue, IOS_RELEASE_URL);
 
   await rm(tempDir, { recursive: true, force: true });
 });
@@ -204,8 +214,8 @@ test('handoff rejects placeholder proof values and accepts commit-sha proof', as
   const placeholder = await recordIosPublishHandoff({
     releaseId: 'rel-001',
     artifactsDir: tempDir,
-    externalRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
-    externalTag: 'v0.1.1',
+    externalRepo: IOS_PACKAGE_URL,
+    externalTag: IOS_TAG,
     proofType: 'tag-release-url',
     proofValue: 'TBD',
     operator: 'ios-operator',
@@ -218,8 +228,8 @@ test('handoff rejects placeholder proof values and accepts commit-sha proof', as
   const commitSha = await recordIosPublishHandoff({
     releaseId: 'rel-001',
     artifactsDir: tempDir,
-    externalRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
-    externalTag: 'v0.1.1',
+    externalRepo: IOS_PACKAGE_URL,
+    externalTag: IOS_TAG,
     proofType: 'commit-sha',
     proofValue: '1f2e3d4c5b6a78900112233445566778899aabbc',
     operator: 'ios-operator',
@@ -275,7 +285,7 @@ test('verify succeeds after propagation delay with bounded retries', async () =>
       if (gitCalls === 1) {
         return { exitCode: 0, stdout: '', stderr: '' };
       }
-      return { exitCode: 0, stdout: 'abc refs/tags/v0.1.1\n', stderr: '' };
+      return { exitCode: 0, stdout: `abc refs/tags/${IOS_TAG}\n`, stderr: '' };
     },
     runSwiftPackageResolve: async () => {
       swiftCalls += 1;
@@ -293,7 +303,7 @@ test('verify succeeds after propagation delay with bounded retries', async () =>
   assert.equal(verifyResult.checks.remoteTag.status, 'PASS');
   assert.equal(verifyResult.checks.swiftPackageResolve.status, 'PASS');
   assert.equal(verifyResult.proofReference.proofType, 'tag-release-url');
-  assert.equal(verifyResult.proofReference.externalTag, 'v0.1.1');
+  assert.equal(verifyResult.proofReference.externalTag, IOS_TAG);
   const raw = await readFile(join(releaseRoot, 'verify.json'), 'utf8');
   const artifact = JSON.parse(raw);
   assert.equal(artifact.status, 'PASS');
@@ -317,7 +327,7 @@ test('verify fails with deterministic diagnostics when retries exhaust', async (
     attempts: 2,
     backoffMs: 1,
     runGitLsRemote: async () => ({ exitCode: 0, stdout: 'abc refs/tags/v9.9.9\n', stderr: '' }),
-    runSwiftPackageResolve: async () => ({ exitCode: 1, stdout: '', stderr: 'no versions match requirement 0.1.1' }),
+    runSwiftPackageResolve: async () => ({ exitCode: 1, stdout: '', stderr: `no versions match requirement ${IOS_VERSION}` }),
     sleep: async () => {},
   });
 
@@ -339,15 +349,15 @@ test('verify fails when immutable proof chain does not match preflight/handoff c
   const preflightPath = join(releaseRoot, 'preflight.json');
   const handoffPath = join(releaseRoot, 'handoff.json');
   await mkdir(releaseRoot, { recursive: true });
-  await writeFile(preflightPath, `${JSON.stringify(makePreflight({ expectedVersion: '0.1.2' }), null, 2)}\n`, 'utf8');
-  await writeFile(handoffPath, `${JSON.stringify(makeHandoff(preflightPath, { version: '0.1.1' }), null, 2)}\n`, 'utf8');
+  await writeFile(preflightPath, `${JSON.stringify(makePreflight({ expectedVersion: IOS_VERSION }), null, 2)}\n`, 'utf8');
+  await writeFile(handoffPath, `${JSON.stringify(makeHandoff(preflightPath, { version: IOS_MISMATCH_VERSION, externalTag: IOS_MISMATCH_TAG }), null, 2)}\n`, 'utf8');
 
   const verifyResult = await verifyIosPublishHandoff({
     releaseId: 'rel-001',
     artifactsDir: tempDir,
     attempts: 1,
     backoffMs: 1,
-    runGitLsRemote: async () => ({ exitCode: 0, stdout: 'abc refs/tags/v0.1.1\n', stderr: '' }),
+    runGitLsRemote: async () => ({ exitCode: 0, stdout: `abc refs/tags/${IOS_TAG}\n`, stderr: '' }),
     runSwiftPackageResolve: async () => ({ exitCode: 0, stdout: 'resolved', stderr: '' }),
     sleep: async () => {},
   });
@@ -444,7 +454,7 @@ test('closeout writes linked closeout artifact when chain is complete and consis
   });
 
   assert.equal(result.status, 'PASS');
-  assert.equal(result.version, '0.1.1');
+  assert.equal(result.version, IOS_VERSION);
   const raw = await readFile(result.closeoutPath, 'utf8');
   const artifact = JSON.parse(raw);
   assert.equal(artifact.status, 'PASS');
@@ -468,8 +478,8 @@ test('closeout rejects proof reference mismatch between handoff and verify artif
     proofReference: {
       proofType: 'commit-sha',
       proofValue: 'deadbeef',
-      externalRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
-      externalTag: 'v0.1.1',
+      externalRepo: IOS_PACKAGE_URL,
+      externalTag: IOS_TAG,
     },
   }), null, 2)}\n`, 'utf8');
 
@@ -508,13 +518,13 @@ test('iOS publish transaction returns already_published when immutable tag alrea
   const result = await executeIosPublishTransaction({
     releaseId: 'rel-001',
     artifactsDir: tempDir,
-    releaseTag: 'v0.1.1',
-    distributionRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
+    releaseTag: IOS_TAG,
+    distributionRepo: IOS_PACKAGE_URL,
     distributionRef: 'main',
     githubAppToken: 'token',
     runGit: async (args) => {
       if (args[0] === 'ls-remote') {
-        return { exitCode: 0, stdout: 'abc refs/tags/v0.1.1\n', stderr: '' };
+        return { exitCode: 0, stdout: `abc refs/tags/${IOS_TAG}\n`, stderr: '' };
       }
       return { exitCode: 0, stdout: '', stderr: '' };
     },
@@ -537,8 +547,8 @@ test('iOS publish transaction writes published evidence when tag does not exist'
   const result = await executeIosPublishTransaction({
     releaseId: 'rel-001',
     artifactsDir: tempDir,
-    releaseTag: 'v0.1.1',
-    distributionRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
+    releaseTag: IOS_TAG,
+    distributionRepo: IOS_PACKAGE_URL,
     distributionRef: 'main',
     githubAppToken: 'token',
     runGit: async (args) => {
@@ -547,7 +557,7 @@ test('iOS publish transaction writes published evidence when tag does not exist'
         if (lsRemoteCalls === 1) {
           return { exitCode: 0, stdout: '', stderr: '' };
         }
-        return { exitCode: 0, stdout: 'abc refs/tags/v0.1.1\n', stderr: '' };
+        return { exitCode: 0, stdout: `abc refs/tags/${IOS_TAG}\n`, stderr: '' };
       }
       if (args[0] === 'status') {
         return { exitCode: 0, stdout: 'M Package.swift', stderr: '' };
@@ -572,8 +582,8 @@ test('iOS publish transaction maps missing authority input to blocked', async ()
   const result = await executeIosPublishTransaction({
     releaseId: 'rel-001',
     artifactsDir: tempDir,
-    releaseTag: 'v0.1.1',
-    distributionRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
+    releaseTag: IOS_TAG,
+    distributionRepo: IOS_PACKAGE_URL,
     distributionRef: 'main',
     githubAppToken: '',
   });
@@ -592,8 +602,8 @@ test('iOS publish transaction maps verification failure to failed', async () => 
   const result = await executeIosPublishTransaction({
     releaseId: 'rel-001',
     artifactsDir: tempDir,
-    releaseTag: 'v0.1.1',
-    distributionRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
+    releaseTag: IOS_TAG,
+    distributionRepo: IOS_PACKAGE_URL,
     distributionRef: 'main',
     githubAppToken: 'token',
     runGit: async (args) => {
@@ -602,7 +612,7 @@ test('iOS publish transaction maps verification failure to failed', async () => 
         if (lsRemoteCalls === 1) {
           return { exitCode: 0, stdout: '', stderr: '' };
         }
-        return { exitCode: 0, stdout: 'abc refs/tags/v0.1.1\n', stderr: '' };
+        return { exitCode: 0, stdout: `abc refs/tags/${IOS_TAG}\n`, stderr: '' };
       }
       if (args[0] === 'status') {
         return { exitCode: 0, stdout: 'M Package.swift', stderr: '' };
@@ -625,8 +635,8 @@ test('iOS publish transaction fails closed when release tag drifts from iOS cont
   const result = await executeIosPublishTransaction({
     releaseId: 'rel-contract-drift',
     artifactsDir: tempDir,
-    releaseTag: 'v0.1.9',
-    distributionRepo: 'https://github.com/ddgutierrezc/legato-ios-core.git',
+    releaseTag: IOS_MISMATCH_TAG,
+    distributionRepo: IOS_PACKAGE_URL,
     distributionRef: 'main',
     githubAppToken: 'ghs_example_token',
     runGit: async (args) => {
