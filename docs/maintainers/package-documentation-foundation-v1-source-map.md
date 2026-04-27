@@ -2,6 +2,22 @@
 
 Verified documentation claims MUST map to source files below.
 
+## JSDoc completeness validator ownership
+
+Source: `packages/capacitor/scripts/assert-package-entries.mjs`
+
+- `collectRootExportInventory` resolves root exports from each package `src/index.ts` using TypeScript symbol resolution.
+- `validateDeclarationJsdocCoverage` validates retained docs in emitted `dist/index.d.ts` and linked declaration files.
+- Failure output includes `symbol`, `category`, `declFile`, `sourceFile`, and `missing[]` fields.
+- `sourceFile` comes from `.d.ts.map` sources when available.
+
+Allowed evidence sources for public API documentation claims:
+
+- Public type signatures in `packages/*/src/**/*.ts`.
+- Runtime behavior directly observable in `packages/capacitor/src/{plugin,events,sync}.ts`.
+- Contract semantics and invariants in `packages/contract/src/**/*.ts`.
+- Existing maintainer source-map files under `docs/maintainers/`.
+
 ## Contract package export map
 
 Source: `packages/contract/src/index.ts`
@@ -22,6 +38,13 @@ Source: `packages/contract/package.json`
 - Public package boundary is root-only via `exports["."]`.
 - Undocumented deep import subpaths are intentionally unsupported.
 
+Triage flow for JSDoc readiness failures in contract package:
+
+1. Run `npm run build && npm run readiness:entries` in `packages/contract`.
+2. Read failing `symbol`/`missing[]` entries.
+3. Open `sourceFile` from failure output and add source-backed JSDoc.
+4. Rebuild and rerun readiness until `documentedSymbols === totalSymbols`.
+
 Source: `apps/capacitor-demo/scripts/run-external-consumer-validation.mjs`
 
 - Packed/runtime proof executes `import('@ddgutierrezc/legato-contract')` and requires success.
@@ -39,6 +62,13 @@ Source: `packages/capacitor/src/index.ts`
 Source: `packages/capacitor/src/plugin.ts`
 
 - Confirms `audioPlayer` and `mediaSession` boundaries route through shared plugin delegate.
+
+Triage flow for JSDoc readiness failures in capacitor package:
+
+1. Run `npm run build && npm run readiness:entries` in `packages/capacitor`.
+2. Use failure `declFile`/`sourceFile` to locate missing docs.
+3. Update source JSDoc in `src/{definitions,plugin,events,sync}.ts` or contract aliases exposed through `definitions.ts`.
+4. Rebuild and rerun readiness until `documentedSymbols === totalSymbols`.
 
 ## CLI command map
 

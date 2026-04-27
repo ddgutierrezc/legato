@@ -10,12 +10,21 @@ import { Legato } from './plugin';
 
 type SyncClient = AudioPlayerApi;
 
+/**
+ * Configuration options for sync-controller creation.
+ */
 export interface LegatoSyncOptions {
+  /** Optional playback client override; defaults to the exported `Legato` facade. */
   client?: SyncClient;
+  /** Optional callback invoked when local snapshot state changes. */
   onSnapshot?: (snapshot: PlaybackSnapshot) => void;
+  /** Optional callback invoked for each received event payload. */
   onEvent?: <E extends LegatoEventName>(eventName: E, payload: LegatoEventPayloadMap[E]) => void;
 }
 
+/**
+ * Controller API for maintaining a local playback snapshot mirror.
+ */
 export interface LegatoSyncController {
   start(): Promise<PlaybackSnapshot>;
   resync(): Promise<PlaybackSnapshot>;
@@ -23,12 +32,24 @@ export interface LegatoSyncController {
   stop(): Promise<void>;
 }
 
+/**
+ * Alias for clients accepted by audio-player sync helpers.
+ */
 export type AudioPlayerSyncClient = AudioPlayerApi;
 
+/**
+ * Audio-player-specific options for sync-controller creation.
+ */
 export interface AudioPlayerSyncOptions extends LegatoSyncOptions {
+  /** Optional playback client override constrained to the audio-player surface. */
   client?: AudioPlayerSyncClient;
 }
 
+/**
+ * Creates a snapshot sync controller driven by Legato playback events.
+ * @param options Optional sync hooks and client override.
+ * @returns Controller that starts, resyncs, inspects, and stops snapshot synchronization.
+ */
 export function createLegatoSync(options: LegatoSyncOptions = {}): LegatoSyncController {
   const client = options.client ?? Legato;
   const handles: BindingListenerHandle[] = [];
@@ -133,6 +154,11 @@ export function createLegatoSync(options: LegatoSyncOptions = {}): LegatoSyncCon
   };
 }
 
+/**
+ * Creates a sync controller using the audio-player client surface.
+ * @param options Optional sync hooks and client override.
+ * @returns Controller delegating to `createLegatoSync`.
+ */
 export function createAudioPlayerSync(options: AudioPlayerSyncOptions = {}): LegatoSyncController {
   return createLegatoSync(options);
 }

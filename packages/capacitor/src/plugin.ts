@@ -75,6 +75,9 @@ interface LegatoCapacitorPlugin extends Plugin {
   getCapabilities(): Promise<CapabilitiesResult>;
 }
 
+/**
+ * Low-level Capacitor plugin registration handle for the native Legato plugin.
+ */
 export const LegatoCapacitor = registerPlugin<LegatoCapacitorPlugin>('Legato');
 
 const sharedDelegate = {
@@ -163,6 +166,9 @@ const addLegatoListener: LegatoEventApi['addListener'] = <E extends LegatoEventN
   listener: LegatoListener<E>,
 ) => LegatoCapacitor.addListener(eventName, listener);
 
+/**
+ * Playback command namespace backed by the Legato Capacitor plugin.
+ */
 export const audioPlayer: AudioPlayerApi = {
   setup: sharedDelegate.setup,
   add: sharedDelegate.add,
@@ -186,12 +192,18 @@ export const audioPlayer: AudioPlayerApi = {
   removeAllListeners: sharedDelegate.removeAllListeners,
 };
 
+/**
+ * Media-session command namespace backed by the Legato Capacitor plugin.
+ */
 export const mediaSession: MediaSessionApi = {
   setup: sharedDelegate.setup,
   addListener: addMediaSessionListener,
   removeAllListeners: sharedDelegate.removeAllListeners,
 };
 
+/**
+ * Unified runtime facade combining playback, media-session, and listener APIs.
+ */
 export const Legato: LegatoApi & LegatoEventApi = {
   ...audioPlayer,
   ...mediaSession,

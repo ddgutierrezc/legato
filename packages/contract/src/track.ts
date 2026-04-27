@@ -1,14 +1,30 @@
+/**
+ * Supported media track kinds accepted by the Legato contract.
+ */
 export const TRACK_TYPES = ['file', 'progressive', 'hls', 'dash'] as const;
 
+/**
+ * Union of supported track kind literals.
+ */
 export type TrackType = (typeof TRACK_TYPES)[number];
 
+/**
+ * Queue item shape shared across adapter and consumer boundaries.
+ */
 export interface Track {
+  /** Stable track identifier used by remove/skip operations. */
   id: string;
+  /** Playback URL consumed by the native media transport. */
   url: string;
+  /** Optional display title metadata. */
   title?: string;
+  /** Optional display artist metadata. */
   artist?: string;
+  /** Optional display album metadata. */
   album?: string;
+  /** Optional artwork URL for lockscreen/notification surfaces. */
   artwork?: string;
+  /** Optional track duration in seconds when known. */
   duration?: number;
   /**
    * Declared media semantics used by native capability projectors.
