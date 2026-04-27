@@ -73,6 +73,43 @@ Files:
 - `summary.json`
 - `summary.md`
 
+## GitHub release notes + changelog contract (v1)
+
+Template and required sections:
+
+- `.github/release-template.md`
+- Required order: Summary, Highlights, Compatibility Matrix, Installation/Upgrade, Evidence, Known Limitations, Full Changelog Link
+- Highlights MUST include required human narrative fields:
+  - Why it matters
+  - User impact
+  - Upgrade notes
+  - Breaking changes (or explicit `None`)
+  - Affected platforms
+
+Generation and validation commands:
+
+- `npm run release:changelog:facts`
+- `npm run release:notes:generate`
+- `npm run validate:release:reconciliation`
+- `npm run release:evidence:persist`
+
+Narrative source file per release:
+
+- `docs/releases/notes/<release_id>.json` (copy from `docs/releases/notes/release-narrative.template.json`)
+
+Canonical release surfaces that must stay aligned:
+
+- `CHANGELOG.md`
+- GitHub Release body (`release-notes-<release_id>` artifact + release publish step)
+- `packages/capacitor/package.json`
+- `packages/contract/package.json`
+- `packages/capacitor/native-artifacts.json`
+
+Fail-closed behavior:
+
+- Release publication is blocked when reconciliation detects version drift, missing required sections, or missing durable evidence links.
+- Ephemeral artifact URLs are informational only and cannot be the sole support for a factual claim.
+
 Required summary fields for closure traceability:
 
 - `release_id`

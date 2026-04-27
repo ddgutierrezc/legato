@@ -28,6 +28,11 @@ npm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract
 - Contract-only consumers: use shared symbols like `LEGATO_EVENT_NAMES` from `@ddgutierrezc/legato-contract`.
 - Capacitor consumers: start from `@ddgutierrezc/legato-capacitor` and use `audioPlayer` / `mediaSession`.
 
+## Releases
+
+- Canonical release timeline: [`CHANGELOG.md`](CHANGELOG.md)
+- GitHub Release notes are generated from source-backed facts (`summary.json`, package/native manifests) plus required human narrative fields.
+
 ## Maintainers
 
 Maintainer-only scope and operational boundaries are documented in [`docs/maintainers/package-documentation-foundation-v1-scope.md`](docs/maintainers/package-documentation-foundation-v1-scope.md).

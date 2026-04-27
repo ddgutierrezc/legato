@@ -1,0 +1,13 @@
+{
+  "why_it_matters": "<required>",
+  "user_impact": "<required>",
+  "upgrade_notes": "<required>",
+  "breaking_changes": "None",
+  "affected_platforms": "android, ios, npm",
+  "highlights": [
+    "<optional bullet>"
+  ],
+  "known_limitations": [
+    "None"
+  ]
+}

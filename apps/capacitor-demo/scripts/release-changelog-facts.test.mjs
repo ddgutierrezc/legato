@@ -1,0 +1,78 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
+
+import { buildReleaseChangelogFacts } from './release-changelog-facts.mjs';
+
+const createFixtureRepo = async () => {
+  const root = await mkdtemp(resolve(tmpdir(), 'legato-release-facts-'));
+  await mkdir(resolve(root, 'packages/capacitor'), { recursive: true });
+  await mkdir(resolve(root, 'packages/contract'), { recursive: true });
+  await mkdir(resolve(root, 'apps/capacitor-demo/artifacts/release-control/R-2026.04.26.1'), { recursive: true });
+
+  await writeFile(resolve(root, 'packages/capacitor/package.json'), JSON.stringify({
+    name: '@ddgutierrezc/legato-capacitor',
+    version: '0.1.9',
+  }, null, 2));
+  await writeFile(resolve(root, 'packages/contract/package.json'), JSON.stringify({
+    name: '@ddgutierrezc/legato-contract',
+    version: '0.1.5',
+  }, null, 2));
+  await writeFile(resolve(root, 'packages/capacitor/native-artifacts.json'), JSON.stringify({
+    android: {
+      repositoryUrl: 'https://repo1.maven.org/maven2',
+      group: 'dev.dgutierrez',
+      artifact: 'legato-android-core',
+      version: '0.1.3',
+    },
+    ios: {
+      packageUrl: 'https://github.com/ddgutierrezc/legato-ios-core.git',
+      packageName: 'LegatoCore',
+      product: 'LegatoCore',
+      version: '0.1.1',
+    },
+  }, null, 2));
+
+  await writeFile(resolve(root, 'apps/capacitor-demo/artifacts/release-control/R-2026.04.26.1/summary.json'), JSON.stringify({
+    release_id: 'R-2026.04.26.1',
+    source_commit: '0123456789abcdef0123456789abcdef01234567',
+    targets: {
+      android: { target: 'android', selected: true, terminal_status: 'published' },
+      ios: { target: 'ios', selected: true, terminal_status: 'published' },
+      npm: { target: 'npm', selected: true, terminal_status: 'published' },
+    },
+  }, null, 2));
+
+  return root;
+};
+
+test('buildReleaseChangelogFacts derives target and version facts from summary + package manifests', async () => {
+  const repoRoot = await createFixtureRepo();
+  const facts = await buildReleaseChangelogFacts({
+    repoRoot,
+    releaseId: 'R-2026.04.26.1',
+  });
+
+  assert.equal(facts.release_id, 'R-2026.04.26.1');
+  assert.equal(facts.release_tag, 'release/R-2026.04.26.1');
+  assert.equal(facts.source_commit, '0123456789abcdef0123456789abcdef01234567');
+  assert.equal(facts.versions.npm.capacitor.version, '0.1.9');
+  assert.equal(facts.versions.npm.contract.version, '0.1.5');
+  assert.equal(facts.versions.android.version, '0.1.3');
+  assert.equal(facts.versions.ios.version, '0.1.1');
+  assert.equal(facts.targets.length, 3);
+  assert.match(JSON.stringify(facts.evidence.durable), /npmjs\.com\/package\//i);
+  assert.match(JSON.stringify(facts.evidence.durable), /maven/i);
+  assert.match(JSON.stringify(facts.evidence.ephemeral), /summary\.json/i);
+});
+
+test('buildReleaseChangelogFacts fails closed when summary.json is missing for release id', async () => {
+  const repoRoot = await createFixtureRepo();
+
+  await assert.rejects(
+    () => buildReleaseChangelogFacts({ repoRoot, releaseId: 'R-2026.04.99.9' }),
+    /summary\.json/i,
+  );
+});
