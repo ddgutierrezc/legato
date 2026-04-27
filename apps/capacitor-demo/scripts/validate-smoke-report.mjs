@@ -65,10 +65,16 @@ const evaluateArtifact = ({ path, report }) => {
       && typeof parityEvidence.addStartIndexConverged === 'boolean'
       && typeof parityEvidence.remoteOrderConverged === 'boolean'
       && typeof parityEvidence.eventStateSnapshotConverged === 'boolean'
-      && typeof parityEvidence.capabilitiesConverged === 'boolean';
+      && typeof parityEvidence.capabilitiesConverged === 'boolean'
+      && typeof parityEvidence.seekSemanticsConverged === 'boolean';
 
     if (!hasParityEvidence) {
       failures.push(`[${platform}] ${path}: PASS reports must include parity evidence payload (add(startIndex), remote order, event/state/snapshot, capabilities).`);
+    } else if (parityEvidence.seekSemanticsConverged !== true) {
+      const detail = typeof parityEvidence?.details?.seekSemantics === 'string'
+        ? parityEvidence.details.seekSemantics
+        : 'seek semantics convergence was false';
+      failures.push(`[${platform}] ${path}: seek-semantics parity did not converge for PASS artifact: ${detail}`);
     }
 
     const requestEvidence = report?.requestEvidence;

@@ -111,6 +111,20 @@ Manual parity checklist to close milestone validation:
 11. Run `Case: CAN_DUCK interruption pause` and capture snapshot evidence that CAN_DUCK pauses (no implicit auto-resume).
 12. Run `Case: background transition coherence` and capture snapshot summary + raw JSON after background/foreground return.
 13. Run manual `getCapabilities()` (or `Run API boundary validation`) and confirm `supported` reflects snapshot capability projection (`seek`, `skip-next`, `skip-previous`) plus baseline controls.
+14. Run at least one `hls`/`dash` fixture (or simulated report) and confirm conservative seek semantics:
+    - streaming-like defaults to non-seekable when duration/evidence is insufficient,
+    - remote seek remains disabled when projected `canSeek=false`.
+
+### Streaming media semantics support matrix (v1)
+
+| Track.type | Expected seek policy | Evidence needed |
+|---|---|---|
+| `file` | Seekable by default while active | active + not ended |
+| `progressive` | Seekable by default while active | active + not ended |
+| `hls` | Non-seekable by default | finite duration + runtime seek evidence |
+| `dash` | Non-seekable by default | finite duration + runtime seek evidence |
+
+If runtime evidence is ambiguous, degrade to non-seekable.
 
 Scope boundary for this lifecycle pass:
 

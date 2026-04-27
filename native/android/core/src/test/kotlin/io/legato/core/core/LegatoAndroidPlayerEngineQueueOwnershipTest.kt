@@ -170,6 +170,7 @@ class LegatoAndroidPlayerEngineQueueOwnershipTest {
             remoteCommandManager = LegatoAndroidRemoteCommandManager(object : LegatoAndroidRemoteCommandRuntime {
                 override fun bind(listener: (LegatoAndroidRemoteCommand) -> Unit) = Unit
                 override fun updatePlaybackState(state: LegatoAndroidPlaybackState) = Unit
+                override fun updateTransportCapabilities(capabilities: LegatoAndroidTransportCapabilities) = Unit
                 override fun unbind() = Unit
             }),
             playbackRuntime = playbackRuntime,

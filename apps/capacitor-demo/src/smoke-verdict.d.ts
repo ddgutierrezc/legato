@@ -41,11 +41,13 @@ export type SmokeReportV1 = {
     remoteOrderConverged: boolean;
     eventStateSnapshotConverged: boolean;
     capabilitiesConverged: boolean;
+    seekSemanticsConverged: boolean;
     details: {
       addStartIndex: string;
       remoteOrder: string;
       eventStateSnapshot: string;
       capabilities: string;
+      seekSemantics: string;
     };
   };
   requestEvidence?: {
@@ -91,11 +93,13 @@ export function buildSmokeReportV1(input: {
     remoteOrderConverged?: boolean;
     eventStateSnapshotConverged?: boolean;
     capabilitiesConverged?: boolean;
+    seekSemanticsConverged?: boolean;
     details?: {
       addStartIndex?: string;
       remoteOrder?: string;
       eventStateSnapshot?: string;
       capabilities?: string;
+      seekSemantics?: string;
     };
   };
   requestEvidence?: {

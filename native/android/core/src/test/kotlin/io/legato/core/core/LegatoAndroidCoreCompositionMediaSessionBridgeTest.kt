@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class LegatoAndroidCoreCompositionMediaSessionBridgeTest {
@@ -184,6 +185,34 @@ class LegatoAndroidCoreCompositionMediaSessionBridgeTest {
         dependencies.mediaSessionBridge.dispatchMediaSessionSeekTo(42_000L)
 
         assertTrue(events.any { it.name == LegatoAndroidEventName.REMOTE_SEEK })
+    }
+
+    @Test
+    fun `shared media-session bridge blocks remote seek when projected canSeek is false`() = runBlocking {
+        val playbackRuntime = BridgeRecordingPlaybackRuntime()
+        val eventEmitter = LegatoAndroidEventEmitter()
+        val dependencies = LegatoAndroidCoreDependencies(
+            eventEmitter = eventEmitter,
+            playbackRuntime = playbackRuntime,
+        )
+        val components = LegatoAndroidCoreFactory.create(dependencies)
+        val events = mutableListOf<LegatoAndroidEvent>()
+        eventEmitter.addListener { event: LegatoAndroidEvent -> events += event }
+
+        components.playerEngine.setup()
+        components.playerEngine.load(
+            tracks = listOf(
+                LegatoAndroidTrack(
+                    id = "track-hls",
+                    url = "https://example.com/live.m3u8",
+                    type = LegatoAndroidTrackType.HLS,
+                ),
+            ),
+        )
+
+        dependencies.mediaSessionBridge.dispatchMediaSessionSeekTo(42_000L)
+
+        assertFalse(events.any { it.name == LegatoAndroidEventName.REMOTE_SEEK })
     }
 }
 

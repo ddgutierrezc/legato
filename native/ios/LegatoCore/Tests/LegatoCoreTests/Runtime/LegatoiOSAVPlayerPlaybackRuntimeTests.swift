@@ -28,6 +28,14 @@ final class LegatoiOSAVPlayerPlaybackRuntimeTests: XCTestCase {
         XCTAssertEqual(runtime.snapshot().progress.positionMs, 0)
     }
 
+    func testSnapshotDefaultsSeekableHintToNilWhenRuntimeCannotProveSeekability() throws {
+        let runtime = LegatoiOSAVPlayerPlaybackRuntime(player: AVPlayer())
+        runtime.configure()
+        try runtime.replaceQueue(items: [makeSource(id: "track-1")], startIndex: 0)
+
+        XCTAssertNil(runtime.snapshot().progress.isSeekableHint)
+    }
+
     func testProgressObserverReceivesUpdatesAfterQueueMutation() throws {
         let runtime = LegatoiOSAVPlayerPlaybackRuntime(player: AVPlayer())
         let observer = RuntimeObserverSpy()

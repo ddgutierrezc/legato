@@ -41,11 +41,13 @@ public struct LegatoiOSRuntimeProgress {
     public let positionMs: Int64
     public let durationMs: Int64?
     public let bufferedPositionMs: Int64?
+    public let isSeekableHint: Bool?
 
-    public init(positionMs: Int64, durationMs: Int64?, bufferedPositionMs: Int64?) {
+    public init(positionMs: Int64, durationMs: Int64?, bufferedPositionMs: Int64?, isSeekableHint: Bool? = nil) {
         self.positionMs = positionMs
         self.durationMs = durationMs
         self.bufferedPositionMs = bufferedPositionMs
+        self.isSeekableHint = isSeekableHint
     }
 }
 
@@ -246,6 +248,7 @@ public final class LegatoiOSAVPlayerPlaybackRuntime: LegatoiOSPlaybackRuntime {
         let rawPosition = positionMs(for: item)
         let position = normalizedPositionMs(rawPosition, durationMs: duration)
         let stateHint = stateHint(for: item)
+        let isSeekableHint = seekableHint(for: item, durationMs: duration)
         let bufferedPosition = normalizedBufferedPositionMs(
             bufferedPositionMs(for: item),
             stateHint: stateHint,
@@ -259,7 +262,8 @@ public final class LegatoiOSAVPlayerPlaybackRuntime: LegatoiOSPlaybackRuntime {
             progress: LegatoiOSRuntimeProgress(
                 positionMs: position,
                 durationMs: duration,
-                bufferedPositionMs: bufferedPosition
+                bufferedPositionMs: bufferedPosition,
+                isSeekableHint: isSeekableHint
             )
         )
     }
@@ -474,6 +478,28 @@ public final class LegatoiOSAVPlayerPlaybackRuntime: LegatoiOSPlaybackRuntime {
         }
 
         return milliseconds(from: CMTimeAdd(loaded.start, loaded.duration))
+    }
+
+    private func seekableHint(for item: AVPlayerItem?, durationMs: Int64?) -> Bool? {
+        guard let item else {
+            return nil
+        }
+
+        guard durationMs != nil else {
+            return nil
+        }
+
+        let hasSeekableRange = item.seekableTimeRanges.contains { value in
+            let range = value.timeRangeValue
+            guard range.isValid else {
+                return false
+            }
+            let start = CMTimeGetSeconds(range.start)
+            let length = CMTimeGetSeconds(range.duration)
+            return start.isFinite && length.isFinite && length > 0
+        }
+
+        return hasSeekableRange
     }
 
     private func normalizedPositionMs(_ positionMs: Int64, durationMs: Int64?) -> Int64 {

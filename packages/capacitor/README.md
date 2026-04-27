@@ -108,6 +108,18 @@ Explicit v1 non-goals:
 - Cookie/session renewal orchestration.
 - Dynamic per-request auth callback hooks.
 
+### Streaming media semantics (v1)
+
+- Public API shape remains unchanged; semantics are inferred from existing outputs.
+- Consumers should combine:
+  - `Track.type`
+  - nullable duration (`snapshot.duration`, `playback-progress.duration`)
+  - projected capabilities (`getCapabilities().supported`)
+- Conservative policy:
+  - `file`/`progressive` are seekable while active.
+  - `hls`/`dash` degrade to non-seekable unless runtime provides explicit finite seekability evidence.
+- Remote seek controls follow projected `canSeek` exactly (no queue-only override).
+
 ```ts
 import {
   addAudioPlayerListener,

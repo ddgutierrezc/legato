@@ -4,6 +4,7 @@ import io.legato.core.core.LegatoAndroidNowPlayingMetadata
 import io.legato.core.core.LegatoAndroidPlaybackState
 import io.legato.core.core.LegatoAndroidProgressUpdate
 import io.legato.core.core.LegatoAndroidRemoteCommand
+import io.legato.core.core.LegatoAndroidTransportCapabilities
 import io.legato.core.session.LegatoAndroidAudioFocusPolicy
 import io.legato.core.session.LegatoAndroidInterruptionSignal
 import io.legato.core.session.LegatoAndroidSessionDefaults
@@ -37,6 +38,10 @@ class LegatoAndroidMediaSessionBridge : LegatoAndroidSessionRuntime, LegatoAndro
     internal var lastProgress: LegatoAndroidProgressUpdate? = null
         private set
 
+    internal var lastTransportCapabilities: LegatoAndroidTransportCapabilities =
+        LegatoAndroidTransportCapabilities(canSkipNext = false, canSkipPrevious = false, canSeek = false)
+        private set
+
     override fun configureSession() {
         // Foundation-only: concrete MediaSession object wiring is deferred.
     }
@@ -54,6 +59,10 @@ class LegatoAndroidMediaSessionBridge : LegatoAndroidSessionRuntime, LegatoAndro
 
     override fun updatePlaybackState(state: LegatoAndroidPlaybackState) {
         lastPlaybackState = state
+    }
+
+    override fun updateTransportCapabilities(capabilities: LegatoAndroidTransportCapabilities) {
+        lastTransportCapabilities = capabilities
     }
 
     override fun updateNowPlayingMetadata(metadata: LegatoAndroidNowPlayingMetadata?) {
@@ -109,6 +118,9 @@ class LegatoAndroidMediaSessionBridge : LegatoAndroidSessionRuntime, LegatoAndro
     }
 
     fun dispatchMediaSessionSeekTo(positionMs: Long) {
+        if (!lastTransportCapabilities.canSeek) {
+            return
+        }
         remoteDispatch?.invoke(LegatoAndroidRemoteCommand.Seek(positionMs))
     }
 

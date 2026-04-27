@@ -52,6 +52,9 @@ export interface MediaSessionEventPayloadMap {
   'remote-pause': Record<string, never>;
   'remote-next': Record<string, never>;
   'remote-previous': Record<string, never>;
+  /**
+   * Emitted only when runtime-projected seek capability is enabled (`getCapabilities().supported` includes `seek`).
+   */
   'remote-seek': { position: number };
 }
 

@@ -29,6 +29,7 @@ const normalizeParityEvidence = (value) => ({
   remoteOrderConverged: value?.remoteOrderConverged === true,
   eventStateSnapshotConverged: value?.eventStateSnapshotConverged === true,
   capabilitiesConverged: value?.capabilitiesConverged === true,
+  seekSemanticsConverged: value?.seekSemanticsConverged === true,
   details: {
     addStartIndex: typeof value?.details?.addStartIndex === 'string'
       ? value.details.addStartIndex
@@ -42,6 +43,9 @@ const normalizeParityEvidence = (value) => ({
     capabilities: typeof value?.details?.capabilities === 'string'
       ? value.details.capabilities
       : 'capabilities evidence unavailable',
+    seekSemantics: typeof value?.details?.seekSemantics === 'string'
+      ? value.details.seekSemantics
+      : 'seek semantics evidence unavailable',
   },
 });
 

@@ -165,11 +165,13 @@ type ParityEvidencePayload = {
   remoteOrderConverged: boolean;
   eventStateSnapshotConverged: boolean;
   capabilitiesConverged: boolean;
+  seekSemanticsConverged: boolean;
   details: {
     addStartIndex: string;
     remoteOrder: string;
     eventStateSnapshot: string;
     capabilities: string;
+    seekSemantics: string;
   };
 };
 
@@ -306,7 +308,36 @@ type ProjectedCapabilities = {
   currentIndex: number | null;
 };
 
-const projectCapabilities = (snapshot: PlaybackSnapshot): ProjectedCapabilities => {
+const STREAMING_LIKE_TYPES = new Set(['hls', 'dash']);
+
+const resolveSeekSemantics = (
+  snapshot: PlaybackSnapshot,
+  nativeSupported: string[] = [],
+): {
+  expectedCanSeek: boolean;
+  detail: string;
+} => {
+  const trackType = typeof snapshot.currentTrack?.type === 'string' ? snapshot.currentTrack.type : 'unspecified';
+  const durationFinite = typeof snapshot.duration === 'number' && Number.isFinite(snapshot.duration) && snapshot.duration > 0;
+  const runtimeSeekSupported = nativeSupported.includes('seek');
+
+  if (STREAMING_LIKE_TYPES.has(trackType)) {
+    const expectedCanSeek = durationFinite && runtimeSeekSupported;
+    return {
+      expectedCanSeek,
+      detail: expectedCanSeek
+        ? `type=${trackType} with finite duration + runtime seek support.`
+        : `type=${trackType} degrades to non-seekable (finite=${durationFinite}, runtimeSeek=${runtimeSeekSupported}).`,
+    };
+  }
+
+  return {
+    expectedCanSeek: true,
+    detail: `type=${trackType} uses seekable-by-default semantics while active.`,
+  };
+};
+
+const projectCapabilities = (snapshot: PlaybackSnapshot, nativeSupported: string[] = []): ProjectedCapabilities => {
   const queueItems = (snapshot.queue as { items?: unknown[]; tracks?: unknown[] }).items
     ?? (snapshot.queue as { items?: unknown[]; tracks?: unknown[] }).tracks
     ?? [];
@@ -326,7 +357,8 @@ const projectCapabilities = (snapshot: PlaybackSnapshot): ProjectedCapabilities 
     && currentIndex !== null
     && currentIndex > 0
     && currentIndex < queueLength;
-  const canSeek = hasQueue && !isEnded;
+  const seekSemantics = resolveSeekSemantics(snapshot, nativeSupported);
+  const canSeek = hasQueue && !isEnded && seekSemantics.expectedCanSeek;
 
   return {
     canSkipNext,
@@ -338,10 +370,11 @@ const projectCapabilities = (snapshot: PlaybackSnapshot): ProjectedCapabilities 
 };
 
 const renderCapabilitySummary = (snapshot: PlaybackSnapshot): void => {
-  const projection = projectCapabilities(snapshot);
   const nativeSupported = Array.isArray(latestCapabilities?.supported)
     ? latestCapabilities.supported
     : [];
+  const projection = projectCapabilities(snapshot, nativeSupported);
+  const seekSemantics = resolveSeekSemantics(snapshot, nativeSupported);
 
   capabilitySummaryNode.textContent = [
     `canSkipNext=${projection.canSkipNext}`,
@@ -349,6 +382,7 @@ const renderCapabilitySummary = (snapshot: PlaybackSnapshot): void => {
     `canSeek=${projection.canSeek}`,
     `queue=${projection.queueLength}`,
     `index=${projection.currentIndex ?? 'null'}`,
+    `seek.policy=${seekSemantics.detail}`,
     `runtime.supported=[${nativeSupported.join(', ') || 'none'}]`,
   ].join(' | ');
 };
@@ -689,7 +723,7 @@ const deriveParityEvidencePayload = (): ParityEvidencePayload => {
     if (!latest || !latestCapabilities) {
       return false;
     }
-    const projected = projectCapabilities(latest);
+    const projected = projectCapabilities(latest, latestCapabilities.supported);
     const supported = new Set(latestCapabilities.supported);
     const seekMatches = projected.canSeek === supported.has('seek');
     const nextMatches = projected.canSkipNext === supported.has('skip-next');
@@ -697,11 +731,33 @@ const deriveParityEvidencePayload = (): ParityEvidencePayload => {
     return seekMatches && nextMatches && previousMatches;
   })();
 
+  const seekSemanticsConverged = (() => {
+    if (!latest || !latestCapabilities) {
+      return false;
+    }
+
+    const projected = projectCapabilities(latest, latestCapabilities.supported);
+    const seekSemantics = resolveSeekSemantics(latest, latestCapabilities.supported);
+    return projected.canSeek === seekSemantics.expectedCanSeek;
+  })();
+
+  const seekSemanticsDetail = (() => {
+    if (!latest) {
+      return 'No active snapshot available to evaluate seek semantics.';
+    }
+
+    const seekSemantics = resolveSeekSemantics(latest, latestCapabilities?.supported ?? []);
+    return seekSemanticsConverged
+      ? `Seek semantics aligned (${seekSemantics.detail})`
+      : `Seek semantics mismatch (${seekSemantics.detail})`;
+  })();
+
   return {
     addStartIndexConverged,
     remoteOrderConverged,
     eventStateSnapshotConverged,
     capabilitiesConverged,
+    seekSemanticsConverged,
     details: {
       addStartIndex: addStartIndexConverged
         ? 'add(startIndex=1) landed on queue index 1 as expected.'
@@ -715,6 +771,7 @@ const deriveParityEvidencePayload = (): ParityEvidencePayload => {
       capabilities: capabilitiesConverged
         ? 'getCapabilities() support flags matched projected snapshot capabilities.'
         : 'getCapabilities() support flags diverged from projected snapshot capabilities or were unavailable.',
+      seekSemantics: seekSemanticsDetail,
     },
   };
 };

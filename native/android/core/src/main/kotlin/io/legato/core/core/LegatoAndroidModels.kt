@@ -71,6 +71,7 @@ data class LegatoAndroidPlaybackSnapshot(
     val currentIndex: Int?,
     val positionMs: Long,
     val durationMs: Long?,
+    val isSeekableHint: Boolean? = null,
     val bufferedPositionMs: Long? = null,
     val queue: LegatoAndroidQueueSnapshot,
 )

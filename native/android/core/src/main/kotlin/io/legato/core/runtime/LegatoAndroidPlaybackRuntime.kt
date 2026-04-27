@@ -52,6 +52,7 @@ data class LegatoAndroidRuntimeProgress(
     val positionMs: Long,
     val durationMs: Long?,
     val bufferedPositionMs: Long?,
+    val isSeekableHint: Boolean? = null,
 )
 
 data class LegatoAndroidRuntimeSnapshot(

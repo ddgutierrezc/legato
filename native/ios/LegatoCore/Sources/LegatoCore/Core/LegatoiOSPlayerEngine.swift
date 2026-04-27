@@ -86,6 +86,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
                 currentIndex: runtimeSnapshot.currentIndex ?? queueSnapshot.currentIndex,
                 positionMs: runtimeSnapshot.progress.positionMs,
                 durationMs: runtimeSnapshot.progress.durationMs ?? currentTrack?.durationMs,
+                isSeekableHint: runtimeSnapshot.progress.isSeekableHint,
                 bufferedPositionMs: runtimeSnapshot.progress.bufferedPositionMs,
                 queue: queueSnapshot
             )
@@ -516,6 +517,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
                 currentIndex: $0.currentIndex,
                 positionMs: $0.positionMs,
                 durationMs: $0.durationMs,
+                isSeekableHint: $0.isSeekableHint,
                 bufferedPositionMs: $0.bufferedPositionMs,
                 queue: $0.queue
             )
@@ -642,6 +644,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
                 currentIndex: resolvedIndex,
                 positionMs: normalizedPosition,
                 durationMs: resolvedDuration,
+                isSeekableHint: runtimeSnapshot.progress.isSeekableHint,
                 bufferedPositionMs: normalizedBufferedPosition,
                 queue: resolvedQueue
             )
@@ -741,7 +744,8 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
             progress: LegatoiOSRuntimeProgress(
                 positionMs: 0,
                 durationMs: runtimeSnapshot.progress.durationMs,
-                bufferedPositionMs: 0
+                bufferedPositionMs: 0,
+                isSeekableHint: runtimeSnapshot.progress.isSeekableHint
             )
         )
     }
@@ -799,6 +803,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
                 currentIndex: $0.currentIndex,
                 positionMs: $0.positionMs,
                 durationMs: $0.durationMs,
+                isSeekableHint: $0.isSeekableHint,
                 bufferedPositionMs: $0.bufferedPositionMs,
                 queue: $0.queue
             )

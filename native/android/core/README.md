@@ -17,6 +17,14 @@ Deferred scope is tracked under follow-up milestones (`android-background-lifecy
 
 The module ships a real Media3 runtime path and also keeps default no-op adapters for explicit seam tests.
 
+## Streaming semantics projection (v1)
+
+- Capability projection is media-type aware and conservative.
+- `file` / `progressive` are seekable while active and not ended.
+- `hls` / `dash` are non-seekable by default; seek is enabled only with finite duration plus explicit runtime seekability evidence.
+- Remote seek dispatch is gated by projected `canSeek` to keep session controls aligned with boundary capabilities.
+- Ambiguous runtime evidence degrades to non-seekable.
+
 ## Runtime-v1 interruption contract
 
 - Focus loss (`AUDIOFOCUS_LOSS`, `AUDIOFOCUS_LOSS_TRANSIENT`, `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK`) and becoming noisy signals pause playback with interruption pause origin.
