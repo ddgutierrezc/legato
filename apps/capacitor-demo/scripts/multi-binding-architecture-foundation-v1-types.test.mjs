@@ -51,7 +51,20 @@ test('capacitor runtime entrypoint keeps plugin id and first-adapter boundary no
   assert.match(pluginSource, /export const audioPlayer/);
   assert.match(pluginSource, /export const mediaSession/);
   assert.match(pluginSource, /export const Legato/);
+  assert.match(pluginSource, /getCapabilities\(/);
 
   assert.match(capacitorReadme, /first concrete adapter/i);
   assert.match(capacitorReadme, /only implemented binding/i);
+});
+
+test('capabilities API is exposed on playback boundaries and excluded from mediaSession controls', async () => {
+  const [definitionsSource, pluginSource] = await Promise.all([
+    readFile(capacitorDefinitionsPath, 'utf8'),
+    readFile(capacitorPluginPath, 'utf8'),
+  ]);
+
+  assert.match(definitionsSource, /getCapabilities\(\): Promise<BindingCapabilitiesSnapshot>/i);
+  assert.match(pluginSource, /export const audioPlayer:[\s\S]*getCapabilities: sharedDelegate\.getCapabilities,/i);
+  assert.match(pluginSource, /Legato:[\s\S]*removeAllListeners: sharedDelegate\.removeAllListeners,/i);
+  assert.doesNotMatch(pluginSource, /mediaSession:[\s\S]*getCapabilities:/i);
 });

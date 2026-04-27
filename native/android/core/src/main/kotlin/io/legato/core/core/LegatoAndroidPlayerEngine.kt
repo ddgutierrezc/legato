@@ -88,7 +88,7 @@ class LegatoAndroidPlayerEngine(
             val previousSnapshot = snapshotStore.getPlaybackSnapshot()
             val existingQueue = queueManager.getQueueSnapshot()
             val mergedItems = existingQueue.items + mappedTracks
-            val targetIndex = startIndex ?: previousSnapshot.currentIndex
+            val targetIndex = startIndex?.let { existingQueue.items.size + it } ?: previousSnapshot.currentIndex
             val queueSnapshot = queueManager.replaceQueue(mergedItems, targetIndex)
             playbackRuntime.replaceQueue(mergedItems.map(::toRuntimeTrackSource), targetIndex)
 
@@ -745,25 +745,28 @@ class LegatoAndroidPlayerEngine(
                 )
             }
 
-            LegatoAndroidRemoteCommand.Next -> eventEmitter.emit(
-                name = LegatoAndroidEventName.REMOTE_NEXT,
-                payload = LegatoAndroidEventPayload.RemoteNext,
-            ).also {
+            LegatoAndroidRemoteCommand.Next -> {
                 executeSkipToNext()
+                eventEmitter.emit(
+                    name = LegatoAndroidEventName.REMOTE_NEXT,
+                    payload = LegatoAndroidEventPayload.RemoteNext,
+                )
             }
 
-            LegatoAndroidRemoteCommand.Previous -> eventEmitter.emit(
-                name = LegatoAndroidEventName.REMOTE_PREVIOUS,
-                payload = LegatoAndroidEventPayload.RemotePrevious,
-            ).also {
+            LegatoAndroidRemoteCommand.Previous -> {
                 executeSkipToPrevious()
+                eventEmitter.emit(
+                    name = LegatoAndroidEventName.REMOTE_PREVIOUS,
+                    payload = LegatoAndroidEventPayload.RemotePrevious,
+                )
             }
 
-            is LegatoAndroidRemoteCommand.Seek -> eventEmitter.emit(
-                name = LegatoAndroidEventName.REMOTE_SEEK,
-                payload = LegatoAndroidEventPayload.RemoteSeek(command.positionMs),
-            ).also {
+            is LegatoAndroidRemoteCommand.Seek -> {
                 executeSeekTo(command.positionMs)
+                eventEmitter.emit(
+                    name = LegatoAndroidEventName.REMOTE_SEEK,
+                    payload = LegatoAndroidEventPayload.RemoteSeek(command.positionMs),
+                )
             }
         }
     }

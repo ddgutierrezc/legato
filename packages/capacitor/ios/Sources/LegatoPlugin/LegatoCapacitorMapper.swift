@@ -2,6 +2,8 @@ import Foundation
 import LegatoCore
 
 internal enum LegatoCapacitorMapper {
+    private static let alwaysSupportedCapabilities = ["play", "pause", "stop"]
+
     static func track(from dictionary: [String: Any]) -> LegatoiOSTrack {
         let type = (dictionary["type"] as? String).flatMap(trackType(from:))
         let headers = dictionary["headers"] as? [String: String] ?? [:]
@@ -90,6 +92,24 @@ internal enum LegatoCapacitorMapper {
         case .remoteSeek(let positionMs):
             return ["position": positionMs]
         }
+    }
+
+    static func supportedCapabilities(from capabilities: LegatoiOSTransportCapabilities) -> [String] {
+        var supported = alwaysSupportedCapabilities
+        if capabilities.canSeek {
+            supported.append("seek")
+        }
+        if capabilities.canSkipNext {
+            supported.append("skip-next")
+        }
+        if capabilities.canSkipPrevious {
+            supported.append("skip-previous")
+        }
+        return supported
+    }
+
+    static func capabilitiesToDictionary(_ supported: [String]) -> [String: Any] {
+        ["supported": supported]
     }
 
     private static func int64(from value: Any?) -> Int64? {

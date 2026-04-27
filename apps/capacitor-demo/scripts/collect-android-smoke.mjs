@@ -32,6 +32,30 @@ export const normalizeAndroidCollectorFailure = ({
   snapshotSummary: `collector retrieval failed (platform=android, step=${step})`,
   recentEvents,
   errors: [message],
+  runtimeIntegrity: {
+    transportCommandsObserved: false,
+    progressAdvancedWhilePlaying: false,
+    trackEndTransitionObserved: false,
+    snapshotProjectionCoherent: false,
+    details: {
+      transport: `collector failed before transport verification (step=${step})`,
+      progress: `collector failed before progress verification (step=${step})`,
+      trackEnd: `collector failed before track-end verification (step=${step})`,
+      snapshot: `collector failed before snapshot verification (step=${step})`,
+    },
+  },
+  parityEvidence: {
+    addStartIndexConverged: false,
+    remoteOrderConverged: false,
+    eventStateSnapshotConverged: false,
+    capabilitiesConverged: false,
+    details: {
+      addStartIndex: `collector failed before add(startIndex) verification (step=${step})`,
+      remoteOrder: `collector failed before remote ordering verification (step=${step})`,
+      eventStateSnapshot: `collector failed before event/state/snapshot verification (step=${step})`,
+      capabilities: `collector failed before capabilities verification (step=${step})`,
+    },
+  },
   metadata: {
     platform: 'android',
     collectedAt,

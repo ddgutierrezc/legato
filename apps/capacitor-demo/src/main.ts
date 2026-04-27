@@ -7,6 +7,7 @@ import {
   createAudioPlayerSync,
   mediaSession,
   type AudioPlayerApi,
+  type BindingCapabilitiesSnapshot,
   type PlaybackSnapshot,
   type Track,
 } from '@ddgutierrezc/legato-capacitor';
@@ -60,6 +61,7 @@ const previousButton = document.querySelector<HTMLButtonElement>('#action-previo
 const nextButton = document.querySelector<HTMLButtonElement>('#action-next');
 const seekButton = document.querySelector<HTMLButtonElement>('#action-seek');
 const snapshotButton = document.querySelector<HTMLButtonElement>('#action-snapshot');
+const capabilitiesButton = document.querySelector<HTMLButtonElement>('#action-capabilities');
 const useLegatoSurfaceButton = document.querySelector<HTMLButtonElement>('#use-legato-surface');
 const useAudioPlayerSurfaceButton = document.querySelector<HTMLButtonElement>('#use-audioplayer-surface');
 const seekInput = document.querySelector<HTMLInputElement>('#seek-ms');
@@ -106,6 +108,7 @@ if (
   || !nextButton
   || !seekButton
   || !snapshotButton
+  || !capabilitiesButton
   || !useLegatoSurfaceButton
   || !useAudioPlayerSurfaceButton
   || !seekInput
@@ -157,6 +160,19 @@ type RuntimeIntegrityPayload = {
   };
 };
 
+type ParityEvidencePayload = {
+  addStartIndexConverged: boolean;
+  remoteOrderConverged: boolean;
+  eventStateSnapshotConverged: boolean;
+  capabilitiesConverged: boolean;
+  details: {
+    addStartIndex: string;
+    remoteOrder: string;
+    eventStateSnapshot: string;
+    capabilities: string;
+  };
+};
+
 let syncController: LegatoSyncController | null = null;
 let latestSnapshot: PlaybackSnapshot | null = null;
 let recentEvents: string[] = [];
@@ -169,6 +185,7 @@ let activePlaybackSurface: PlaybackSurface = 'legato';
 let boundaryChecks: BoundaryCheck[] = [];
 let syncEventHistory: SyncEventRecord[] = [];
 let lifecycleCheckpoints: Array<{ step: string; snapshotState: string; recentEvents: string[] }> = [];
+let latestCapabilities: BindingCapabilitiesSnapshot | null = null;
 
 const resolvePlaybackApi = (surface: PlaybackSurface): AudioPlayerApi => (
   surface === 'audioPlayer' ? audioPlayer : Legato
@@ -285,12 +302,17 @@ const projectCapabilities = (snapshot: PlaybackSnapshot): ProjectedCapabilities 
 
 const renderCapabilitySummary = (snapshot: PlaybackSnapshot): void => {
   const projection = projectCapabilities(snapshot);
+  const nativeSupported = Array.isArray(latestCapabilities?.supported)
+    ? latestCapabilities.supported
+    : [];
+
   capabilitySummaryNode.textContent = [
     `canSkipNext=${projection.canSkipNext}`,
     `canSkipPrevious=${projection.canSkipPrevious}`,
     `canSeek=${projection.canSeek}`,
     `queue=${projection.queueLength}`,
     `index=${projection.currentIndex ?? 'null'}`,
+    `runtime.supported=[${nativeSupported.join(', ') || 'none'}]`,
   ].join(' | ');
 };
 
@@ -600,6 +622,66 @@ const deriveRuntimeIntegrityPayload = (): RuntimeIntegrityPayload => {
   };
 };
 
+const deriveParityEvidencePayload = (): ParityEvidencePayload => {
+  const latest = latestSnapshot;
+  const queueLength = latest ? queueLengthFromSnapshot(latest) : 0;
+  const addStartIndexConverged = Boolean(latest)
+    && queueLength >= 2
+    && latest?.currentIndex === 1;
+
+  const remoteOrderConverged = (() => {
+    const remoteIndex = syncEventHistory.findIndex((entry) => /remote-(next|previous|seek)/i.test(entry.name));
+    if (remoteIndex <= 0) {
+      return false;
+    }
+    return syncEventHistory
+      .slice(0, remoteIndex)
+      .some((entry) => /playback-(active-track-changed|progress|state-changed)/i.test(entry.name));
+  })();
+
+  const eventStateSnapshotConverged = (() => {
+    if (!latest) {
+      return false;
+    }
+    return latest.state !== 'error'
+      && latest.currentTrack != null
+      && typeof latest.currentIndex === 'number';
+  })();
+
+  const capabilitiesConverged = (() => {
+    if (!latest || !latestCapabilities) {
+      return false;
+    }
+    const projected = projectCapabilities(latest);
+    const supported = new Set(latestCapabilities.supported);
+    const seekMatches = projected.canSeek === supported.has('seek');
+    const nextMatches = projected.canSkipNext === supported.has('skip-next');
+    const previousMatches = projected.canSkipPrevious === supported.has('skip-previous');
+    return seekMatches && nextMatches && previousMatches;
+  })();
+
+  return {
+    addStartIndexConverged,
+    remoteOrderConverged,
+    eventStateSnapshotConverged,
+    capabilitiesConverged,
+    details: {
+      addStartIndex: addStartIndexConverged
+        ? 'add(startIndex=1) landed on queue index 1 as expected.'
+        : `Expected currentIndex=1 after add(startIndex=1), got ${latest?.currentIndex ?? 'null'} (queue=${queueLength}).`,
+      remoteOrder: remoteOrderConverged
+        ? 'Observed playback mutation events before remote-next/previous/seek marker.'
+        : 'No conclusive remote-order evidence in this run (run guided remote parity cases to collect explicit proof).',
+      eventStateSnapshot: eventStateSnapshotConverged
+        ? 'Snapshot remained coherent (state/currentTrack/currentIndex present and non-error).'
+        : 'Snapshot convergence evidence incomplete (missing current track/index or error state).',
+      capabilities: capabilitiesConverged
+        ? 'getCapabilities() support flags matched projected snapshot capabilities.'
+        : 'getCapabilities() support flags diverged from projected snapshot capabilities or were unavailable.',
+    },
+  };
+};
+
 const startSmokeVerdict = (flow: SmokeFlow): void => {
   activeSmokeFlow = flow;
   smokeVerdict = reduceSmokeVerdict(smokeVerdict, { type: 'start', flow });
@@ -617,6 +699,7 @@ const completeSmokeVerdict = (): void => {
       verdict: smokeVerdict,
       recentEvents,
       runtimeIntegrity: deriveRuntimeIntegrityPayload(),
+      parityEvidence: deriveParityEvidencePayload(),
     });
     log(buildSmokeMarkerLine(latestSmokeReport));
     renderAutomationPanel();
@@ -634,6 +717,7 @@ const failSmokeVerdict = (errorSummary: string): void => {
       verdict: smokeVerdict,
       recentEvents,
       runtimeIntegrity: deriveRuntimeIntegrityPayload(),
+      parityEvidence: deriveParityEvidencePayload(),
     });
     log(buildSmokeMarkerLine(latestSmokeReport));
     renderAutomationPanel();
@@ -763,10 +847,13 @@ const setupAction = async (surface: PlaybackSurface = activePlaybackSurface): Pr
   log(`[${surface}] setup() ok`);
 };
 
-const addAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
-  const afterAdd = await resolvePlaybackApi(surface).add({ tracks: demoTracks, startIndex: 0 });
+const addAction = async (
+  surface: PlaybackSurface = activePlaybackSurface,
+  startIndex = 0,
+): Promise<void> => {
+  const afterAdd = await resolvePlaybackApi(surface).add({ tracks: demoTracks, startIndex });
   updateSnapshotViews(afterAdd);
-  log(`[${surface}] add() snapshot`, afterAdd);
+  log(`[${surface}] add(startIndex=${startIndex}) snapshot`, afterAdd);
 };
 
 const playAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
@@ -805,6 +892,20 @@ const snapshotAction = async (surface: PlaybackSurface = activePlaybackSurface):
   const snapshot = await resolvePlaybackApi(surface).getSnapshot();
   updateSnapshotViews(snapshot);
   log(`[${surface}] getSnapshot() snapshot`, snapshot);
+};
+
+const capabilitiesAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
+  const capabilities = await resolvePlaybackApi(surface).getCapabilities();
+  latestCapabilities = capabilities;
+  if (latestSnapshot) {
+    renderCapabilitySummary(latestSnapshot);
+  }
+  snapshotJsonNode.value = JSON.stringify({
+    snapshot: latestSnapshot,
+    capabilities,
+  }, null, 2);
+  addRecentEvent(`capabilities supported=${capabilities.supported.join(', ') || 'none'}`);
+  log(`[${surface}] getCapabilities()`, capabilities);
 };
 
 const clearFlows = (): void => {
@@ -881,7 +982,7 @@ const setupGuidedRemoteCaseBaseline = async (
   await setupAction('legato');
   await resetSmokeBaseline();
   await startSync();
-  await addAction('legato');
+  await addAction('legato', 1);
   await playAction('legato');
   await sleep(guidedCaseSettleMs);
 
@@ -1007,6 +1108,7 @@ const runSurfacePlaybackProbe = async (surface: PlaybackSurface): Promise<Playba
   await api.pause();
   await api.seekTo({ position: 900 });
   const snapshot = await api.getSnapshot();
+  latestCapabilities = await api.getCapabilities();
   updateSnapshotViews(snapshot);
   return snapshot;
 };
@@ -1056,6 +1158,16 @@ const runSurfaceValidationFlow = async (): Promise<void> => {
     label: 'mediaSession boundary visibility',
     ok: true,
     detail: 'remote listener registration/removal verified via mediaSession namespace.',
+  });
+
+  const legatoCapabilities = await Legato.getCapabilities();
+  const audioPlayerCapabilities = await audioPlayer.getCapabilities();
+  const legatoSupported = [...legatoCapabilities.supported].sort().join(',');
+  const audioPlayerSupported = [...audioPlayerCapabilities.supported].sort().join(',');
+  addBoundaryCheck({
+    label: 'getCapabilities parity (Legato/audioPlayer)',
+    ok: legatoSupported === audioPlayerSupported,
+    detail: `Legato=[${legatoSupported}] audioPlayer=[${audioPlayerSupported}]`,
   });
 };
 
@@ -1512,6 +1624,10 @@ seekButton.addEventListener('click', () => {
 
 snapshotButton.addEventListener('click', () => {
   void runNativeAction('manual getSnapshot()', snapshotAction);
+});
+
+capabilitiesButton.addEventListener('click', () => {
+  void runNativeAction('manual getCapabilities()', capabilitiesAction);
 });
 
 useLegatoSurfaceButton.addEventListener('click', () => {

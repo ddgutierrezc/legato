@@ -26,7 +26,8 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "getDuration", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getCurrentTrack", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getQueue", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getSnapshot", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "getSnapshot", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getCapabilities", returnType: CAPPluginReturnPromise)
     ]
 
     private let core = LegatoiOSCoreFactory.make()
@@ -66,15 +67,7 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
             let rawTracks = call.getArray("tracks") ?? []
             let tracks = rawTracks.compactMap { $0 as? [String: Any] }.map(LegatoCapacitorMapper.track)
 
-            if let startIndex = call.getInt("startIndex") {
-                let mergedItems = core.playerEngine.snapshot().queue.items + tracks
-                try core.playerEngine.load(tracks: mergedItems, startIndex: startIndex)
-                let snapshot = core.playerEngine.snapshot()
-                call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(snapshot)])
-                return
-            }
-
-            let snapshot = try core.playerEngine.appendToQueue(tracks)
+            let snapshot = try core.playerEngine.add(tracks: tracks, startIndex: call.getInt("startIndex"))
             call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(snapshot)])
         } catch {
             reject(call, error)
@@ -198,6 +191,13 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func getSnapshot(_ call: CAPPluginCall) {
         call.resolve(["snapshot": LegatoCapacitorMapper.snapshotToDictionary(core.playerEngine.snapshot())])
+    }
+
+    @objc func getCapabilities(_ call: CAPPluginCall) {
+        let snapshot = core.playerEngine.snapshot()
+        let transportCapabilities = LegatoiOSTransportCapabilitiesProjector.fromSnapshot(snapshot)
+        let supported = LegatoCapacitorMapper.supportedCapabilities(from: transportCapabilities)
+        call.resolve(LegatoCapacitorMapper.capabilitiesToDictionary(supported))
     }
 
     private func resolveRemovalIndex(_ call: CAPPluginCall) throws -> Int {

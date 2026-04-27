@@ -22,6 +22,27 @@ const normalizeRuntimeIntegrity = (value) => ({
   },
 });
 
+const normalizeParityEvidence = (value) => ({
+  addStartIndexConverged: value?.addStartIndexConverged === true,
+  remoteOrderConverged: value?.remoteOrderConverged === true,
+  eventStateSnapshotConverged: value?.eventStateSnapshotConverged === true,
+  capabilitiesConverged: value?.capabilitiesConverged === true,
+  details: {
+    addStartIndex: typeof value?.details?.addStartIndex === 'string'
+      ? value.details.addStartIndex
+      : 'add(startIndex) evidence unavailable',
+    remoteOrder: typeof value?.details?.remoteOrder === 'string'
+      ? value.details.remoteOrder
+      : 'remote ordering evidence unavailable',
+    eventStateSnapshot: typeof value?.details?.eventStateSnapshot === 'string'
+      ? value.details.eventStateSnapshot
+      : 'event/state/snapshot evidence unavailable',
+    capabilities: typeof value?.details?.capabilities === 'string'
+      ? value.details.capabilities
+      : 'capabilities evidence unavailable',
+  },
+});
+
 const asNumberOrNull = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 
 const readSnapshotMetrics = (snapshot) => ({
@@ -94,7 +115,7 @@ export const createSmokeSnapshotSummary = (snapshot) => {
   return formatSnapshotSummary(metrics);
 };
 
-export const buildSmokeReportV1 = ({ verdict, recentEvents = [], runtimeIntegrity }) => ({
+export const buildSmokeReportV1 = ({ verdict, recentEvents = [], runtimeIntegrity, parityEvidence }) => ({
   schemaVersion: 1,
   flow: 'smoke',
   status: verdict.status === PASS ? PASS : FAIL,
@@ -105,6 +126,7 @@ export const buildSmokeReportV1 = ({ verdict, recentEvents = [], runtimeIntegrit
     ? [verdict.errorSummary ?? 'One or more smoke checks failed.'].filter((entry) => typeof entry === 'string' && entry.trim() !== '')
     : [],
   runtimeIntegrity: normalizeRuntimeIntegrity(runtimeIntegrity),
+  parityEvidence: normalizeParityEvidence(parityEvidence),
 });
 
 export const createInitialSmokeVerdict = () => ({

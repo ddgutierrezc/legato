@@ -41,6 +41,18 @@ const createPassReport = (platform) => ({
       snapshot: 'snapshot coherence verified',
     },
   },
+  parityEvidence: {
+    addStartIndexConverged: true,
+    remoteOrderConverged: true,
+    eventStateSnapshotConverged: true,
+    capabilitiesConverged: true,
+    details: {
+      addStartIndex: 'add(startIndex) activated expected queue index.',
+      remoteOrder: 'remote events emitted after canonical mutation events.',
+      eventStateSnapshot: 'single assertion contract matched event/state/snapshot outputs.',
+      capabilities: 'getCapabilities payload matched projected transport capabilities.',
+    },
+  },
 });
 
 const withRuntimeIntegrity = (report) => ({
@@ -82,6 +94,18 @@ const createCollectorFailReport = (platform) => ({
       progress: 'collector failed before progress verification',
       trackEnd: 'collector failed before track-end verification',
       snapshot: 'collector failed before snapshot verification',
+    },
+  },
+  parityEvidence: {
+    addStartIndexConverged: false,
+    remoteOrderConverged: false,
+    eventStateSnapshotConverged: false,
+    capabilitiesConverged: false,
+    details: {
+      addStartIndex: 'collector failed before add(startIndex) verification',
+      remoteOrder: 'collector failed before remote order verification',
+      eventStateSnapshot: 'collector failed before event/state/snapshot verification',
+      capabilities: 'collector failed before capabilities verification',
     },
   },
 });
@@ -207,4 +231,17 @@ test('CLI exits non-zero with actionable output when any artifact fails validati
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+test('shared validator fails PASS artifacts when parity evidence payload is missing', () => {
+  const androidWithoutParityEvidence = createPassReport('android');
+  delete androidWithoutParityEvidence.parityEvidence;
+
+  const result = validateSmokeReports([
+    { path: 'android.json', report: androidWithoutParityEvidence },
+  ]);
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.platforms.android.status, 'FAIL');
+  assert.match(result.failures[0], /parity.?evidence/i);
 });

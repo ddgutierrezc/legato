@@ -105,6 +105,35 @@ class LegatoAndroidPlayerEngineQueueOwnershipTest {
         assertEquals(LegatoAndroidPlaybackState.IDLE, snapshot.state)
     }
 
+    @Test
+    fun `add startIndex resolves against appended batch instead of absolute queue index`() = runBlocking {
+        val runtime = RecordingQueuePlaybackRuntime()
+        val engine = buildEngine(runtime)
+
+        engine.setup()
+        engine.load(
+            tracks = listOf(
+                LegatoAndroidTrack(id = "base-1", url = "https://example.com/base-1.mp3"),
+                LegatoAndroidTrack(id = "base-2", url = "https://example.com/base-2.mp3"),
+            ),
+            startIndex = 0,
+        )
+
+        engine.add(
+            tracks = listOf(
+                LegatoAndroidTrack(id = "new-1", url = "https://example.com/new-1.mp3"),
+                LegatoAndroidTrack(id = "new-2", url = "https://example.com/new-2.mp3"),
+            ),
+            startIndex = 1,
+        )
+
+        assertEquals(listOf("base-1", "base-2", "new-1", "new-2"), runtime.lastQueueIds)
+        assertEquals(3, runtime.lastStartIndex)
+        val snapshot = engine.getSnapshot()
+        assertEquals(3, snapshot.currentIndex)
+        assertEquals("new-2", snapshot.currentTrack?.id)
+    }
+
     private fun buildEngine(playbackRuntime: RecordingQueuePlaybackRuntime): LegatoAndroidPlayerEngine {
         val sessionRuntime = object : LegatoAndroidSessionRuntime {
             override fun configureSession() = Unit

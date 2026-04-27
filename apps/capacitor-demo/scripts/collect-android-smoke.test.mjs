@@ -70,7 +70,9 @@ test('failure helper keeps v1 required keys present and non-null', () => {
     'errors',
     'flow',
     'metadata',
+    'parityEvidence',
     'recentEvents',
+    'runtimeIntegrity',
     'schemaVersion',
     'snapshotSummary',
     'status',
@@ -84,7 +86,7 @@ test('failure helper keeps v1 required keys present and non-null', () => {
 test('collector tolerates additional app-level prefixes before marker in console/logcat lines', () => {
   const logText = [
     '04-25 12:00:00.000 1000 1000 I Capacitor/Console: Msg: [12:00:00] [legato-demo] setup started',
-    '04-25 12:00:01.000 1000 1000 I Capacitor/Console: Msg: [12:00:01] [legato-demo] LEGATO_SMOKE_REPORT {"schemaVersion":1,"flow":"smoke","status":"PASS","checks":[],"snapshotSummary":"state=paused","recentEvents":[],"errors":[]}',
+    '04-25 12:00:01.000 1000 1000 I Capacitor/Console: Msg: [12:00:01] [legato-demo] LEGATO_SMOKE_REPORT {"schemaVersion":1,"flow":"smoke","status":"PASS","checks":[],"snapshotSummary":"state=paused","recentEvents":[],"errors":[],"runtimeIntegrity":{"transportCommandsObserved":true,"progressAdvancedWhilePlaying":true,"trackEndTransitionObserved":false,"snapshotProjectionCoherent":true,"details":{"transport":"ok","progress":"ok","trackEnd":"ok","snapshot":"ok"}},"parityEvidence":{"addStartIndexConverged":true,"remoteOrderConverged":true,"eventStateSnapshotConverged":true,"capabilitiesConverged":true,"details":{"addStartIndex":"ok","remoteOrder":"ok","eventStateSnapshot":"ok","capabilities":"ok"}}}',
   ].join('\n');
 
   const report = collectAndroidSmokeReportFromLog(logText, {

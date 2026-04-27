@@ -112,6 +112,7 @@ type BindingAdapterPlaybackSurface = Pick<
   | 'getCurrentTrack'
   | 'getQueue'
   | 'getSnapshot'
+  | 'getCapabilities'
 >;
 
 export interface AudioPlayerApi extends BindingAdapterPlaybackSurface {

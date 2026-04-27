@@ -5,6 +5,7 @@ import type {
   AudioPlayerApi,
   AudioPlayerEventName,
   AudioPlayerListener,
+  BindingCapabilitiesSnapshot,
   LegatoApi,
   LegatoEventApi,
   LegatoEventName,
@@ -49,6 +50,10 @@ interface QueueResult {
   queue: QueueSnapshot;
 }
 
+interface CapabilitiesResult {
+  supported: BindingCapabilitiesSnapshot['supported'];
+}
+
 interface LegatoCapacitorPlugin extends Plugin {
   setup(): Promise<OkResult>;
   add(options: AddOptions): Promise<SnapshotResult>;
@@ -67,6 +72,7 @@ interface LegatoCapacitorPlugin extends Plugin {
   getCurrentTrack(): Promise<CurrentTrackResult>;
   getQueue(): Promise<QueueResult>;
   getSnapshot(): Promise<SnapshotResult>;
+  getCapabilities(): Promise<CapabilitiesResult>;
 }
 
 export const LegatoCapacitor = registerPlugin<LegatoCapacitorPlugin>('Legato');
@@ -133,6 +139,10 @@ const sharedDelegate = {
     const result = await LegatoCapacitor.getSnapshot();
     return result.snapshot;
   },
+  async getCapabilities() {
+    const result = await LegatoCapacitor.getCapabilities();
+    return { supported: result.supported };
+  },
   removeAllListeners() {
     return LegatoCapacitor.removeAllListeners();
   },
@@ -171,6 +181,7 @@ export const audioPlayer: AudioPlayerApi = {
   getCurrentTrack: sharedDelegate.getCurrentTrack,
   getQueue: sharedDelegate.getQueue,
   getSnapshot: sharedDelegate.getSnapshot,
+  getCapabilities: sharedDelegate.getCapabilities,
   addListener: addAudioPlayerListener,
   removeAllListeners: sharedDelegate.removeAllListeners,
 };

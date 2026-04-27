@@ -5,11 +5,14 @@ import com.getcapacitor.JSObject
 import io.legato.core.core.LegatoAndroidError
 import io.legato.core.core.LegatoAndroidEventPayload
 import io.legato.core.core.LegatoAndroidPlaybackSnapshot
+import io.legato.core.core.LegatoAndroidTransportCapabilities
 import io.legato.core.core.LegatoAndroidTrack
 import io.legato.core.core.LegatoAndroidTrackType
 import org.json.JSONObject
 
 internal class LegatoCapacitorMapper {
+    private val alwaysSupportedCapabilities = listOf("play", "pause", "stop")
+
     fun tracksFromJs(array: JSArray?): List<LegatoAndroidTrack> {
         if (array == null) {
             return emptyList()
@@ -87,6 +90,28 @@ internal class LegatoCapacitorMapper {
             put("code", error.code.wireValue)
             put("message", error.message)
             put("details", error.details?.toString())
+        }
+    }
+
+    fun supportedCapabilitiesFromTransport(capabilities: LegatoAndroidTransportCapabilities): List<String> {
+        val supported = alwaysSupportedCapabilities.toMutableList()
+        if (capabilities.canSeek) {
+            supported += "seek"
+        }
+        if (capabilities.canSkipNext) {
+            supported += "skip-next"
+        }
+        if (capabilities.canSkipPrevious) {
+            supported += "skip-previous"
+        }
+        return supported
+    }
+
+    fun capabilitiesToJs(supported: List<String>): JSObject {
+        val jsSupported = JSArray()
+        supported.forEach(jsSupported::put)
+        return JSObject().apply {
+            put("supported", jsSupported)
         }
     }
 
