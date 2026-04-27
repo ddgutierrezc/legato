@@ -1,0 +1,16 @@
+{
+  "why_it_matters": "This release delivers authenticated media request support and explicit streaming media semantics to the published Capacitor package, aligning the runtime behavior with the public API and support matrix.",
+  "user_impact": "Capacitor consumers can now rely on per-track request headers in real playback requests, and on clearer streaming/non-streaming capability, duration, and seek semantics across Android and iOS.",
+  "upgrade_notes": "Upgrade to @ddgutierrezc/legato-capacitor@0.1.11 and pair it with @ddgutierrezc/legato-contract@0.1.7. No extra artifact selection is required beyond the package update.",
+  "breaking_changes": "None.",
+  "affected_platforms": "android, ios, npm",
+  "highlights": [
+    "Honors static per-track request headers in Android and iOS playback.",
+    "Makes streaming vs non-streaming semantics explicit and validated.",
+    "Aligns package distribution with Android core 0.1.4 and iOS distribution v0.1.3."
+  ],
+  "known_limitations": [
+    "DRM, token refresh, and advanced session/cookie auth remain out of scope.",
+    "Process-death restore and deeper lifecycle hardening remain separate follow-up work."
+  ]
+}
