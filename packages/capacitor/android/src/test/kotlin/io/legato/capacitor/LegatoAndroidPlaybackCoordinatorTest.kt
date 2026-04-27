@@ -8,6 +8,7 @@ import io.legato.core.core.LegatoAndroidPlaybackState
 import io.legato.core.core.LegatoAndroidProgressUpdate
 import io.legato.core.core.LegatoAndroidRemoteCommand
 import io.legato.core.core.LegatoAndroidServiceMode
+import io.legato.core.core.LegatoAndroidTransportCapabilities
 import io.legato.core.core.LegatoAndroidTrack
 import io.legato.core.core.LegatoAndroidNowPlayingMetadata
 import io.legato.core.queue.LegatoAndroidQueueManager
@@ -498,6 +499,8 @@ class LegatoAndroidPlaybackCoordinatorTest {
                     override fun bind(listener: (LegatoAndroidRemoteCommand) -> Unit) = Unit
 
                     override fun updatePlaybackState(state: LegatoAndroidPlaybackState) = Unit
+
+                    override fun updateTransportCapabilities(capabilities: LegatoAndroidTransportCapabilities) = Unit
 
                     override fun unbind() = Unit
                 },
