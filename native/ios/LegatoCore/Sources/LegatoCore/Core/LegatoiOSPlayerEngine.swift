@@ -25,6 +25,8 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
     private var isSetup = false
     private var lastProgressEmission: ProgressEmissionToken?
     private var sessionSignalListenerID: UUID?
+    private var isInterruptionActive = false
+    private var isRouteUnavailable = false
 
     public init(
         queueManager: LegatoiOSQueueManager,
@@ -376,6 +378,26 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
         sessionManager.releaseSession()
         isSetup = false
         lastProgressEmission = nil
+        isInterruptionActive = false
+        isRouteUnavailable = false
+    }
+
+    public func reassertPlaybackSurfaces() {
+        guard isSetup else {
+            return
+        }
+
+        let snapshot = snapshotStore.getPlaybackSnapshot()
+        if snapshot.currentTrack == nil && snapshot.queue.items.isEmpty {
+            return
+        }
+
+        publishMetadata(snapshot.currentTrack)
+        publishProgress(snapshot)
+        projectPlaybackState(snapshot.state)
+        remoteCommandManager.updateTransportCapabilities(
+            LegatoiOSTransportCapabilitiesProjector.fromSnapshot(snapshot)
+        )
     }
 
     public func playbackRuntimeDidUpdateProgress(_ snapshot: LegatoiOSRuntimeSnapshot) {
@@ -476,6 +498,10 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
 
     private func publishState(_ state: LegatoiOSPlaybackState) {
         eventEmitter.emit(name: .playbackStateChanged, payload: .playbackStateChanged(state: state))
+        projectPlaybackState(state)
+    }
+
+    private func projectPlaybackState(_ state: LegatoiOSPlaybackState) {
         sessionManager.updatePlaybackState(state)
         remoteCommandManager.updatePlaybackState(state)
         nowPlayingManager.updatePlaybackState(state)
@@ -766,13 +792,22 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
 
     private func handleSessionSignal(_ signal: LegatoiOSSessionSignal) {
         switch signal {
-        case .outputRouteRemoved, .interruptionBegan:
+        case .interruptionBegan:
+            isInterruptionActive = true
             pausePlaybackForSessionSignal()
-        case .interruptionEnded(let shouldResume):
-            if !shouldResume {
+        case .interruptionEnded(let intent):
+            isInterruptionActive = false
+            if intent != .shouldResume {
                 pausePlaybackForSessionSignal()
+            } else {
+                reassertPlaybackSurfaces()
             }
-            // Conservative behavior: interruption end with shouldResume=true does not auto-resume.
+        case .outputRouteLost:
+            isRouteUnavailable = true
+            pausePlaybackForSessionSignal()
+        case .outputRouteAvailable:
+            isRouteUnavailable = false
+            reassertPlaybackSurfaces()
         case .runtimeError(let message):
             publishSessionRuntimeError(message)
         }

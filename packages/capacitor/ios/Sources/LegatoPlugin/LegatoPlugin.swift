@@ -1,6 +1,9 @@
 import Capacitor
 import Foundation
 import LegatoCore
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @objc(LegatoPlugin)
 public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -28,6 +31,8 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private let core = LegatoiOSCoreFactory.make()
     private var eventListenerID: UUID?
+    private var willEnterForegroundObserver: NSObjectProtocol?
+    private var didBecomeActiveObserver: NSObjectProtocol?
 
     public override func load() {
         super.load()
@@ -35,12 +40,15 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
         eventListenerID = core.eventEmitter.addListener { [weak self] event in
             self?.notifyListeners(event.name.rawValue, data: LegatoCapacitorMapper.payloadToDictionary(event.payload))
         }
+
+        registerLifecycleObservers()
     }
 
     deinit {
         if let eventListenerID {
             core.eventEmitter.removeListener(eventListenerID)
         }
+        unregisterLifecycleObservers()
         core.playerEngine.release()
     }
 
@@ -217,5 +225,46 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
             mapped = core.errorMapper.map(error)
         }
         call.reject(mapped.message, mapped.code.rawValue, error)
+    }
+
+    private func registerLifecycleObservers() {
+#if canImport(UIKit)
+        let center = NotificationCenter.default
+
+        if willEnterForegroundObserver == nil {
+            willEnterForegroundObserver = center.addObserver(
+                forName: UIApplication.willEnterForegroundNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.core.playerEngine.reassertPlaybackSurfaces()
+            }
+        }
+
+        if didBecomeActiveObserver == nil {
+            didBecomeActiveObserver = center.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.core.playerEngine.reassertPlaybackSurfaces()
+            }
+        }
+#endif
+    }
+
+    private func unregisterLifecycleObservers() {
+#if canImport(UIKit)
+        let center = NotificationCenter.default
+        if let willEnterForegroundObserver {
+            center.removeObserver(willEnterForegroundObserver)
+            self.willEnterForegroundObserver = nil
+        }
+
+        if let didBecomeActiveObserver {
+            center.removeObserver(didBecomeActiveObserver)
+            self.didBecomeActiveObserver = nil
+        }
+#endif
     }
 }
