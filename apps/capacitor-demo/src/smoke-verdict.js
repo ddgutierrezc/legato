@@ -9,6 +9,8 @@ const FLOW_BOUNDARY = 'boundary';
 
 const createCheck = (label, ok, detail) => ({ label, ok, detail });
 
+const isPlainObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
+
 const normalizeRuntimeIntegrity = (value) => ({
   transportCommandsObserved: value?.transportCommandsObserved === true,
   progressAdvancedWhilePlaying: value?.progressAdvancedWhilePlaying === true,
@@ -42,6 +44,65 @@ const normalizeParityEvidence = (value) => ({
       : 'capabilities evidence unavailable',
   },
 });
+
+const normalizeRequestEvidence = (value) => {
+  if (!isPlainObject(value)) {
+    return {
+      byRuntime: {},
+      assertions: [],
+    };
+  }
+
+  const byRuntimeInput = isPlainObject(value.byRuntime) ? value.byRuntime : {};
+  const byRuntime = Object.fromEntries(
+    Object.entries(byRuntimeInput)
+      .filter(([, runtimeEntry]) => isPlainObject(runtimeEntry))
+      .map(([runtime, runtimeEntry]) => {
+        const byTrackInput = isPlainObject(runtimeEntry.byTrack) ? runtimeEntry.byTrack : {};
+        const byTrack = Object.fromEntries(
+          Object.entries(byTrackInput)
+            .filter(([, trackEntry]) => isPlainObject(trackEntry))
+            .map(([trackId, trackEntry]) => {
+              const requests = Array.isArray(trackEntry.requests)
+                ? trackEntry.requests
+                  .filter((request) => isPlainObject(request) && typeof request.requestUrl === 'string')
+                  .map((request) => {
+                    const inputHeaders = isPlainObject(request.requestHeaders) ? request.requestHeaders : {};
+                    const requestHeaders = Object.fromEntries(
+                      Object.entries(inputHeaders).filter(([, headerValue]) => typeof headerValue === 'string'),
+                    );
+                    return {
+                      requestUrl: request.requestUrl,
+                      requestHeaders,
+                    };
+                  })
+                : [];
+
+              return [trackId, { requests }];
+            }),
+        );
+        return [runtime, { byTrack }];
+      }),
+  );
+
+  const assertions = Array.isArray(value.assertions)
+    ? value.assertions
+      .filter((entry) => isPlainObject(entry)
+        && typeof entry.label === 'string'
+        && typeof entry.ok === 'boolean'
+        && typeof entry.detail === 'string')
+      .map((entry) => ({
+        label: entry.label,
+        ok: entry.ok,
+        detail: entry.detail,
+      }))
+    : [];
+
+  return {
+    byRuntime,
+    assertions,
+  };
+};
 
 const asNumberOrNull = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 
@@ -90,6 +151,18 @@ const statusFromChecks = (checks) => {
   return checks.every((check) => check.ok) ? PASS : FAIL;
 };
 
+const createRequestEvidenceChecks = (requestEvidence) => {
+  if (!requestEvidence || !Array.isArray(requestEvidence.assertions)) {
+    return [];
+  }
+
+  return requestEvidence.assertions.map((assertion) => createCheck(
+    `request evidence: ${assertion.label}`,
+    assertion.ok === true,
+    assertion.detail,
+  ));
+};
+
 export const deriveSmokeStatusFromChecks = (checks, errorSummary = null) => {
   if (typeof errorSummary === 'string' && errorSummary.trim() !== '') {
     return FAIL;
@@ -115,19 +188,46 @@ export const createSmokeSnapshotSummary = (snapshot) => {
   return formatSnapshotSummary(metrics);
 };
 
-export const buildSmokeReportV1 = ({ verdict, recentEvents = [], runtimeIntegrity, parityEvidence }) => ({
-  schemaVersion: 1,
-  flow: 'smoke',
-  status: verdict.status === PASS ? PASS : FAIL,
-  checks: Array.isArray(verdict.checks) ? verdict.checks : [],
-  snapshotSummary: typeof verdict.snapshotSummary === 'string' ? verdict.snapshotSummary : 'No snapshot summary available.',
-  recentEvents: Array.isArray(recentEvents) ? recentEvents.filter((event) => typeof event === 'string') : [],
-  errors: verdict.status === FAIL
-    ? [verdict.errorSummary ?? 'One or more smoke checks failed.'].filter((entry) => typeof entry === 'string' && entry.trim() !== '')
-    : [],
-  runtimeIntegrity: normalizeRuntimeIntegrity(runtimeIntegrity),
-  parityEvidence: normalizeParityEvidence(parityEvidence),
-});
+export const buildSmokeReportV1 = ({ verdict, recentEvents = [], runtimeIntegrity, parityEvidence, requestEvidence }) => {
+  const hasRequestEvidence = requestEvidence !== undefined;
+  const normalizedRequestEvidence = hasRequestEvidence ? normalizeRequestEvidence(requestEvidence) : undefined;
+  const requestEvidenceChecks = hasRequestEvidence ? createRequestEvidenceChecks(normalizedRequestEvidence) : [];
+  const mergedChecks = [
+    ...(Array.isArray(verdict.checks) ? verdict.checks : []),
+    ...requestEvidenceChecks,
+  ];
+  const statusFromRequestEvidence = hasRequestEvidence ? statusFromChecks(requestEvidenceChecks) : PASS;
+  const baseStatus = verdict.status === PASS ? PASS : FAIL;
+  const finalStatus = baseStatus === PASS && statusFromRequestEvidence === PASS ? PASS : FAIL;
+  const requestEvidenceErrors = requestEvidenceChecks
+    .filter((check) => check.ok === false)
+    .map((check) => check.detail);
+
+  const report = {
+    schemaVersion: 1,
+    flow: 'smoke',
+    status: finalStatus,
+    checks: mergedChecks,
+    snapshotSummary: typeof verdict.snapshotSummary === 'string' ? verdict.snapshotSummary : 'No snapshot summary available.',
+    recentEvents: Array.isArray(recentEvents) ? recentEvents.filter((event) => typeof event === 'string') : [],
+    errors: finalStatus === FAIL
+      ? [
+        ...(baseStatus === FAIL
+          ? [verdict.errorSummary ?? 'One or more smoke checks failed.']
+          : []),
+        ...requestEvidenceErrors,
+      ].filter((entry) => typeof entry === 'string' && entry.trim() !== '')
+      : [],
+    runtimeIntegrity: normalizeRuntimeIntegrity(runtimeIntegrity),
+    parityEvidence: normalizeParityEvidence(parityEvidence),
+  };
+
+  if (normalizedRequestEvidence !== undefined) {
+    report.requestEvidence = normalizedRequestEvidence;
+  }
+
+  return report;
+};
 
 export const createInitialSmokeVerdict = () => ({
   flow: null,

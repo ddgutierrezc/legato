@@ -173,6 +173,29 @@ type ParityEvidencePayload = {
   };
 };
 
+type RequestEvidenceRecord = {
+  runtime: string;
+  trackId: string;
+  requestUrl: string;
+  requestHeaders: Record<string, string>;
+};
+
+type RequestEvidencePayload = {
+  byRuntime: Record<string, {
+    byTrack: Record<string, {
+      requests: Array<{
+        requestUrl: string;
+        requestHeaders: Record<string, string>;
+      }>;
+    }>;
+  }>;
+  assertions: Array<{
+    label: string;
+    ok: boolean;
+    detail: string;
+  }>;
+};
+
 let syncController: LegatoSyncController | null = null;
 let latestSnapshot: PlaybackSnapshot | null = null;
 let recentEvents: string[] = [];
@@ -186,6 +209,7 @@ let boundaryChecks: BoundaryCheck[] = [];
 let syncEventHistory: SyncEventRecord[] = [];
 let lifecycleCheckpoints: Array<{ step: string; snapshotState: string; recentEvents: string[] }> = [];
 let latestCapabilities: BindingCapabilitiesSnapshot | null = null;
+let capturedRequestEvidenceRecords: RequestEvidenceRecord[] = [];
 
 const resolvePlaybackApi = (surface: PlaybackSurface): AudioPlayerApi => (
   surface === 'audioPlayer' ? audioPlayer : Legato
@@ -200,6 +224,9 @@ const demoTracks: Track[] = [
     album: 'Legato Artwork Fixture A',
     artwork: 'https://i.pravatar.cc/300',
     duration: 12000,
+    headers: {
+      Authorization: 'Bearer demo-auth-a',
+    },
     type: 'progressive',
   },
   {
@@ -210,6 +237,7 @@ const demoTracks: Track[] = [
     album: 'Legato Artwork Fixture B',
     artwork: 'https://i.pravatar.cc/300',
     duration: 19200,
+    headers: {},
     type: 'progressive',
   },
   {
@@ -220,9 +248,18 @@ const demoTracks: Track[] = [
     album: 'Legato Artwork Fallback Fixture',
     artwork: 'https://i.pravatar.cc/300',
     duration: 9613,
+    headers: {
+      Authorization: 'Bearer demo-auth-b',
+    },
     type: 'progressive',
   },
 ];
+
+const expectedAuthHeaderByTrackId: Record<string, string | null> = {
+  'track-demo-1': 'Bearer demo-auth-a',
+  'track-demo-2': null,
+  'track-demo-3': 'Bearer demo-auth-b',
+};
 
 const expectedArtworkByTrackId: Record<string, string | null> = {
   'track-demo-1': demoTracks[0].artwork ?? null,
@@ -682,6 +719,110 @@ const deriveParityEvidencePayload = (): ParityEvidencePayload => {
   };
 };
 
+const extractRequestEvidenceRecords = (payload: unknown): RequestEvidenceRecord[] => {
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+
+  const payloadObject = payload as {
+    requestEvidence?: unknown;
+    records?: unknown;
+  };
+
+  const maybeRecords = Array.isArray(payloadObject.records)
+    ? payloadObject.records
+    : (payloadObject.requestEvidence as { records?: unknown } | undefined)?.records;
+
+  if (!Array.isArray(maybeRecords)) {
+    return [];
+  }
+
+  return maybeRecords
+    .filter((record) => record && typeof record === 'object')
+    .map((record) => {
+      const candidate = record as {
+        runtime?: unknown;
+        trackId?: unknown;
+        requestUrl?: unknown;
+        requestURL?: unknown;
+        requestHeaders?: unknown;
+      };
+
+      const requestHeaders = candidate.requestHeaders && typeof candidate.requestHeaders === 'object'
+        ? Object.fromEntries(Object.entries(candidate.requestHeaders as Record<string, unknown>)
+          .filter(([, headerValue]) => typeof headerValue === 'string')
+          .map(([headerKey, headerValue]) => [headerKey, String(headerValue)]))
+        : {};
+
+      return {
+        runtime: typeof candidate.runtime === 'string' ? candidate.runtime : platform,
+        trackId: typeof candidate.trackId === 'string' ? candidate.trackId : 'unknown-track',
+        requestUrl: typeof candidate.requestUrl === 'string'
+          ? candidate.requestUrl
+          : (typeof candidate.requestURL === 'string' ? candidate.requestURL : ''),
+        requestHeaders,
+      };
+    })
+    .filter((record) => record.requestUrl.trim() !== '' && record.trackId !== 'unknown-track');
+};
+
+const deriveRequestEvidencePayload = (): RequestEvidencePayload => {
+  const byRuntime: RequestEvidencePayload['byRuntime'] = {};
+
+  for (const record of capturedRequestEvidenceRecords) {
+    const runtimeKey = record.runtime || platform;
+    if (!byRuntime[runtimeKey]) {
+      byRuntime[runtimeKey] = { byTrack: {} };
+    }
+
+    if (!byRuntime[runtimeKey].byTrack[record.trackId]) {
+      byRuntime[runtimeKey].byTrack[record.trackId] = { requests: [] };
+    }
+
+    byRuntime[runtimeKey].byTrack[record.trackId].requests.push({
+      requestUrl: record.requestUrl,
+      requestHeaders: record.requestHeaders,
+    });
+  }
+
+  const runtimeKey = platform;
+  const runtimeTracks = byRuntime[runtimeKey]?.byTrack ?? {};
+  const assertions = demoTracks.map((track) => {
+    const expectedAuthorization = expectedAuthHeaderByTrackId[track.id] ?? null;
+    const requests = runtimeTracks[track.id]?.requests ?? [];
+    const observedAuthValues = requests
+      .map((request) => request.requestHeaders.Authorization)
+      .filter((value): value is string => typeof value === 'string');
+
+    if (expectedAuthorization) {
+      const ok = observedAuthValues.includes(expectedAuthorization);
+      return {
+        label: `request evidence ${track.id} includes expected Authorization header`,
+        ok,
+        detail: ok
+          ? `Observed ${observedAuthValues.length} request(s) for ${track.id} with expected Authorization value.`
+          : `Expected Authorization=${expectedAuthorization} for ${track.id}, observed=${observedAuthValues.join(', ') || 'none'}.`,
+      };
+    }
+
+    const leaked = observedAuthValues.length > 0;
+    return {
+      label: `request evidence ${track.id} does not leak Authorization header`,
+      ok: requests.length > 0 && !leaked,
+      detail: requests.length === 0
+        ? `No captured requests for ${track.id}; runtime request evidence unavailable.`
+        : leaked
+          ? `Unexpected Authorization values on public track ${track.id}: ${observedAuthValues.join(', ')}`
+          : `Observed ${requests.length} public request(s) for ${track.id} without Authorization header leakage.`,
+    };
+  });
+
+  return {
+    byRuntime,
+    assertions,
+  };
+};
+
 const startSmokeVerdict = (flow: SmokeFlow): void => {
   activeSmokeFlow = flow;
   smokeVerdict = reduceSmokeVerdict(smokeVerdict, { type: 'start', flow });
@@ -700,6 +841,7 @@ const completeSmokeVerdict = (): void => {
       recentEvents,
       runtimeIntegrity: deriveRuntimeIntegrityPayload(),
       parityEvidence: deriveParityEvidencePayload(),
+      requestEvidence: deriveRequestEvidencePayload(),
     });
     log(buildSmokeMarkerLine(latestSmokeReport));
     renderAutomationPanel();
@@ -718,6 +860,7 @@ const failSmokeVerdict = (errorSummary: string): void => {
       recentEvents,
       runtimeIntegrity: deriveRuntimeIntegrityPayload(),
       parityEvidence: deriveParityEvidencePayload(),
+      requestEvidence: deriveRequestEvidencePayload(),
     });
     log(buildSmokeMarkerLine(latestSmokeReport));
     renderAutomationPanel();
@@ -783,6 +926,13 @@ const startSync = async (): Promise<void> => {
     },
     onEvent: (eventName, payload) => {
       observedSyncEvents.add(eventName);
+      const extractedRecords = extractRequestEvidenceRecords(payload);
+      if (extractedRecords.length > 0) {
+        capturedRequestEvidenceRecords = [
+          ...capturedRequestEvidenceRecords,
+          ...extractedRecords,
+        ].slice(-160);
+      }
       const details = summarizePayload(payload);
       syncEventHistory = [
         ...syncEventHistory.slice(-95),
@@ -914,6 +1064,7 @@ const clearFlows = (): void => {
   syncEventHistory = [];
   lifecycleCheckpoints = [];
   latestSmokeReport = null;
+  capturedRequestEvidenceRecords = [];
   observedSyncEvents.clear();
   renderRecentEvents();
   renderAutomationPanel();

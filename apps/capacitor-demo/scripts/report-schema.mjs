@@ -68,6 +68,48 @@ const hasParityEvidencePayload = (value) => isPlainObject(value)
   && typeof value.details.capabilities === 'string'
   && value.details.capabilities.trim() !== '';
 
+const hasRequestEvidencePayload = (value) => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  if (!isPlainObject(value.byRuntime)) {
+    return false;
+  }
+
+  if (!Array.isArray(value.assertions) || !value.assertions.every((entry) => isPlainObject(entry)
+    && typeof entry.label === 'string'
+    && entry.label.trim() !== ''
+    && typeof entry.ok === 'boolean'
+    && typeof entry.detail === 'string')) {
+    return false;
+  }
+
+  for (const runtimeEntry of Object.values(value.byRuntime)) {
+    if (!isPlainObject(runtimeEntry) || !isPlainObject(runtimeEntry.byTrack)) {
+      return false;
+    }
+
+    for (const trackEntry of Object.values(runtimeEntry.byTrack)) {
+      if (!isPlainObject(trackEntry) || !Array.isArray(trackEntry.requests)) {
+        return false;
+      }
+
+      const hasValidRequests = trackEntry.requests.every((request) => isPlainObject(request)
+        && typeof request.requestUrl === 'string'
+        && request.requestUrl.trim() !== ''
+        && isPlainObject(request.requestHeaders)
+        && Object.values(request.requestHeaders).every((headerValue) => typeof headerValue === 'string'));
+
+      if (!hasValidRequests) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+};
+
 export const validateSmokeReportV1 = (candidate) => {
   const errors = [];
 
@@ -120,6 +162,10 @@ export const validateSmokeReportV1 = (candidate) => {
 
   if (!hasParityEvidencePayload(candidate.parityEvidence)) {
     errors.push('parityEvidence must include boolean checks plus non-empty details for addStartIndex/remoteOrder/eventStateSnapshot/capabilities');
+  }
+
+  if (candidate.requestEvidence !== undefined && !hasRequestEvidencePayload(candidate.requestEvidence)) {
+    errors.push('requestEvidence, when provided, must include byRuntime.byTrack request records plus assertion checks');
   }
 
   if (candidate.status === FAIL && (!Array.isArray(candidate.errors) || candidate.errors.length === 0)) {

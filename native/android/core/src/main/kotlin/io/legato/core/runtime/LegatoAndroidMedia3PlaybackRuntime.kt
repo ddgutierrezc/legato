@@ -4,11 +4,14 @@ import android.os.Handler
 import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import io.legato.core.core.LegatoAndroidPlaybackState
 
 class LegatoAndroidMedia3PlaybackRuntime(
     private val player: Player? = null,
     private val playerCommandExecutor: PlayerCommandExecutor = MainThreadPlayerCommandExecutor,
+    private val requestEvidenceSink: LegatoAndroidRequestEvidenceSink = NoOpLegatoAndroidRequestEvidenceSink,
+    private val trackMediaSourceFactory: LegatoAndroidTrackMediaSourceFactory = DefaultLegatoAndroidTrackMediaSourceFactory(requestEvidenceSink),
 ) : LegatoAndroidPlaybackRuntime {
     private var listener: LegatoAndroidPlaybackRuntimeListener? = null
     private var runtimeSnapshot: LegatoAndroidRuntimeSnapshot = LegatoAndroidRuntimeSnapshot()
@@ -64,11 +67,19 @@ class LegatoAndroidMedia3PlaybackRuntime(
         }
 
         withPlayer { currentPlayer ->
-            currentPlayer.setMediaItems(
-                items.map { source -> MediaItem.fromUri(source.url) },
-                selectedIndex ?: 0,
-                0L,
-            )
+            if (currentPlayer is ExoPlayer) {
+                currentPlayer.setMediaSources(
+                    items.map { source -> trackMediaSourceFactory.create(source) },
+                    selectedIndex ?: 0,
+                    0L,
+                )
+            } else {
+                currentPlayer.setMediaItems(
+                    items.map { source -> MediaItem.fromUri(source.url) },
+                    selectedIndex ?: 0,
+                    0L,
+                )
+            }
         }
 
         runtimeSnapshot = runtimeSnapshot.copy(

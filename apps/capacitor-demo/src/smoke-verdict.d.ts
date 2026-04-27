@@ -48,6 +48,17 @@ export type SmokeReportV1 = {
       capabilities: string;
     };
   };
+  requestEvidence?: {
+    byRuntime: Record<string, {
+      byTrack: Record<string, {
+        requests: Array<{
+          requestUrl: string;
+          requestHeaders: Record<string, string>;
+        }>;
+      }>;
+    }>;
+    assertions: SmokeVerdictCheck[];
+  };
 };
 
 export type SmokeVerdictAction =
@@ -86,6 +97,21 @@ export function buildSmokeReportV1(input: {
       eventStateSnapshot?: string;
       capabilities?: string;
     };
+  };
+  requestEvidence?: {
+    byRuntime?: Record<string, {
+      byTrack?: Record<string, {
+        requests?: Array<{
+          requestUrl?: string;
+          requestHeaders?: Record<string, string>;
+        }>;
+      }>;
+    }>;
+    assertions?: Array<{
+      label?: string;
+      ok?: boolean;
+      detail?: string;
+    }>;
   };
 }): SmokeReportV1;
 export function reduceSmokeVerdict(state: SmokeVerdict, action: SmokeVerdictAction): SmokeVerdict;

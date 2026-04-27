@@ -95,6 +95,19 @@ Compatibility-only (legacy Legato facade): `Legato`, `createLegatoSync`, `LEGATO
 - Android-only telemetry like `playback-interruption` remains intentionally deferred from cross-platform parity assertions in v1.
 - Deep lifecycle/process-death parity redesign is out of scope for this change and tracked as follow-up work.
 
+### Authenticated media request scope (v1)
+
+- `Track.headers` supports **static per-track** HTTP headers for native playback transport requests on Android and iOS.
+- Mixed queues are supported: each track keeps its own header map and must not leak headers across transitions.
+- Validation evidence is request-level (captured request records), not playback-state-only.
+
+Explicit v1 non-goals:
+
+- DRM/license authentication flows.
+- Token refresh/rotation and expiry callbacks.
+- Cookie/session renewal orchestration.
+- Dynamic per-request auth callback hooks.
+
 ```ts
 import {
   addAudioPlayerListener,

@@ -30,3 +30,10 @@
 | `apps/capacitor-demo/**` | Binding-Specific Adapter | Current | Existing host validation harness coupled to Capacitor path. |
 | `packages/react-native/.gitkeep` | Binding-Specific Adapter | Future | Placeholder only for future adapter work. |
 | `packages/flutter/legato/.gitkeep` | Binding-Specific Adapter | Future | Placeholder only for future adapter work. |
+
+## Authenticated media request support boundary (v1)
+
+- **Supported now**: static per-track `Track.headers` applied by Android/iOS native playback transport requests.
+- **Isolation contract**: request headers are bound per track and must not leak to adjacent tracks in queue transitions.
+- **Evidence contract**: smoke/report artifacts can carry request-level records keyed by runtime + track; validators consume these assertions.
+- **Deferred (non-goals in v1)**: DRM/license auth, token refresh/rotation, cookie/session renewal, dynamic auth callbacks.

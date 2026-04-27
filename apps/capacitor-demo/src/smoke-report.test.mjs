@@ -79,6 +79,53 @@ test('SmokeReportV1 compatibility allows additive fields without breaking v1 con
   assert.deepEqual(compatibility.errors, []);
 });
 
+test('SmokeReportV1 accepts optional request evidence payload keyed by runtime + track', () => {
+  const report = buildSmokeReportV1({
+    verdict: createPassingVerdict(),
+    recentEvents: ['setup complete'],
+    requestEvidence: {
+      byRuntime: {
+        ios: {
+          byTrack: {
+            'track-auth-a': {
+              requests: [
+                {
+                  requestUrl: 'https://media.example.com/auth-a.m3u8',
+                  requestHeaders: { Authorization: 'Bearer ios-a' },
+                },
+              ],
+            },
+            'track-public': {
+              requests: [
+                {
+                  requestUrl: 'https://media.example.com/public.mp3',
+                  requestHeaders: {},
+                },
+              ],
+            },
+          },
+        },
+      },
+      assertions: [
+        {
+          label: 'auth track includes authorization header',
+          ok: true,
+          detail: 'track-auth-a request carried Authorization header',
+        },
+        {
+          label: 'public track has no leaked authorization header',
+          ok: true,
+          detail: 'track-public request did not include auth header',
+        },
+      ],
+    },
+  });
+
+  const validation = validateSmokeReportV1(report);
+  assert.equal(validation.ok, true);
+  assert.deepEqual(validation.errors, []);
+});
+
 test('SmokeReportV1 compatibility fails when required keys are removed', () => {
   const report = buildSmokeReportV1({
     verdict: createPassingVerdict(),
