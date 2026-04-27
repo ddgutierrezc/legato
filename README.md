@@ -2,6 +2,8 @@
 
 Legato provides a contract package and a Capacitor integration package for continuous audio playback flows.
 
+![Texto alternativo](brand.png)
+
 ## Which package should I install?
 
 ## Package decision matrix
