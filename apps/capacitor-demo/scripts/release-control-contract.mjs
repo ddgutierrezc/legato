@@ -1,5 +1,11 @@
 const TARGETS = ['android', 'ios', 'npm'];
 
+// Governance v1 note:
+// - target/mode validation is a preflight contract gate for release-control.yml.
+// - reconciliation semantics (authority, durable evidence, derivative backlinks) are enforced later
+//   by validate-release-reconciliation.mjs using release facts + docs contracts.
+// - this module remains target/mode focused so workflow dispatch can fail fast before lane fanout.
+
 const ALLOWED_MODES = {
   android: new Set(['preflight-only', 'publish']),
   ios: new Set(['publish']),

@@ -90,6 +90,38 @@ export const buildReleaseChangelogFacts = async ({ repoRoot = resolve(scriptDir,
         version: iosVersion,
       },
     },
+    authority: {
+      canonical_repo: 'legato',
+      canonical_surfaces: ['CHANGELOG.md', 'GitHub release'],
+      ios_distribution_repo: 'legato-ios-core',
+      ios_derivative_required: true,
+    },
+    target_procedures: {
+      android: {
+        procedure_id: 'android.maven.publish.v1',
+        source_of_truth: '.github/workflows/release-android.yml',
+        publish_step_ref: 'android-publish',
+        verification_step_ref: 'android-verify',
+        durable_evidence_ref: `apps/capacitor-demo/artifacts/release-control/${effectiveId}/android-summary.json`,
+        rollback_or_hold_rule: 'preflight-only maps to blocked; publish failures map to failed.',
+      },
+      npm: {
+        procedure_id: 'npm.protected_publish.v1',
+        source_of_truth: '.github/workflows/release-npm.yml',
+        publish_step_ref: 'release:npm:execute protected-publish',
+        verification_step_ref: 'npm view <name>@<version> version --json',
+        durable_evidence_ref: npmVersionUrl(String(contractPackage.name), contractVersion),
+        rollback_or_hold_rule: 'policy/readiness failures block protected publish; immutable version may resolve already_published.',
+      },
+      ios: {
+        procedure_id: 'ios.distribution_publish.v1',
+        source_of_truth: '.github/workflows/release-control.yml',
+        publish_step_ref: 'ios-lane publish',
+        verification_step_ref: 'release-ios-execution.mjs verify',
+        durable_evidence_ref: iosTagUrl(nativeArtifacts?.ios?.packageUrl, iosVersion),
+        rollback_or_hold_rule: 'immutable tag exists => already_published; otherwise publish and verify remote tag.',
+      },
+    },
     evidence: {
       durable: [
         {

@@ -346,14 +346,21 @@ jobs:
         id: release-communications
         env:
           RELEASE_ID: ${{ inputs.release_id }}
+          IOS_SELECTED: ${{ needs.validate-dispatch.outputs.ios_selected }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "./artifacts/release-control/${RELEASE_ID}"
           narrative_file="../../docs/releases/notes/${RELEASE_ID}.json"
+          derivative_notes_file="../../docs/releases/notes/${RELEASE_ID}-ios-derivative.md"
           if [[ ! -f "$narrative_file" ]]; then
             echo "Missing required narrative file: $narrative_file" >&2
             echo "Copy docs/releases/notes/release-narrative.template.json and fill required fields." >&2
+            exit 1
+          fi
+          if [[ "$IOS_SELECTED" == "true" && ! -f "$derivative_notes_file" ]]; then
+            echo "Missing required derivative iOS notes file: $derivative_notes_file" >&2
+            echo "Use docs/releases/templates/ios-derivative-release-template.md to author the derivative backlink payload." >&2
             exit 1
           fi
 
@@ -369,10 +376,16 @@ jobs:
             --out-json "./artifacts/release-control/${RELEASE_ID}/github-release.json" \
             --out-markdown "./artifacts/release-control/${RELEASE_ID}/github-release.md" >/dev/null
 
-          node ./scripts/validate-release-reconciliation.mjs \
-            --facts "./artifacts/release-control/${RELEASE_ID}/release-facts.json" \
-            --release-notes "./artifacts/release-control/${RELEASE_ID}/github-release.md" \
-            --changelog "../../CHANGELOG.md" > "./artifacts/release-control/${RELEASE_ID}/reconciliation-report.json"
+          validate_cmd=(
+            node ./scripts/validate-release-reconciliation.mjs
+            --facts "./artifacts/release-control/${RELEASE_ID}/release-facts.json"
+            --release-notes "./artifacts/release-control/${RELEASE_ID}/github-release.md"
+            --changelog "../../CHANGELOG.md"
+          )
+          if [[ "$IOS_SELECTED" == "true" ]]; then
+            validate_cmd+=(--derivative-notes "$derivative_notes_file")
+          fi
+          "${validate_cmd[@]}" > "./artifacts/release-control/${RELEASE_ID}/reconciliation-report.json"
 
           node ./scripts/persist-release-evidence-index.mjs \
             --repo-root ../.. \
@@ -398,6 +411,13 @@ jobs:
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/github-release.json
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/github-release.md
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/reconciliation-report.json
+
+      - name: Upload derivative iOS release note input
+        if: ${{ needs.validate-dispatch.outputs.ios_selected == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-derivative-notes-${{ inputs.release_id }}
+          path: docs/releases/notes/${{ inputs.release_id }}-ios-derivative.md
 
   publish-github-release-notes:
     needs: aggregate-release-summary
