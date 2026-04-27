@@ -70,3 +70,29 @@ test('release control contract rejects unsupported iOS mode and reports allowed 
   assert.match(result.errors.join('\n'), /allowed/i);
   assert.match(result.errors.join('\n'), /publish/i);
 });
+
+test('release control contract accepts optional lane omission without npm mode', () => {
+  const result = validateReleaseControlContract({
+    releaseId: 'R-2026.04.27.1',
+    targets: 'ios',
+    targetModes: { ios: 'publish' },
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.value.targets, ['ios']);
+  assert.equal(result.value.target_modes.ios, 'publish');
+  assert.equal(result.value.target_modes.npm, undefined);
+});
+
+test('release control contract rejects explicit non-goal scope violation for platform rewrite', () => {
+  const result = validateReleaseControlContract({
+    releaseId: 'R-2026.04.27.8',
+    targets: 'android',
+    targetModes: { android: 'publish' },
+    changeIntent: 'platform-rewrite for centralized release engine',
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /NON_GOAL_VIOLATION/i);
+  assert.equal(result.diagnostics[0].code, 'NON_GOAL_VIOLATION');
+});

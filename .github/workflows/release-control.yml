@@ -97,7 +97,7 @@ jobs:
           set -euo pipefail
           is_ok=$(node -e 'const fs=require("node:fs");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));process.stdout.write(String(c.ok));')
           if [[ "$is_ok" != "true" ]]; then
-            node -e 'const fs=require("node:fs");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));for (const err of c.errors ?? []) console.error(err);process.exit(1);'
+            node -e 'const fs=require("node:fs");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));for (const err of c.errors ?? []) console.error(err);for (const diag of c.diagnostics ?? []) console.error(`[${diag.code ?? "UNKNOWN"}] ${diag.message ?? ""}`);process.exit(1);'
           fi
           targets_json=$(node -e 'const fs=require("node:fs");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));process.stdout.write(JSON.stringify(c.value.targets));')
           android_mode=$(node -e 'const fs=require("node:fs");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));process.stdout.write(c.value.target_modes.android ?? "");')
@@ -133,9 +133,59 @@ jobs:
           echo "ios_release_version=$ios_version" >> "$GITHUB_OUTPUT"
           echo "ios_release_tag=$ios_tag" >> "$GITHUB_OUTPUT"
 
-  android-lane:
-    if: ${{ needs.validate-dispatch.outputs.android_selected == 'true' }}
+  preflight-completeness:
     needs: validate-dispatch
+    runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.preflight.outputs.ok }}
+    defaults:
+      run:
+        working-directory: apps/capacitor-demo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/capacitor-demo/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run release packet preflight completeness gate
+        id: preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "./artifacts/release-control/${{ inputs.release_id }}"
+          changelog_anchor="CHANGELOG.md#r-${{ inputs.release_id }}"
+          set +e
+          node ./scripts/release-preflight-completeness.mjs \
+            --repo-root ../.. \
+            --release-id "${{ inputs.release_id }}" \
+            --selected-targets '${{ needs.validate-dispatch.outputs.targets_json }}' \
+            --npm-package-target "${{ inputs.npm_package_target }}" \
+            --changelog-anchor "$changelog_anchor" \
+            --output "./artifacts/release-control/${{ inputs.release_id }}/preflight.json"
+          code=$?
+          set -e
+          preflight_ok=$(node -e 'const fs=require("node:fs");const v=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(Boolean(v.ok)));' "./artifacts/release-control/${{ inputs.release_id }}/preflight.json")
+          echo "ok=$preflight_ok" >> "$GITHUB_OUTPUT"
+          cat "./artifacts/release-control/${{ inputs.release_id }}/preflight.json"
+          exit "$code"
+
+      - name: Upload release preflight artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-preflight-${{ inputs.release_id }}
+          path: apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/preflight.json
+
+  android-lane:
+    if: ${{ needs.validate-dispatch.outputs.android_selected == 'true' && needs.preflight-completeness.outputs.ok == 'true' }}
+    needs: [validate-dispatch, preflight-completeness]
     uses: ./.github/workflows/release-android.yml
     with:
       target: android
@@ -144,8 +194,8 @@ jobs:
     secrets: inherit
 
   ios-lane:
-    if: ${{ needs.validate-dispatch.outputs.ios_selected == 'true' }}
-    needs: validate-dispatch
+    if: ${{ needs.validate-dispatch.outputs.ios_selected == 'true' && needs.preflight-completeness.outputs.ok == 'true' }}
+    needs: [validate-dispatch, preflight-completeness]
     runs-on: ubuntu-latest
     environment: release
     outputs:
@@ -206,8 +256,8 @@ jobs:
           path: apps/capacitor-demo/artifacts/ios-publication-v2/${{ inputs.release_id }}/*
 
   npm-lane:
-    if: ${{ needs.validate-dispatch.outputs.npm_selected == 'true' }}
-    needs: validate-dispatch
+    if: ${{ needs.validate-dispatch.outputs.npm_selected == 'true' && needs.preflight-completeness.outputs.ok == 'true' }}
+    needs: [validate-dispatch, preflight-completeness]
     uses: ./.github/workflows/release-npm.yml
     with:
       release_id: ${{ inputs.release_id }}
@@ -218,7 +268,7 @@ jobs:
 
   aggregate-release-summary:
     if: ${{ always() }}
-    needs: [validate-dispatch, android-lane, ios-lane, npm-lane]
+    needs: [validate-dispatch, preflight-completeness, android-lane, ios-lane, npm-lane]
     runs-on: ubuntu-latest
     outputs:
       release_notes_markdown: ${{ steps.release-communications.outputs.release_notes_markdown }}
@@ -259,7 +309,7 @@ jobs:
           import { writeFile, mkdir } from 'node:fs/promises';
           import { resolve } from 'node:path';
           import { adaptAndroidReleaseSummary } from './scripts/release-control-android-adapter.mjs';
-          import { aggregateReleaseSummary } from './scripts/aggregate-release-summary.mjs';
+          import { aggregateReleaseSummary, parseSummaryJsonPayload } from './scripts/aggregate-release-summary.mjs';
           import { createNotSelectedSummary, normalizeTargetSummary } from './scripts/release-control-summary-schema.mjs';
 
           const parseTargets = (raw) => {
@@ -280,14 +330,14 @@ jobs:
           const npmRaw = String(process.env.NPM_SUMMARY_RAW ?? '').trim();
 
           const androidSummary = selectedTargets.includes('android') && androidRaw
-            ? adaptAndroidReleaseSummary({ selected: true, releaseSummary: JSON.parse(androidRaw), evidenceRoot: 'android' })
+            ? adaptAndroidReleaseSummary({ selected: true, releaseSummary: parseSummaryJsonPayload('android', androidRaw), evidenceRoot: 'android' })
             : createNotSelectedSummary('android');
 
           const iosSummary = selectedTargets.includes('ios') && iosRaw
-            ? normalizeTargetSummary(JSON.parse(iosRaw))
+            ? normalizeTargetSummary(parseSummaryJsonPayload('ios', iosRaw))
             : createNotSelectedSummary('ios');
 
-          const npmLane = npmRaw ? JSON.parse(npmRaw) : null;
+          const npmLane = parseSummaryJsonPayload('npm', npmRaw);
           const npmSummary = selectedTargets.includes('npm') && npmLane
             ? normalizeTargetSummary({
               target: 'npm',
@@ -347,6 +397,7 @@ jobs:
         env:
           RELEASE_ID: ${{ inputs.release_id }}
           IOS_SELECTED: ${{ needs.validate-dispatch.outputs.ios_selected }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -354,12 +405,12 @@ jobs:
           narrative_file="../../docs/releases/notes/${RELEASE_ID}.json"
           derivative_notes_file="../../docs/releases/notes/${RELEASE_ID}-ios-derivative.md"
           if [[ ! -f "$narrative_file" ]]; then
-            echo "Missing required narrative file: $narrative_file" >&2
+            echo "MISSING_NARRATIVE_OR_DERIVATIVE_NOTES: Missing required narrative file: $narrative_file" >&2
             echo "Copy docs/releases/notes/release-narrative.template.json and fill required fields." >&2
             exit 1
           fi
           if [[ "$IOS_SELECTED" == "true" && ! -f "$derivative_notes_file" ]]; then
-            echo "Missing required derivative iOS notes file: $derivative_notes_file" >&2
+            echo "MISSING_NARRATIVE_OR_DERIVATIVE_NOTES: Missing required derivative iOS notes file: $derivative_notes_file" >&2
             echo "Use docs/releases/templates/ios-derivative-release-template.md to author the derivative backlink payload." >&2
             exit 1
           fi
@@ -394,6 +445,16 @@ jobs:
             --durable "$(node -e 'const fs=require("node:fs");const f=JSON.parse(fs.readFileSync("./artifacts/release-control/'"${RELEASE_ID}"'/release-facts.json","utf8"));process.stdout.write(JSON.stringify(f.evidence?.durable ?? []));')" \
             --ephemeral "$(node -e 'const fs=require("node:fs");const f=JSON.parse(fs.readFileSync("./artifacts/release-control/'"${RELEASE_ID}"'/release-facts.json","utf8"));process.stdout.write(JSON.stringify(f.evidence?.ephemeral ?? []));')" >/dev/null
 
+          node ./scripts/release-closure-bundle.mjs \
+            --release-id "$RELEASE_ID" \
+            --source-commit "${{ github.sha }}" \
+            --run-url "$RUN_URL" \
+            --summary "./artifacts/release-control/${RELEASE_ID}/summary.json" \
+            --facts "./artifacts/release-control/${RELEASE_ID}/release-facts.json" \
+            --reconciliation "./artifacts/release-control/${RELEASE_ID}/reconciliation-report.json" \
+            --evidence-index-ref "docs/releases/evidence-index/${RELEASE_ID}.json" \
+            --output-dir "./artifacts/release-control/${RELEASE_ID}" >/dev/null
+
           {
             echo 'release_notes_markdown<<EOF'
             cat "./artifacts/release-control/${RELEASE_ID}/github-release.md"
@@ -411,6 +472,14 @@ jobs:
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/github-release.json
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/github-release.md
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/reconciliation-report.json
+
+      - name: Upload release closure bundle artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-closure-bundle-${{ inputs.release_id }}
+          path: |
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/closure-bundle.json
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/closure-bundle.md
 
       - name: Upload derivative iOS release note input
         if: ${{ needs.validate-dispatch.outputs.ios_selected == 'true' }}

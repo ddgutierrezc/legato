@@ -23,6 +23,7 @@ test('release docs and root readme link canonical changelog and github release n
   assert.match(runbook, /release-template\.md/i);
   assert.match(runbook, /release:notes:generate/i);
   assert.match(runbook, /validate:release:reconciliation/i);
+  assert.match(runbook, /MISSING_NARRATIVE_OR_DERIVATIVE_NOTES/i);
   assert.match(runbook, /CHANGELOG\.md/i);
 
   assert.match(readme, /CHANGELOG\.md/i);

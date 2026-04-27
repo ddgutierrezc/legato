@@ -81,6 +81,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate npm package target scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ inputs.package_target }}" in
+            capacitor|contract)
+              ;;
+            *)
+              echo "PACKAGE_TARGET_SCOPE: inputs.package_target must be capacitor|contract (received '${{ inputs.package_target }}')." >&2
+              exit 1
+              ;;
+          esac
+
       - name: Run npm release policy lane
         shell: bash
         run: |

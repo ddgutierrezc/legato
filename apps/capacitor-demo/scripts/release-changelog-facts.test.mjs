@@ -83,3 +83,15 @@ test('buildReleaseChangelogFacts fails closed when summary.json is missing for r
     /summary\.json/i,
   );
 });
+
+test('buildReleaseChangelogFacts reports PATH_OR_CWD when repo root is not a release workspace', async () => {
+  const repoRoot = await createFixtureRepo();
+
+  await assert.rejects(
+    () => buildReleaseChangelogFacts({
+      repoRoot: resolve(repoRoot, 'docs'),
+      releaseId: 'R-2026.04.26.1',
+    }),
+    /PATH_OR_CWD/i,
+  );
+});

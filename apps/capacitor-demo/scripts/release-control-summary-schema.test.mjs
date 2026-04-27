@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  validateClosureBundleEnvelope,
+  validateDiagnosticEnvelope,
+  validatePreflightEnvelope,
   normalizeTargetSummary,
   validateReleaseNotesFactContract,
   validateTargetSummary,
@@ -73,4 +76,54 @@ test('summary schema validates release-note fact contract payload used by reconc
 
   assert.equal(valid.ok, true);
   assert.equal(valid.errors.length, 0);
+});
+
+test('summary schema validates diagnostic envelope for release ops reason codes', () => {
+  const valid = validateDiagnosticEnvelope({
+    code: 'PATH_OR_CWD',
+    scope: 'run',
+    target: null,
+    retryable: false,
+    message: 'Unable to resolve release summary from current cwd.',
+    operator_action: 'Set --repo-root or run from repository root and retry.',
+    refs: ['apps/capacitor-demo/artifacts/release-control/R-2026.04.27.1/summary.json'],
+  });
+
+  assert.equal(valid.ok, true);
+  assert.equal(valid.errors.length, 0);
+});
+
+test('summary schema rejects preflight envelope with malformed diagnostics', () => {
+  const invalid = validatePreflightEnvelope({
+    ok: false,
+    selected_targets: ['ios', 'npm'],
+    missing: ['docs/releases/notes/R-2026.04.27.1.json'],
+    diagnostics: [{
+      code: 'NOT_A_REASON_CODE',
+      scope: 'run',
+      retryable: false,
+      message: '',
+      operator_action: '',
+    }],
+  });
+
+  assert.equal(invalid.ok, false);
+  assert.match(invalid.errors.join('\n'), /reason code/i);
+  assert.match(invalid.errors.join('\n'), /diagnostics\[0\]/i);
+});
+
+test('summary schema rejects closure bundle missing required traceability fields', () => {
+  const invalid = validateClosureBundleEnvelope({
+    schema_version: 'release-closure-bundle/v1',
+    release_id: 'R-2026.04.27.1',
+    source_commit: '',
+    run_url: 'https://github.com/ddgutierrezc/legato/actions/runs/999999',
+    reconciliation_verdict: 'pass',
+    published_artifacts: [{ target: 'npm', ref: 'https://www.npmjs.com/package/@ddgutierrezc/legato-capacitor/v/0.1.9' }],
+    evidence_index_refs: ['docs/releases/evidence-index/R-2026.04.27.1.json'],
+    generated_at: '2026-04-27T21:00:00.000Z',
+  });
+
+  assert.equal(invalid.ok, false);
+  assert.match(invalid.errors.join('\n'), /source_commit is required/i);
 });
