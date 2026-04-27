@@ -1,5 +1,11 @@
+/**
+ * Minimum allowed playback position value.
+ */
 export const POSITION_MIN = 0;
 
+/**
+ * String constants describing invariant expectations enforced across snapshots.
+ */
 export const LEGATO_INVARIANTS = {
   TRACK_ID_MUST_BE_NON_EMPTY: 'track.id must be a non-empty string',
   TRACK_URL_MUST_BE_NON_EMPTY: 'track.url must be a non-empty string',
