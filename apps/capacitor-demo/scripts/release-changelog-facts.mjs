@@ -16,7 +16,11 @@ const isRepoRoot = async (candidateRoot) => {
 
 const resolveRepoRoot = async (repoRoot) => {
   if (repoRoot) {
-    return resolve(repoRoot);
+    const explicitRoot = resolve(repoRoot);
+    if (!await isRepoRoot(explicitRoot)) {
+      throw new Error(`PATH_OR_CWD: repo root does not contain required package manifests (${explicitRoot}).`);
+    }
+    return explicitRoot;
   }
 
   const candidates = [
@@ -31,7 +35,7 @@ const resolveRepoRoot = async (repoRoot) => {
     }
   }
 
-  return resolve(scriptDir, '../../..');
+  throw new Error('PATH_OR_CWD: unable to resolve repository root from cwd or script-relative candidates.');
 };
 
 const toIso = () => new Date().toISOString();

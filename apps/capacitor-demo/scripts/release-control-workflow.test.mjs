@@ -47,6 +47,10 @@ test('release control workflow orchestrates android, ios, and npm with honest bo
 test('release control workflow emits release_id keyed final summary artifact', async () => {
   const workflow = await readFile(workflowPath, 'utf8');
 
+  assert.match(workflow, /release-preflight-completeness\.mjs/i);
+  assert.match(workflow, /preflight-completeness:/i);
+  assert.match(workflow, /needs:\s*\[validate-dispatch, preflight-completeness\]/i);
+  assert.match(workflow, /needs\.preflight-completeness\.outputs\.ok\s*==\s*'true'/i);
   assert.match(workflow, /aggregate-release-summary\.mjs/i);
   assert.match(workflow, /release-control-summary-\$\{\{ inputs\.release_id \}\}/i);
   assert.match(workflow, /summary\.json/i);
@@ -91,6 +95,9 @@ test('release control workflow enforces release communications reconciliation ga
   assert.match(workflow, /docs\/releases\/notes\/\$\{RELEASE_ID\}-ios-derivative\.md/i);
   assert.match(workflow, /needs\.validate-dispatch\.outputs\.ios_selected/i);
   assert.match(workflow, /release-notes-/i);
+  assert.match(workflow, /release-closure-bundle\.mjs/i);
+  assert.match(workflow, /closure-bundle\.json/i);
+  assert.match(workflow, /release-closure-bundle-\$\{\{ inputs\.release_id \}\}/i);
   assert.match(workflow, /CHANGELOG\.md/i);
 });
 
@@ -98,4 +105,13 @@ test('release control workflow grants contents write for changelog and release b
   const workflow = await readFile(workflowPath, 'utf8');
 
   assert.match(workflow, /permissions:[\s\S]*contents:\s*write/i);
+});
+
+test('release control workflow fails pre-fanout with structured non-goal diagnostics', async () => {
+  const workflow = await readFile(workflowPath, 'utf8');
+
+  assert.match(workflow, /release-control-contract\.json/i);
+  assert.match(workflow, /c\.diagnostics/i);
+  assert.match(workflow, /diag\.code/i);
+  assert.match(workflow, /process\.exit\(1\)/i);
 });

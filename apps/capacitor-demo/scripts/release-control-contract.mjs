@@ -26,8 +26,10 @@ export const validateReleaseControlContract = ({
   releaseId,
   targets,
   targetModes = {},
+  changeIntent = '',
 } = {}) => {
   const errors = [];
+  const diagnostics = [];
   const normalizedReleaseId = String(releaseId ?? '').trim();
   if (!normalizedReleaseId) {
     errors.push('release_id is required.');
@@ -64,9 +66,23 @@ export const validateReleaseControlContract = ({
     }
   }
 
+  const normalizedChangeIntent = String(changeIntent ?? '').trim().toLowerCase();
+  const nonGoalSignals = [
+    { token: 'platform-rewrite', message: 'centralized release platform rewrite is out of scope for release-ops maturity v1.' },
+    { token: 'automate-human-narrative', message: 'automating human-authored release narrative ownership is out of scope.' },
+  ];
+  for (const signal of nonGoalSignals) {
+    if (normalizedChangeIntent.includes(signal.token)) {
+      const detail = `NON_GOAL_VIOLATION: ${signal.message}`;
+      errors.push(detail);
+      diagnostics.push({ code: 'NON_GOAL_VIOLATION', message: signal.message });
+    }
+  }
+
   return {
     ok: errors.length === 0,
     errors,
+    diagnostics,
     value: {
       release_id: normalizedReleaseId,
       targets: normalizedTargets,
@@ -101,6 +117,11 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
           options.targetModes[target] = mode ?? '';
         }
       }
+      i += 1;
+      continue;
+    }
+    if (arg === '--change-intent' && args[i + 1]) {
+      options.changeIntent = args[i + 1];
       i += 1;
     }
   }

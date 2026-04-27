@@ -40,6 +40,34 @@ Allowed modes:
 
 Any unsupported mode is rejected preflight by `release-control-contract.mjs` before lane execution.
 
+Deterministic gate before lane fanout:
+
+- `release-preflight-completeness.mjs` runs after dispatch validation and before Android/iOS/npm fanout.
+- Gate artifact: `apps/capacitor-demo/artifacts/release-control/<release_id>/preflight.json`
+- Fanout hard-blocks unless `preflight.ok === true`.
+
+## Preflight completeness contract
+
+Required run-level checks:
+
+- Narrative file exists: `docs/releases/notes/<release_id>.json`
+- Changelog anchor format is canonical: `CHANGELOG.md#r-...`
+
+Lane-scoped checks:
+
+- iOS selected: `docs/releases/notes/<release_id>-ios-derivative.md` is required.
+- npm selected: `npm_package_target` must be `capacitor|contract`.
+
+Reason-coded diagnostics emitted by preflight/retry paths:
+
+| Reason code | Meaning | Retryable | Operator action |
+|---|---|---|---|
+| `PATH_OR_CWD` | Repo root/path resolution failed. | No | Run from repo root or pass explicit `--repo-root`. |
+| `SERIALIZATION_ERROR` | JSON payload malformed/unsafe for aggregation. | No | Fix payload source (summary/facts) before rerun. |
+| `PACKAGE_TARGET_SCOPE` | npm package target out of allowed scope. | No | Use `npm_package_target=capacitor|contract`. |
+| `MISSING_NARRATIVE_OR_DERIVATIVE_NOTES` | Required narrative/derivative note file is missing. | No | Author required notes from templates, then rerun. |
+| `UNKNOWN` | Unclassified release failure class. | No | Inspect lane artifacts and rerun with corrected inputs. |
+
 ## iOS publish transaction (CI-owned)
 
 The iOS lane runs a deterministic transaction:
@@ -85,6 +113,29 @@ Files:
 - `npm-summary.json`
 - `summary.json`
 - `summary.md`
+
+Malformed lane summary payloads fail with `SERIALIZATION_ERROR` before final summary publication.
+
+## Closure bundle artifact
+
+When reconciliation passes, release-control emits one canonical closure bundle:
+
+- `apps/capacitor-demo/artifacts/release-control/<release_id>/closure-bundle.json`
+- `apps/capacitor-demo/artifacts/release-control/<release_id>/closure-bundle.md`
+- uploaded artifact: `release-closure-bundle-<release_id>`
+
+Mandatory closure fields:
+
+- `schema_version` (`release-closure-bundle/v1`)
+- `release_id`
+- `source_commit`
+- `run_url`
+- `reconciliation_verdict`
+- `published_artifacts[]`
+- `evidence_index_refs[]`
+- `generated_at`
+
+Closure links are reference-only; full evidence payload duplication is intentionally out of scope.
 
 ## GitHub release notes + changelog contract (v1)
 
@@ -132,7 +183,8 @@ Mandatory release communication lifecycle:
 4. Render canonical notes (`release:notes:generate`) from facts + required human narrative.
 5. Validate reconciliation (`validate:release:reconciliation`) against `CHANGELOG.md`, durable evidence policy, and stop-the-line rules.
 6. Persist evidence dossier (`release:evidence:persist`) and publish canonical release surface.
-6. Produce derivative iOS communication using `docs/releases/templates/ios-derivative-release-template.md` with explicit backlinks to canonical `legato` release + changelog anchor.
+7. Produce closure bundle (`release-closure-bundle.mjs`) with run URL, reconciliation verdict, and evidence index refs.
+8. Produce derivative iOS communication using `docs/releases/templates/ios-derivative-release-template.md` with explicit backlinks to canonical `legato` release + changelog anchor.
 
 Fail-closed behavior:
 
@@ -191,3 +243,8 @@ Record run URLs and artifact links in release closure notes.
 ## Scope boundary (non-goal)
 
 Broad `apps/capacitor-demo` typecheck cleanup is a non-goal for this change and stays out of scope unless a specific typecheck error directly blocks release validation or evidence capture.
+
+Additional explicit non-goals for release-ops maturity v1:
+
+- No centralized release platform rewrite/replacement.
+- No automation that replaces human-authored release narrative ownership.

@@ -7,6 +7,19 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 
 const toIsoTimestamp = () => new Date().toISOString();
 
+export const parseSummaryJsonPayload = (label, raw) => {
+  const value = String(raw ?? '').trim();
+  if (!value) {
+    return null;
+  }
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`SERIALIZATION_ERROR: unable to parse ${label} summary payload (${reason})`);
+  }
+};
+
 const resolveOverallStatus = (targets) => {
   const values = Object.values(targets);
   const selected = values.filter((entry) => entry.selected);

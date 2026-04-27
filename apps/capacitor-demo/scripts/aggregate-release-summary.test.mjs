@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { aggregateReleaseSummary } from './aggregate-release-summary.mjs';
+import { aggregateReleaseSummary, parseSummaryJsonPayload } from './aggregate-release-summary.mjs';
 
 test('aggregate release summary preserves mixed truthful platform outcomes', () => {
   const result = aggregateReleaseSummary({
@@ -144,4 +144,11 @@ test('aggregate summary preserves source commit for freshness audits', () => {
   });
 
   assert.equal(result.source_commit, '0123456789abcdef0123456789abcdef01234567');
+});
+
+test('aggregate summary parser maps malformed summary payloads to SERIALIZATION_ERROR', () => {
+  assert.throws(
+    () => parseSummaryJsonPayload('android', '{invalid-json'),
+    /SERIALIZATION_ERROR/i,
+  );
 });
