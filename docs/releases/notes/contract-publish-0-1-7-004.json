@@ -1,0 +1,16 @@
+{
+  "why_it_matters": "This release publishes the streaming semantics update for the shared contract package so downstream bindings and consumers rely on a clear, source-backed model for capabilities, duration, seekability, and media-type semantics.",
+  "user_impact": "Consumers of `@ddgutierrezc/legato-contract` now receive the updated streaming/non-streaming semantics used by current runtime parity and playback behavior across platforms.",
+  "upgrade_notes": "Upgrade to `@ddgutierrezc/legato-contract@0.1.7`. Downstream packages that depend on the contract should align to this version to get the clarified semantics model.",
+  "breaking_changes": "None.",
+  "affected_platforms": "npm",
+  "highlights": [
+    "Clarifies capability and seekability semantics by media type.",
+    "Aligns duration expectations for streaming-like media.",
+    "Provides the semantic contract used by the current Capacitor runtimes."
+  ],
+  "known_limitations": [
+    "This release defines semantics at the contract layer; platform/runtime release alignment follows separately.",
+    "DRM and advanced auth flows remain out of scope."
+  ]
+}
