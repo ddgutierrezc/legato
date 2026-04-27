@@ -1,8 +1,12 @@
 # legato
 
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/Hhnumyk2N)
+
 Legato provides a contract package and a Capacitor integration package for continuous audio playback flows.
 
 ![Texto alternativo](brand.png)
+
+
 
 ## Which package should I install?
 
