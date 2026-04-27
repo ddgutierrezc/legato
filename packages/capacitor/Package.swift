@@ -7,11 +7,11 @@ let legatoNativeArtifactContract = (
     packageName: "LegatoCore",
     product: "LegatoCore",
     versionPolicy: "exact",
-    version: "0.1.1"
+    version: "0.1.2"
 )
 // iOS adapter switch-over is active: remote Swift package + exact pinning.
 let legatoCorePackageDependency: Package.Dependency =
-    .package(url: "https://github.com/ddgutierrezc/legato-ios-core.git", exact: "0.1.1")
+    .package(url: "https://github.com/ddgutierrezc/legato-ios-core.git", exact: "0.1.2")
 // NATIVE_ARTIFACTS:END
 
 let package = Package(
