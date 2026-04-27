@@ -41,7 +41,7 @@ android {
 // NATIVE_ARTIFACTS:BEGIN
 ext.legatoNativeArtifactContract = [
     repositoryUrl: 'https://repo1.maven.org/maven2',
-    coordinate: 'dev.dgutierrez:legato-android-core:0.1.3'
+    coordinate: 'dev.dgutierrez:legato-android-core:0.1.4'
 ]
 // Adapter Android dependency must stay artifact-only.
 // Do not replace with project(':native:android:core').
