@@ -5,6 +5,10 @@ const KNOWN_REASON_CODES = new Set([
   'MISSING_RELEASE_PACKET',
   'MISSING_REQUIRED_INPUT',
   'MISSING_NARRATIVE_OR_DERIVATIVE_NOTES',
+  'IDENTITY_MISSING',
+  'IDENTITY_AMBIGUOUS',
+  'IDENTITY_LOOKUP_MISS',
+  'LEGACY_ALIAS_USED',
   'DERIVATIVE_BACKLINK_DRIFT',
   'CANONICAL_AUTHORITY_DRIFT',
   'MISSING_DURABLE_EVIDENCE',
@@ -21,6 +25,10 @@ const DEFAULT_RETRYABLE = {
   MISSING_RELEASE_PACKET: false,
   MISSING_REQUIRED_INPUT: false,
   MISSING_NARRATIVE_OR_DERIVATIVE_NOTES: false,
+  IDENTITY_MISSING: false,
+  IDENTITY_AMBIGUOUS: false,
+  IDENTITY_LOOKUP_MISS: false,
+  LEGACY_ALIAS_USED: true,
   DERIVATIVE_BACKLINK_DRIFT: false,
   CANONICAL_AUTHORITY_DRIFT: false,
   MISSING_DURABLE_EVIDENCE: false,
@@ -59,11 +67,19 @@ export const renderOperatorAction = (code, { releaseId = '', target = '' } = {})
     case 'PACKAGE_TARGET_SCOPE':
       return `Use npm package_target=capacitor|contract consistently for selected npm lane${target ? ` (${target})` : ''}.`;
     case 'MISSING_RELEASE_PACKET':
-      return 'Generate release-execution-packet/v1 before running preflight/publish/reconcile/closeout gates.';
+      return 'Generate release-execution-packet/v2 before running preflight/publish/reconcile/closeout gates.';
     case 'MISSING_REQUIRED_INPUT':
       return 'Populate all required release packet input references (narrative_ref, changelog_anchor, and lane-scoped refs) then rerun.';
     case 'MISSING_NARRATIVE_OR_DERIVATIVE_NOTES':
       return `Provide required narrative (${releaseNarrativePath}) and iOS derivative notes (docs/releases/notes/${normalizedReleaseId || '<release_id>'}-ios-derivative.md when iOS selected) before rerun.`;
+    case 'IDENTITY_MISSING':
+      return 'Populate release_identity (channel, version, package_target, release_key) in the release execution packet and rerun.';
+    case 'IDENTITY_AMBIGUOUS':
+      return 'Ensure release_identity maps to one canonical artifact tuple and remove conflicting identity values.';
+    case 'IDENTITY_LOOKUP_MISS':
+      return 'Create canonical identity-backed narrative/derivative files under docs/releases/notes and rerun preflight.';
+    case 'LEGACY_ALIAS_USED':
+      return 'Compatibility alias was used; keep run unblocked, but migrate notes to canonical identity-backed filenames.';
     case 'DERIVATIVE_BACKLINK_DRIFT':
       return 'Update iOS derivative notes to include canonical_legato_release and canonical_changelog_anchor backlinks.';
     case 'CANONICAL_AUTHORITY_DRIFT':

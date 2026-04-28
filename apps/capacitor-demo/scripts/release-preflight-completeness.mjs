@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { normalizeReleaseDiagnostic } from './release-ops-diagnostics.mjs';
 import { validatePreflightEnvelope, validateReleaseExecutionPacketEnvelope } from './release-control-summary-schema.mjs';
-import { resolveReleasePaths } from './release-paths.mjs';
+import { resolveInputRefWithCompatibility, resolveReleasePaths } from './release-paths.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const KNOWN_TARGETS = ['android', 'ios', 'npm'];
@@ -67,7 +67,7 @@ export const evaluateReleasePreflightCompleteness = async ({
       missing: [{
         field: 'release_packet',
         target: null,
-        expected: 'release-execution-packet/v1 JSON',
+        expected: 'release-execution-packet/v2 JSON',
         reason_code: 'MISSING_RELEASE_PACKET',
         message: `Missing required release packet: ${packetPath}`,
         refs: [packetPath],
@@ -92,7 +92,7 @@ export const evaluateReleasePreflightCompleteness = async ({
       missing: packetValidation.errors.map((error) => ({
         field: 'release_packet',
         target: null,
-        expected: 'valid release-execution-packet/v1 envelope',
+        expected: 'valid release-execution-packet/v2 envelope',
         reason_code: 'SERIALIZATION_ERROR',
         message: error,
         refs: [packetPath],
@@ -108,13 +108,42 @@ export const evaluateReleasePreflightCompleteness = async ({
     };
   }
 
+  const identity = packet?.release_identity ?? {};
+  const derivedReleaseKey = `${String(identity.channel ?? '').trim()}/v${String(identity.version ?? '').trim().replace(/^v/i, '')}/${String(identity.package_target ?? '').trim()}`;
+  if (String(identity.release_key ?? '').trim() !== derivedReleaseKey) {
+    return {
+      ok: false,
+      selected_targets: [],
+      missing: [{
+        field: 'release_identity.release_key',
+        target: null,
+        expected: derivedReleaseKey,
+        reason_code: 'IDENTITY_AMBIGUOUS',
+        message: `release_identity.release_key is ambiguous: expected ${derivedReleaseKey} but received ${String(identity.release_key ?? '').trim()}.`,
+        refs: [packetPath],
+        release_id: String(packet?.release_id ?? normalizedReleaseId),
+      }],
+      diagnostics: [normalizeReleaseDiagnostic({
+        code: 'IDENTITY_AMBIGUOUS',
+        scope: 'run',
+        message: `release_identity.release_key is ambiguous: expected ${derivedReleaseKey} but received ${String(identity.release_key ?? '').trim()}.`,
+        refs: [packetPath],
+        releaseId: String(packet?.release_id ?? normalizedReleaseId),
+      })],
+    };
+  }
+
   const effectiveReleaseId = String(packet.release_id ?? normalizedReleaseId).trim();
   const explicitTargets = parseTargets(selectedTargets).filter((target) => KNOWN_TARGETS.includes(target));
   const targets = [...new Set((explicitTargets.length > 0 ? explicitTargets : parseTargets(packet.selected_targets)).filter((target) => KNOWN_TARGETS.includes(target)))];
   const effectiveNpmPackageTarget = String(npmPackageTarget ?? '').trim() || String(packet?.inputs?.npm_package_target ?? '').trim();
-  const effectiveChangelogAnchor = String(changelogAnchor ?? '').trim() || String(packet?.inputs?.changelog_anchor ?? '').trim();
-  const narrativeRef = String(packet?.inputs?.narrative_ref ?? '').trim();
-  const derivativeRef = String(packet?.inputs?.ios_derivative_ref ?? '').trim();
+  const narrativeRef = String(packet?.inputs?.canonical_refs?.narrative_ref ?? '').trim();
+  const derivativeRef = String(packet?.inputs?.canonical_refs?.ios_derivative_ref ?? '').trim();
+  const canonicalChangelogAnchor = String(packet?.inputs?.canonical_refs?.changelog_anchor ?? '').trim();
+  const compatibilityNarrativeRef = String(packet?.inputs?.compatibility_refs?.narrative_ref ?? '').trim();
+  const compatibilityDerivativeRef = String(packet?.inputs?.compatibility_refs?.ios_derivative_ref ?? '').trim();
+  const compatibilityChangelogAnchor = String(packet?.inputs?.compatibility_refs?.changelog_anchor ?? '').trim();
+  const effectiveChangelogAnchor = String(changelogAnchor ?? '').trim() || canonicalChangelogAnchor || compatibilityChangelogAnchor;
 
   if (!narrativeRef) {
     addMissing(missing, diagnostics, {
@@ -152,20 +181,33 @@ export const evaluateReleasePreflightCompleteness = async ({
     });
   }
 
-  const narrativePath = resolve(root, narrativeRef || `docs/releases/notes/${effectiveReleaseId}.json`);
-  if (!await pathExists(narrativePath)) {
+  const narrativeResolution = await resolveInputRefWithCompatibility({
+    repoRoot: root,
+    canonicalRef: narrativeRef || `docs/releases/notes/${effectiveReleaseId}.json`,
+    compatibilityRef: compatibilityNarrativeRef || `docs/releases/notes/${effectiveReleaseId}.json`,
+  });
+  if (narrativeResolution.usedAlias) {
+    diagnostics.push(normalizeReleaseDiagnostic({
+      code: 'LEGACY_ALIAS_USED',
+      scope: 'run',
+      message: 'Using compatibility narrative path; migrate to canonical identity path.',
+      refs: [narrativeResolution.resolvedPath],
+      releaseId: effectiveReleaseId,
+    }));
+  }
+  if (narrativeResolution.missing) {
     addMissing(missing, diagnostics, {
       field: 'narrative_file',
       target: null,
       expected: narrativeRef || `docs/releases/notes/${effectiveReleaseId}.json`,
-      reason_code: 'MISSING_NARRATIVE_OR_DERIVATIVE_NOTES',
-      message: `Missing required narrative file: ${narrativeRef || `docs/releases/notes/${effectiveReleaseId}.json`}`,
-      refs: [narrativePath],
+      reason_code: 'IDENTITY_LOOKUP_MISS',
+      message: `Canonical identity lookup could not resolve narrative file: ${narrativeRef || `docs/releases/notes/${effectiveReleaseId}.json`}`,
+      refs: [narrativeResolution.resolvedPath],
       release_id: effectiveReleaseId,
     });
   }
 
-  if (!/^CHANGELOG\.md#r-/i.test(effectiveChangelogAnchor)) {
+  if (!/^CHANGELOG\.md#(?:r-|release-)/i.test(effectiveChangelogAnchor)) {
     addMissing(missing, diagnostics, {
       field: 'changelog_anchor',
       target: null,
@@ -189,17 +231,31 @@ export const evaluateReleasePreflightCompleteness = async ({
         release_id: effectiveReleaseId,
       });
     }
-    const derivativePath = resolve(root, derivativeRef || `docs/releases/notes/${effectiveReleaseId}-ios-derivative.md`);
-    if (!await pathExists(derivativePath)) {
+    const derivativeResolution = await resolveInputRefWithCompatibility({
+      repoRoot: root,
+      canonicalRef: derivativeRef || `docs/releases/notes/${effectiveReleaseId}-ios-derivative.md`,
+      compatibilityRef: compatibilityDerivativeRef || `docs/releases/notes/${effectiveReleaseId}-ios-derivative.md`,
+    });
+    if (derivativeResolution.usedAlias) {
+      diagnostics.push(normalizeReleaseDiagnostic({
+        code: 'LEGACY_ALIAS_USED',
+        scope: 'lane',
+        target: 'ios',
+        message: 'Using compatibility iOS derivative notes path; migrate to canonical identity path.',
+        refs: [derivativeResolution.resolvedPath],
+        releaseId: effectiveReleaseId,
+      }));
+    }
+    if (derivativeResolution.missing) {
       addMissing(missing, diagnostics, {
         field: 'ios_derivative_notes_file',
         target: 'ios',
         expected: derivativeRef || `docs/releases/notes/${effectiveReleaseId}-ios-derivative.md`,
-        reason_code: 'MISSING_NARRATIVE_OR_DERIVATIVE_NOTES',
-        message: `Missing required derivative iOS notes file: ${derivativeRef || `docs/releases/notes/${effectiveReleaseId}-ios-derivative.md`}`,
-        refs: [derivativePath],
-        release_id: effectiveReleaseId,
-      });
+        reason_code: 'IDENTITY_LOOKUP_MISS',
+        message: `Canonical identity lookup could not resolve derivative iOS notes file: ${derivativeRef || `docs/releases/notes/${effectiveReleaseId}-ios-derivative.md`}`,
+          refs: [derivativeResolution.resolvedPath],
+          release_id: effectiveReleaseId,
+        });
     }
   }
 

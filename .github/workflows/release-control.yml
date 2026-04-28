@@ -134,15 +134,14 @@ jobs:
           echo "ios_release_version=$ios_version" >> "$GITHUB_OUTPUT"
           echo "ios_release_tag=$ios_tag" >> "$GITHUB_OUTPUT"
 
-      - name: Materialize release execution packet
+      - name: Prepare release execution packet + preflight contract
         id: release-packet
         shell: bash
         run: |
           set -euo pipefail
-          packet_dir="./artifacts/release-control/${{ inputs.release_id }}"
-          packet_path="$packet_dir/release-execution-packet.json"
-          mkdir -p "$packet_dir"
-          node -e 'const fs=require("node:fs");const path=require("node:path");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));const packet={...(c.value?.packet ?? {}),phase:"preflight",repo_root:path.resolve(process.cwd(),"../..")};if(!packet.schema_version){throw new Error("missing release packet in contract output")}fs.writeFileSync(process.argv[1], `${JSON.stringify(packet,null,2)}\n`,"utf8");' "$packet_path"
+          packet_path="./artifacts/release-control/${{ inputs.release_id }}/release-execution-packet.json"
+          mkdir -p "./artifacts/release-control/${{ inputs.release_id }}"
+          npm run release:prepare -- --release-id "${{ inputs.release_id }}" --targets "${{ inputs.targets }}" --target-modes "${{ inputs.target_modes }}" --repo-root ../.. --npm-package-target "${{ inputs.npm_package_target }}" > "./artifacts/release-control/${{ inputs.release_id }}/prepare.json"
           echo "release_packet_path=$packet_path" >> "$GITHUB_OUTPUT"
 
       - name: Upload release execution packet

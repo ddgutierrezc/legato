@@ -24,6 +24,7 @@
     "test:release:confidence": "node --test ./scripts/release-paths.test.mjs ./scripts/release-control-contract.test.mjs ./scripts/release-control-workflow.test.mjs ./scripts/release-github-notes-workflow.test.mjs ./scripts/release-control-summary-schema.test.mjs ./scripts/release-ops-diagnostics.test.mjs ./scripts/release-preflight-completeness.test.mjs ./scripts/release-closure-bundle.test.mjs ./scripts/validate-release-closeout.test.mjs ./scripts/release-ios-execution.test.mjs ./scripts/release-npm-workflow.test.mjs ./scripts/aggregate-release-summary.test.mjs ./scripts/publication-pipeline-v2-docs.test.mjs ./scripts/release-communication-governance-v1-docs.test.mjs ./scripts/validate-mixed-canary-head.test.mjs ./scripts/release-changelog-facts.test.mjs ./scripts/release-changelog-update.test.mjs ./scripts/generate-github-release-notes.test.mjs ./scripts/validate-release-reconciliation.test.mjs ./scripts/persist-release-evidence-index.test.mjs ./scripts/release-notes-docs.test.mjs",
     "release:confidence:fresh-head:check": "node ./scripts/validate-mixed-canary-head.mjs --evidence-file ../../docs/releases/closure-evidence-canary-mixed-app-005.md",
     "release:control:contract:check": "node ./scripts/release-control-contract.mjs",
+    "release:prepare": "node ./scripts/release-prepare.mjs",
     "release:control:summary:aggregate": "node ./scripts/aggregate-release-summary.mjs",
     "release:changelog:facts": "node ./scripts/release-changelog-facts.mjs",
     "release:notes:generate": "node ./scripts/generate-github-release-notes.mjs",

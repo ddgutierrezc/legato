@@ -1,4 +1,5 @@
 const TARGETS = ['android', 'ios', 'npm'];
+import { buildCanonicalRefs } from './release-paths.mjs';
 
 // Governance v1 note:
 // - target/mode validation is a preflight contract gate for release-control.yml.
@@ -42,6 +43,9 @@ export const validateReleaseControlContract = ({
   phase = 'preflight',
   repoRoot = '.',
   npmPackageTarget = 'capacitor',
+  releaseChannel = 'stable',
+  releaseVersion = '0.1.1',
+  releaseKey = '',
 } = {}) => {
   const errors = [];
   const diagnostics = [];
@@ -94,6 +98,20 @@ export const validateReleaseControlContract = ({
     }
   }
 
+  const releaseIdentity = {
+    channel: String(releaseChannel ?? 'stable').trim() || 'stable',
+    version: String(releaseVersion ?? '0.1.1').trim() || '0.1.1',
+    package_target: String(npmPackageTarget ?? '').trim() || 'capacitor',
+  };
+  releaseIdentity.release_key = `${releaseIdentity.channel}/v${releaseIdentity.version.replace(/^v/i, '')}/${releaseIdentity.package_target}`;
+  const explicitReleaseKey = String(releaseKey ?? '').trim();
+  if (explicitReleaseKey && explicitReleaseKey !== releaseIdentity.release_key) {
+    const message = `IDENTITY_AMBIGUOUS: explicit release_key (${explicitReleaseKey}) conflicts with derived release_key (${releaseIdentity.release_key}).`;
+    errors.push(message);
+    diagnostics.push({ code: 'IDENTITY_AMBIGUOUS', message });
+  }
+  const refs = buildCanonicalRefs({ releaseIdentity, releaseId: normalizedReleaseId });
+
   return {
     ok: errors.length === 0,
     errors,
@@ -105,8 +123,9 @@ export const validateReleaseControlContract = ({
         normalizedTargets.map((target) => [target, String(targetModes[target] ?? '').trim()]),
       ),
       packet: {
-        schema_version: 'release-execution-packet/v1',
+        schema_version: 'release-execution-packet/v2',
         release_id: normalizedReleaseId,
+        release_identity: releaseIdentity,
         phase: normalizePhase(phase),
         repo_root: String(repoRoot ?? '.').trim() || '.',
         selected_targets: normalizedTargets,
@@ -114,9 +133,8 @@ export const validateReleaseControlContract = ({
           normalizedTargets.map((target) => [target, String(targetModes[target] ?? '').trim()]),
         ),
         inputs: {
-          narrative_ref: `docs/releases/notes/${normalizedReleaseId}.json`,
-          ios_derivative_ref: `docs/releases/notes/${normalizedReleaseId}-ios-derivative.md`,
-          changelog_anchor: `CHANGELOG.md#r-${normalizedReleaseId.toLowerCase()}`,
+          canonical_refs: refs.canonical,
+          compatibility_refs: refs.compatibility,
           npm_package_target: String(npmPackageTarget ?? '').trim() || 'capacitor',
         },
         artifacts: buildPacketRefs(normalizedReleaseId),
@@ -169,6 +187,11 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     }
     if (arg === '--npm-package-target' && args[i + 1]) {
       options.npmPackageTarget = args[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--release-key' && args[i + 1]) {
+      options.releaseKey = args[i + 1];
       i += 1;
     }
   }

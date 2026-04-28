@@ -19,16 +19,24 @@ const baseClosureBundle = {
 };
 
 const basePacket = {
-  schema_version: 'release-execution-packet/v1',
+  schema_version: 'release-execution-packet/v2',
   release_id: 'R-2026.04.28.1',
+  release_identity: { channel: 'stable', version: '0.1.1', package_target: 'contract', release_key: 'stable/v0.1.1/contract' },
   phase: 'closeout',
   repo_root: '/tmp/legato',
   selected_targets: ['android'],
   target_modes: { android: 'publish' },
   inputs: {
-    narrative_ref: 'docs/releases/notes/R-2026.04.28.1.json',
-    ios_derivative_ref: 'docs/releases/notes/R-2026.04.28.1-ios-derivative.md',
-    changelog_anchor: 'CHANGELOG.md#r-r-202604281',
+    canonical_refs: {
+      narrative_ref: 'docs/releases/notes/stable-v0.1.1-contract.json',
+      ios_derivative_ref: 'docs/releases/notes/stable-v0.1.1-contract-ios-derivative.md',
+      changelog_anchor: 'CHANGELOG.md#release-stable-v0.1.1-contract',
+    },
+    compatibility_refs: {
+      narrative_ref: 'docs/releases/notes/R-2026.04.28.1.json',
+      ios_derivative_ref: 'docs/releases/notes/R-2026.04.28.1-ios-derivative.md',
+      changelog_anchor: 'CHANGELOG.md#r-r-202604281',
+    },
     npm_package_target: 'contract',
   },
   artifacts: {
