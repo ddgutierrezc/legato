@@ -1,0 +1,16 @@
+{
+  "why_it_matters": "Legato 1.0.0 marks the first stable, Capacitor-first release of the project with published npm/Maven/iOS artifacts, validated consumer flows, explicit API docs, and governed release communication.",
+  "user_impact": "Consumers and maintainers now have a stable 1.0.0 baseline for Capacitor integration with clear support boundaries and durable release history.",
+  "upgrade_notes": "Use @ddgutierrezc/legato-contract@1.0.0 and @ddgutierrezc/legato-capacitor@1.0.0. Refresh native hosts so Android uses legato-android-core:1.0.0 and iOS uses LegatoCore v1.0.0.",
+  "breaking_changes": "None beyond the explicit 1.0.0 support boundary: non-Capacitor adapters, advanced DRM/auth refresh, and deep post-lifecycle restore remain out of scope for this release.",
+  "affected_platforms": "android, ios, npm, github-release",
+  "highlights": [
+    "First stable Capacitor-first 1.0.0 release.",
+    "Published and validated artifacts across npm, Maven Central, and iOS distribution.",
+    "Durable changelog and release communication governance in place."
+  ],
+  "known_limitations": [
+    "Flutter and React Native remain future milestones.",
+    "Advanced DRM, token refresh, process-death restore, and OEM-wide deep hardening remain post-1.0 work."
+  ]
+}

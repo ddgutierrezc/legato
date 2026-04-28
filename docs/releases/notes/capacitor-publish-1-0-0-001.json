@@ -1,0 +1,16 @@
+{
+  "why_it_matters": "This 1.0.0 Capacitor package release is the first stable Capacitor-first product cut of Legato, aligning contract, Android core, iOS distribution, runtime parity, lifecycle, authenticated media, and streaming semantics.",
+  "user_impact": "Capacitor consumers can adopt a stable 1.0.0 package line with explicit scope, durable release communication, and verified Android/iOS behavior.",
+  "upgrade_notes": "Upgrade to @ddgutierrezc/legato-capacitor@1.0.0 and pair it with @ddgutierrezc/legato-contract@1.0.0. Regenerate/sync native hosts to pick up the latest iOS and Android distribution references.",
+  "breaking_changes": "No new breaking changes relative to the final 0.1.x line; 1.0.0 formalizes the supported Capacitor-first scope and its documented limits.",
+  "affected_platforms": "android, ios, npm",
+  "highlights": [
+    "Stable Capacitor-first 1.0.0 release line.",
+    "Android and iOS runtime/lifecycle/parity/authenticated-media/streaming semantics all aligned to the published package.",
+    "Release governance, changelog, and GitHub release communication are now part of the supported process."
+  ],
+  "known_limitations": [
+    "Flutter and React Native remain post-1.0 roadmap items.",
+    "Advanced DRM/token refresh and deep process-death restore remain post-1.0 work."
+  ]
+}

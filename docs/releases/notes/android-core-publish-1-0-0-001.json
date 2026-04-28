@@ -1,0 +1,15 @@
+{
+  "why_it_matters": "This 1.0.0 Android core release captures the production-ready Capacitor-first runtime, lifecycle, parity, and authenticated media improvements in the native artifact consumed by the Capacitor package.",
+  "user_impact": "Android consumers benefit from the hardened playback, lifecycle, parity, and request-header behavior via the published native core artifact.",
+  "upgrade_notes": "This release is intended to be consumed through @ddgutierrezc/legato-capacitor@1.0.0 rather than directly by most app developers.",
+  "breaking_changes": "None intended for consumers on the final 0.1.x line; this is the formal 1.0.0 stabilization of the Android native core.",
+  "affected_platforms": "android, maven",
+  "highlights": [
+    "Production-ready Android runtime playback and lifecycle baseline.",
+    "Cross-platform parity-aligned observable behavior.",
+    "Authenticated media request support for static per-track headers."
+  ],
+  "known_limitations": [
+    "Process-death restore and broad OEM matrix hardening remain post-1.0 follow-up work."
+  ]
+}

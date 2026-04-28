@@ -1,0 +1,16 @@
+{
+  "why_it_matters": "This is the first stable 1.0.0 release of the Legato shared contract package for Capacitor-first consumers.",
+  "user_impact": "Consumers now have a stable 1.0.0 contract surface covering events, capabilities, streaming semantics, and authenticated media request fields used by the current platform runtimes.",
+  "upgrade_notes": "Upgrade to @ddgutierrezc/legato-contract@1.0.0. Downstream packages should align to the 1.0.0 line.",
+  "breaking_changes": "None relative to the final 0.1.x line; 1.0.0 formalizes the existing stable contract.",
+  "affected_platforms": "npm",
+  "highlights": [
+    "Stabilizes the public contract surface for Capacitor-first 1.0.0.",
+    "Includes authenticated media request and streaming semantics support in the contract model.",
+    "Aligns with the current runtime parity and lifecycle milestones."
+  ],
+  "known_limitations": [
+    "Multi-framework adapters remain post-1.0 work.",
+    "Advanced DRM and token-refresh orchestration remain out of scope."
+  ]
+}
