@@ -24,7 +24,8 @@ TestResults.xml
 # Node / web build
 node_modules/
 dist/
-.atl/
+.atl/*
+!.atl/skill-registry.md
 
 # Android / Gradle build outputs
 .gradle/

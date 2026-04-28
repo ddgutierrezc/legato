@@ -64,6 +64,7 @@ jobs:
       npm_mode: ${{ steps.normalize.outputs.npm_mode }}
       ios_release_tag: ${{ steps.extract-ios-contract.outputs.ios_release_tag }}
       ios_release_version: ${{ steps.extract-ios-contract.outputs.ios_release_version }}
+      release_packet_path: ${{ steps.release-packet.outputs.release_packet_path }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -133,6 +134,17 @@ jobs:
           echo "ios_release_version=$ios_version" >> "$GITHUB_OUTPUT"
           echo "ios_release_tag=$ios_tag" >> "$GITHUB_OUTPUT"
 
+      - name: Materialize release execution packet
+        id: release-packet
+        shell: bash
+        run: |
+          set -euo pipefail
+          packet_dir="./artifacts/release-control/${{ inputs.release_id }}"
+          packet_path="$packet_dir/release-execution-packet.json"
+          mkdir -p "$packet_dir"
+          node -e 'const fs=require("node:fs");const path=require("node:path");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));const packet={...(c.value?.packet ?? {}),phase:"preflight",repo_root:path.resolve(process.cwd(),"../..")};if(!packet.schema_version){throw new Error("missing release packet in contract output")}fs.writeFileSync(process.argv[1], `${JSON.stringify(packet,null,2)}\n`,"utf8");' "$packet_path"
+          echo "release_packet_path=$packet_path" >> "$GITHUB_OUTPUT"
+
   preflight-completeness:
     needs: validate-dispatch
     runs-on: ubuntu-latest
@@ -165,10 +177,7 @@ jobs:
           set +e
           node ./scripts/release-preflight-completeness.mjs \
             --repo-root ../.. \
-            --release-id "${{ inputs.release_id }}" \
-            --selected-targets '${{ needs.validate-dispatch.outputs.targets_json }}' \
-            --npm-package-target "${{ inputs.npm_package_target }}" \
-            --changelog-anchor "$changelog_anchor" \
+            --release-packet "${{ needs.validate-dispatch.outputs.release_packet_path }}" \
             --output "./artifacts/release-control/${{ inputs.release_id }}/preflight.json"
           code=$?
           set -e
@@ -274,6 +283,9 @@ jobs:
       release_notes_markdown: ${{ steps.release-communications.outputs.release_notes_markdown }}
       release_tag: ${{ steps.release-communications.outputs.release_tag }}
       release_title: ${{ steps.release-communications.outputs.release_title }}
+      release_packet_schema: ${{ steps.release-communications.outputs.release_packet_schema }}
+      reconciliation_ok: ${{ steps.release-communications.outputs.reconciliation_ok }}
+      fresh_head_closeout_ok: ${{ steps.release-communications.outputs.fresh_head_closeout_ok }}
     defaults:
       run:
         working-directory: apps/capacitor-demo
@@ -417,6 +429,7 @@ jobs:
 
           node ./scripts/release-changelog-facts.mjs \
             --release-id "$RELEASE_ID" \
+            --release-packet "${{ needs.validate-dispatch.outputs.release_packet_path }}" \
             --summary "./artifacts/release-control/${RELEASE_ID}/summary.json" \
             --output "./artifacts/release-control/${RELEASE_ID}/release-facts.json" >/dev/null
 
@@ -452,8 +465,23 @@ jobs:
             --summary "./artifacts/release-control/${RELEASE_ID}/summary.json" \
             --facts "./artifacts/release-control/${RELEASE_ID}/release-facts.json" \
             --reconciliation "./artifacts/release-control/${RELEASE_ID}/reconciliation-report.json" \
+            --release-packet "${{ needs.validate-dispatch.outputs.release_packet_path }}" \
             --evidence-index-ref "docs/releases/evidence-index/${RELEASE_ID}.json" \
+            --expected-head "${{ github.sha }}" \
             --output-dir "./artifacts/release-control/${RELEASE_ID}" >/dev/null
+
+          node ./scripts/validate-release-closeout.mjs \
+            --closure-bundle "./artifacts/release-control/${RELEASE_ID}/closure-bundle.json" \
+            --release-packet "${{ needs.validate-dispatch.outputs.release_packet_path }}" \
+            --expected-head "${{ github.sha }}" \
+            --output "./artifacts/release-control/${RELEASE_ID}/fresh-head-closeout.json" >/dev/null
+
+          reconciliation_ok=$(node -e 'const fs=require("node:fs");const r=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(Boolean(r.ok)));' "./artifacts/release-control/${RELEASE_ID}/reconciliation-report.json")
+          closeout_ok=$(node -e 'const fs=require("node:fs");const r=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(r.status==="PASS"));' "./artifacts/release-control/${RELEASE_ID}/fresh-head-closeout.json")
+          packet_schema=$(node -e 'const fs=require("node:fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(p.schema_version ?? ""));' "${{ needs.validate-dispatch.outputs.release_packet_path }}")
+          echo "release_packet_schema=$packet_schema" >> "$GITHUB_OUTPUT"
+          echo "reconciliation_ok=$reconciliation_ok" >> "$GITHUB_OUTPUT"
+          echo "fresh_head_closeout_ok=$closeout_ok" >> "$GITHUB_OUTPUT"
 
           {
             echo 'release_notes_markdown<<EOF'
@@ -468,6 +496,7 @@ jobs:
         with:
           name: release-notes-${{ inputs.release_id }}
           path: |
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/release-execution-packet.json
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/release-facts.json
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/github-release.json
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/github-release.md
@@ -480,6 +509,7 @@ jobs:
           path: |
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/closure-bundle.json
             apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/closure-bundle.md
+            apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/fresh-head-closeout.json
 
       - name: Upload derivative iOS release note input
         if: ${{ needs.validate-dispatch.outputs.ios_selected == 'true' }}
@@ -497,3 +527,6 @@ jobs:
       release_tag: ${{ needs.aggregate-release-summary.outputs.release_tag }}
       release_title: ${{ needs.aggregate-release-summary.outputs.release_title }}
       release_notes_markdown: ${{ needs.aggregate-release-summary.outputs.release_notes_markdown }}
+      release_packet_schema: ${{ needs.aggregate-release-summary.outputs.release_packet_schema }}
+      reconciliation_ok: ${{ needs.aggregate-release-summary.outputs.reconciliation_ok }}
+      fresh_head_closeout_ok: ${{ needs.aggregate-release-summary.outputs.fresh_head_closeout_ok }}

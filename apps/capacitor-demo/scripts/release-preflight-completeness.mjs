@@ -1,9 +1,10 @@
-import { access, writeFile, mkdir } from 'node:fs/promises';
+import { access, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { normalizeReleaseDiagnostic } from './release-ops-diagnostics.mjs';
-import { validatePreflightEnvelope } from './release-control-summary-schema.mjs';
+import { validatePreflightEnvelope, validateReleaseExecutionPacketEnvelope } from './release-control-summary-schema.mjs';
+import { resolveReleasePaths } from './release-paths.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const KNOWN_TARGETS = ['android', 'ios', 'npm'];
@@ -45,6 +46,7 @@ const addMissing = (missing, diagnostics, entry) => {
 
 export const evaluateReleasePreflightCompleteness = async ({
   repoRoot,
+  releasePacketPath,
   releaseId,
   selectedTargets,
   npmPackageTarget = '',
@@ -52,62 +54,157 @@ export const evaluateReleasePreflightCompleteness = async ({
 } = {}) => {
   const root = resolve(repoRoot ?? resolve(scriptDir, '../..'));
   const normalizedReleaseId = String(releaseId ?? '').trim();
-  const targets = [...new Set(parseTargets(selectedTargets).filter((target) => KNOWN_TARGETS.includes(target)))];
+  const resolvedPaths = resolveReleasePaths({ repoRoot: root, releaseId: normalizedReleaseId });
+  const packetPath = resolve(releasePacketPath ?? resolvedPaths.packetPath);
   const missing = [];
   const diagnostics = [];
 
-  if (!normalizedReleaseId) {
+  const packetExists = await pathExists(packetPath);
+  if (!packetExists) {
+    return {
+      ok: false,
+      selected_targets: [],
+      missing: [{
+        field: 'release_packet',
+        target: null,
+        expected: 'release-execution-packet/v1 JSON',
+        reason_code: 'MISSING_RELEASE_PACKET',
+        message: `Missing required release packet: ${packetPath}`,
+        refs: [packetPath],
+        release_id: normalizedReleaseId,
+      }],
+      diagnostics: [normalizeReleaseDiagnostic({
+        code: 'MISSING_RELEASE_PACKET',
+        scope: 'run',
+        message: `Missing required release packet: ${packetPath}`,
+        refs: [packetPath],
+        releaseId: normalizedReleaseId,
+      })],
+    };
+  }
+
+  const packet = JSON.parse(await readFile(packetPath, 'utf8'));
+  const packetValidation = validateReleaseExecutionPacketEnvelope(packet);
+  if (!packetValidation.ok) {
+    return {
+      ok: false,
+      selected_targets: [],
+      missing: packetValidation.errors.map((error) => ({
+        field: 'release_packet',
+        target: null,
+        expected: 'valid release-execution-packet/v1 envelope',
+        reason_code: 'SERIALIZATION_ERROR',
+        message: error,
+        refs: [packetPath],
+        release_id: String(packet?.release_id ?? normalizedReleaseId),
+      })),
+      diagnostics: [normalizeReleaseDiagnostic({
+        code: 'SERIALIZATION_ERROR',
+        scope: 'run',
+        message: `Release packet validation failed: ${packetValidation.errors.join('; ')}`,
+        refs: [packetPath],
+        releaseId: String(packet?.release_id ?? normalizedReleaseId),
+      })],
+    };
+  }
+
+  const effectiveReleaseId = String(packet.release_id ?? normalizedReleaseId).trim();
+  const explicitTargets = parseTargets(selectedTargets).filter((target) => KNOWN_TARGETS.includes(target));
+  const targets = [...new Set((explicitTargets.length > 0 ? explicitTargets : parseTargets(packet.selected_targets)).filter((target) => KNOWN_TARGETS.includes(target)))];
+  const effectiveNpmPackageTarget = String(npmPackageTarget ?? '').trim() || String(packet?.inputs?.npm_package_target ?? '').trim();
+  const effectiveChangelogAnchor = String(changelogAnchor ?? '').trim() || String(packet?.inputs?.changelog_anchor ?? '').trim();
+  const narrativeRef = String(packet?.inputs?.narrative_ref ?? '').trim();
+  const derivativeRef = String(packet?.inputs?.ios_derivative_ref ?? '').trim();
+
+  if (!narrativeRef) {
+    addMissing(missing, diagnostics, {
+      field: 'packet.inputs.narrative_ref',
+      target: null,
+      expected: 'docs/releases/notes/<release_id>.json',
+      reason_code: 'MISSING_REQUIRED_INPUT',
+      message: 'release packet is missing required input narrative_ref.',
+      refs: [packetPath],
+      release_id: effectiveReleaseId,
+    });
+  }
+
+  if (!effectiveChangelogAnchor) {
+    addMissing(missing, diagnostics, {
+      field: 'packet.inputs.changelog_anchor',
+      target: null,
+      expected: 'CHANGELOG.md#r-<normalized-release-id>',
+      reason_code: 'MISSING_REQUIRED_INPUT',
+      message: 'release packet is missing required input changelog_anchor.',
+      refs: [packetPath],
+      release_id: effectiveReleaseId,
+    });
+  }
+
+  if (!effectiveReleaseId) {
     addMissing(missing, diagnostics, {
       field: 'release_id',
       target: null,
       expected: 'non-empty release id',
-      reason_code: 'SERIALIZATION_ERROR',
+      reason_code: 'MISSING_REQUIRED_INPUT',
       message: 'release_id is required for preflight completeness checks.',
-      release_id: normalizedReleaseId,
+      refs: [packetPath],
+      release_id: effectiveReleaseId,
     });
   }
 
-  const narrativePath = resolve(root, `docs/releases/notes/${normalizedReleaseId}.json`);
+  const narrativePath = resolve(root, narrativeRef || `docs/releases/notes/${effectiveReleaseId}.json`);
   if (!await pathExists(narrativePath)) {
     addMissing(missing, diagnostics, {
       field: 'narrative_file',
       target: null,
-      expected: `docs/releases/notes/${normalizedReleaseId}.json`,
+      expected: narrativeRef || `docs/releases/notes/${effectiveReleaseId}.json`,
       reason_code: 'MISSING_NARRATIVE_OR_DERIVATIVE_NOTES',
-      message: `Missing required narrative file: docs/releases/notes/${normalizedReleaseId}.json`,
+      message: `Missing required narrative file: ${narrativeRef || `docs/releases/notes/${effectiveReleaseId}.json`}`,
       refs: [narrativePath],
-      release_id: normalizedReleaseId,
+      release_id: effectiveReleaseId,
     });
   }
 
-  if (!/^CHANGELOG\.md#r-/i.test(String(changelogAnchor ?? '').trim())) {
+  if (!/^CHANGELOG\.md#r-/i.test(effectiveChangelogAnchor)) {
     addMissing(missing, diagnostics, {
       field: 'changelog_anchor',
       target: null,
       expected: 'CHANGELOG.md#r-<normalized-release-id>',
-      reason_code: 'SERIALIZATION_ERROR',
+      reason_code: 'MISSING_REQUIRED_INPUT',
       message: 'changelog_anchor must use CHANGELOG.md#r-... format.',
-      release_id: normalizedReleaseId,
+      refs: [packetPath],
+      release_id: effectiveReleaseId,
     });
   }
 
   if (targets.includes('ios')) {
-    const derivativePath = resolve(root, `docs/releases/notes/${normalizedReleaseId}-ios-derivative.md`);
+    if (!derivativeRef) {
+      addMissing(missing, diagnostics, {
+        field: 'packet.inputs.ios_derivative_ref',
+        target: 'ios',
+        expected: `docs/releases/notes/${effectiveReleaseId}-ios-derivative.md`,
+        reason_code: 'MISSING_REQUIRED_INPUT',
+        message: 'release packet is missing required input ios_derivative_ref for ios lane.',
+        refs: [packetPath],
+        release_id: effectiveReleaseId,
+      });
+    }
+    const derivativePath = resolve(root, derivativeRef || `docs/releases/notes/${effectiveReleaseId}-ios-derivative.md`);
     if (!await pathExists(derivativePath)) {
       addMissing(missing, diagnostics, {
         field: 'ios_derivative_notes_file',
         target: 'ios',
-        expected: `docs/releases/notes/${normalizedReleaseId}-ios-derivative.md`,
+        expected: derivativeRef || `docs/releases/notes/${effectiveReleaseId}-ios-derivative.md`,
         reason_code: 'MISSING_NARRATIVE_OR_DERIVATIVE_NOTES',
-        message: `Missing required derivative iOS notes file: docs/releases/notes/${normalizedReleaseId}-ios-derivative.md`,
+        message: `Missing required derivative iOS notes file: ${derivativeRef || `docs/releases/notes/${effectiveReleaseId}-ios-derivative.md`}`,
         refs: [derivativePath],
-        release_id: normalizedReleaseId,
+        release_id: effectiveReleaseId,
       });
     }
   }
 
   if (targets.includes('npm')) {
-    const normalizedPackageTarget = String(npmPackageTarget ?? '').trim();
+    const normalizedPackageTarget = effectiveNpmPackageTarget;
     if (!['capacitor', 'contract'].includes(normalizedPackageTarget)) {
       addMissing(missing, diagnostics, {
         field: 'npm_package_target',
@@ -115,7 +212,7 @@ export const evaluateReleasePreflightCompleteness = async ({
         expected: 'capacitor|contract',
         reason_code: 'PACKAGE_TARGET_SCOPE',
         message: 'npm_package_target must be capacitor or contract when npm lane is selected.',
-        release_id: normalizedReleaseId,
+        release_id: effectiveReleaseId,
       });
     }
   }
@@ -139,7 +236,7 @@ export const evaluateReleasePreflightCompleteness = async ({
           code: 'SERIALIZATION_ERROR',
           scope: 'run',
           message: `Preflight envelope validation failed: ${validation.errors.join('; ')}`,
-          releaseId: normalizedReleaseId,
+          releaseId: effectiveReleaseId,
         }),
       ],
     };
@@ -160,6 +257,11 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     }
     if (arg === '--release-id' && args[i + 1]) {
       options.releaseId = args[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--release-packet' && args[i + 1]) {
+      options.releasePacketPath = args[i + 1];
       i += 1;
       continue;
     }

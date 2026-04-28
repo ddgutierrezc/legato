@@ -56,6 +56,11 @@ test('release control contract normalizes a valid cross-platform request with on
   assert.equal(result.value.target_modes.android, 'publish');
   assert.equal(result.value.target_modes.ios, 'publish');
   assert.equal(result.value.target_modes.npm, 'protected-publish');
+  assert.equal(result.value.packet.schema_version, 'release-execution-packet/v1');
+  assert.equal(result.value.packet.phase, 'preflight');
+  assert.equal(result.value.packet.release_id, 'R-2026.04.24.1');
+  assert.deepEqual(result.value.packet.selected_targets, ['android', 'ios', 'npm']);
+  assert.equal(result.value.packet.inputs.narrative_ref, 'docs/releases/notes/R-2026.04.24.1.json');
 });
 
 test('release control contract rejects unsupported iOS mode and reports allowed values', () => {

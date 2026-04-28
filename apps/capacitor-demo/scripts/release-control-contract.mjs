@@ -12,6 +12,18 @@ const ALLOWED_MODES = {
   npm: new Set(['readiness', 'release-candidate', 'protected-publish']),
 };
 
+const normalizePhase = (phase) => {
+  const value = String(phase ?? '').trim().toLowerCase();
+  return ['preflight', 'publish', 'reconcile', 'closeout'].includes(value) ? value : 'preflight';
+};
+
+const buildPacketRefs = (releaseId) => ({
+  summary_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/summary.json`,
+  facts_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/release-facts.json`,
+  reconciliation_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/reconciliation-report.json`,
+  closure_bundle_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/closure-bundle.json`,
+});
+
 const parseTargets = (targets) => {
   if (Array.isArray(targets)) {
     return targets.map((entry) => String(entry).trim().toLowerCase()).filter(Boolean);
@@ -27,6 +39,9 @@ export const validateReleaseControlContract = ({
   targets,
   targetModes = {},
   changeIntent = '',
+  phase = 'preflight',
+  repoRoot = '.',
+  npmPackageTarget = 'capacitor',
 } = {}) => {
   const errors = [];
   const diagnostics = [];
@@ -89,6 +104,23 @@ export const validateReleaseControlContract = ({
       target_modes: Object.fromEntries(
         normalizedTargets.map((target) => [target, String(targetModes[target] ?? '').trim()]),
       ),
+      packet: {
+        schema_version: 'release-execution-packet/v1',
+        release_id: normalizedReleaseId,
+        phase: normalizePhase(phase),
+        repo_root: String(repoRoot ?? '.').trim() || '.',
+        selected_targets: normalizedTargets,
+        target_modes: Object.fromEntries(
+          normalizedTargets.map((target) => [target, String(targetModes[target] ?? '').trim()]),
+        ),
+        inputs: {
+          narrative_ref: `docs/releases/notes/${normalizedReleaseId}.json`,
+          ios_derivative_ref: `docs/releases/notes/${normalizedReleaseId}-ios-derivative.md`,
+          changelog_anchor: `CHANGELOG.md#r-${normalizedReleaseId.toLowerCase()}`,
+          npm_package_target: String(npmPackageTarget ?? '').trim() || 'capacitor',
+        },
+        artifacts: buildPacketRefs(normalizedReleaseId),
+      },
     },
   };
 };
@@ -122,6 +154,21 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     }
     if (arg === '--change-intent' && args[i + 1]) {
       options.changeIntent = args[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--phase' && args[i + 1]) {
+      options.phase = args[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--repo-root' && args[i + 1]) {
+      options.repoRoot = args[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--npm-package-target' && args[i + 1]) {
+      options.npmPackageTarget = args[i + 1];
       i += 1;
     }
   }

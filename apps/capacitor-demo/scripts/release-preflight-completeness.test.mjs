@@ -17,6 +17,27 @@ const setupRepo = async ({ releaseId, withNarrative = true, withDerivative = fal
   if (withDerivative) {
     await writeFile(resolve(root, `docs/releases/notes/${releaseId}-ios-derivative.md`), 'Derivative notes\n');
   }
+  await mkdir(resolve(root, `apps/capacitor-demo/artifacts/release-control/${releaseId}`), { recursive: true });
+  await writeFile(resolve(root, `apps/capacitor-demo/artifacts/release-control/${releaseId}/release-execution-packet.json`), JSON.stringify({
+    schema_version: 'release-execution-packet/v1',
+    release_id: releaseId,
+    phase: 'preflight',
+    repo_root: root,
+    selected_targets: ['ios', 'npm'],
+    target_modes: { ios: 'publish', npm: 'protected-publish' },
+    inputs: {
+      narrative_ref: `docs/releases/notes/${releaseId}.json`,
+      ios_derivative_ref: `docs/releases/notes/${releaseId}-ios-derivative.md`,
+      changelog_anchor: `CHANGELOG.md#r-${releaseId.toLowerCase()}`,
+      npm_package_target: 'contract',
+    },
+    artifacts: {
+      summary_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/summary.json`,
+      facts_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/release-facts.json`,
+      reconciliation_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/reconciliation-report.json`,
+      closure_bundle_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/closure-bundle.json`,
+    },
+  }, null, 2));
   return root;
 };
 
@@ -26,15 +47,25 @@ test('release preflight passes with lane-scoped requirements for ios+npm selecti
 
   const result = await evaluateReleasePreflightCompleteness({
     repoRoot,
-    releaseId,
-    selectedTargets: ['ios', 'npm'],
-    npmPackageTarget: 'contract',
-    changelogAnchor: 'CHANGELOG.md#r-r-202604271',
+    releasePacketPath: resolve(repoRoot, `apps/capacitor-demo/artifacts/release-control/${releaseId}/release-execution-packet.json`),
   });
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.missing, []);
   assert.deepEqual(result.diagnostics, []);
+});
+
+test('release preflight fails closed when release packet is missing', async () => {
+  const releaseId = 'R-2026.04.27.9';
+  const repoRoot = await setupRepo({ releaseId, withNarrative: true, withDerivative: true });
+
+  const result = await evaluateReleasePreflightCompleteness({
+    repoRoot,
+    releasePacketPath: resolve(repoRoot, `apps/capacitor-demo/artifacts/release-control/${releaseId}/missing-packet.json`),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.diagnostics[0].code, 'MISSING_RELEASE_PACKET');
 });
 
 test('release preflight fails with missing narrative/derivative notes reason code', async () => {

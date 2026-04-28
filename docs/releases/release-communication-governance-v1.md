@@ -22,6 +22,14 @@ If iOS lane is selected, derivative communication in `legato-ios-core` MUST incl
 2. canonical changelog anchor (`CHANGELOG.md#...`)
 3. iOS distribution release tag URL in `legato-ios-core`
 
+## Mandatory protocol order
+
+Release execution uses `release-execution-packet/v1` and enforces ordered phases:
+
+`preflight -> publish -> reconcile -> closeout`
+
+Any skip/reorder is a `STEP_ORDER_VIOLATION` and blocks release progression.
+
 ## Source references (facts)
 
 - `.github/workflows/release-control.yml`

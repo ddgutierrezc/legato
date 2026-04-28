@@ -35,3 +35,8 @@ This document defines contract requirements for a **future** release skill. The 
 - `BROKEN_DERIVATIVE_BACKLINK`
 - `LANE_STATUS_CONTRADICTION`
 - `RECONCILIATION_VERSION_DRIFT`
+
+## Explicit non-goals
+
+- no platform rewrite of the existing release control workflows
+- no tooling-authored replacement for human-authored narrative content

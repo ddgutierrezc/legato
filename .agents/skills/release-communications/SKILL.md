@@ -2,7 +2,7 @@
 name: release-communications
 description: >
   Execute professional cross-repo release operations and release communication for Legato.
-  Trigger: When publishing Android/npm/iOS artifacts, creating GitHub Releases, updating CHANGELOG.md, reconciling release evidence, or documenting what changed in a release.
+  Trigger: MUST load this skill before any Android/npm/iOS artifact publish, GitHub Release create/edit, CHANGELOG.md update, release-note generation, release evidence reconciliation, derivative iOS release note handling, or any request to explain/document what changed in a release.
 license: MIT
 metadata:
   author: ddgutierrezc
@@ -59,6 +59,10 @@ If both repos mention the same iOS release:
 
 ## When to Use
 
+- ALWAYS before any real release or deploy operation in Legato.
+- ALWAYS before creating or editing a GitHub Release in `legato` or `legato-ios-core`.
+- ALWAYS before updating `CHANGELOG.md` as part of a release.
+- ALWAYS before dispatching release workflows when the task includes publish/deploy/release-note expectations.
 - When publishing `@ddgutierrezc/legato-contract`
 - When publishing `@ddgutierrezc/legato-capacitor`
 - When publishing `dev.dgutierrez:legato-android-core`
@@ -93,6 +97,32 @@ Always separate:
 - rollout notes
 
 Never invent facts in narrative.
+
+### 1b. Mandatory load rule
+
+If the user request includes any of these concepts, this skill MUST be loaded before continuing:
+- release
+- publish
+- deploy
+- changelog
+- GitHub Release
+- what changed in this release
+- Android publish
+- npm publish
+- iOS distribution release
+- canonical / derivative release notes
+
+Do not proceed with artifact publication or release-note generation without this skill active.
+
+### 1c. Mandatory packet + ordered protocol rule
+
+This skill requires `release-execution-packet/v1` as the execution contract.
+
+Required step order (no skips, no reorder):
+
+`preflight -> publish -> reconcile -> closeout`
+
+If packet is missing or phase/order is inconsistent, stop with reason code guidance and do not continue.
 
 ---
 

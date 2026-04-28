@@ -45,6 +45,27 @@ const createFixtureRepo = async () => {
     },
   }, null, 2));
 
+  await writeFile(resolve(root, 'apps/capacitor-demo/artifacts/release-control/R-2026.04.26.1/release-execution-packet.json'), JSON.stringify({
+    schema_version: 'release-execution-packet/v1',
+    release_id: 'R-2026.04.26.1',
+    phase: 'reconcile',
+    repo_root: root,
+    selected_targets: ['android', 'ios', 'npm'],
+    target_modes: { android: 'publish', ios: 'publish', npm: 'protected-publish' },
+    inputs: {
+      narrative_ref: 'docs/releases/notes/R-2026.04.26.1.json',
+      ios_derivative_ref: 'docs/releases/notes/R-2026.04.26.1-ios-derivative.md',
+      changelog_anchor: 'CHANGELOG.md#r-r-202604261',
+      npm_package_target: 'contract',
+    },
+    artifacts: {
+      summary_ref: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.26.1/summary.json',
+      facts_ref: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.26.1/release-facts.json',
+      reconciliation_ref: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.26.1/reconciliation-report.json',
+      closure_bundle_ref: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.26.1/closure-bundle.json',
+    },
+  }, null, 2));
+
   return root;
 };
 
@@ -53,6 +74,7 @@ test('buildReleaseChangelogFacts derives target and version facts from summary +
   const facts = await buildReleaseChangelogFacts({
     repoRoot,
     releaseId: 'R-2026.04.26.1',
+    releasePacketPath: resolve(repoRoot, 'apps/capacitor-demo/artifacts/release-control/R-2026.04.26.1/release-execution-packet.json'),
   });
 
   assert.equal(facts.release_id, 'R-2026.04.26.1');
@@ -73,14 +95,16 @@ test('buildReleaseChangelogFacts derives target and version facts from summary +
   assert.match(JSON.stringify(facts.evidence.durable), /maven/i);
   assert.match(JSON.stringify(facts.evidence.durable), /legato-ios-core\/releases\/tag/i);
   assert.match(JSON.stringify(facts.evidence.ephemeral), /summary\.json/i);
+  assert.equal(facts.release_packet_ref, 'apps/capacitor-demo/artifacts/release-control/R-2026.04.26.1/release-execution-packet.json');
+  assert.equal(facts.protocol.required_step_order.join('>'), 'preflight>publish>reconcile>closeout');
 });
 
-test('buildReleaseChangelogFacts fails closed when summary.json is missing for release id', async () => {
+test('buildReleaseChangelogFacts fails closed when release packet is missing for release id', async () => {
   const repoRoot = await createFixtureRepo();
 
   await assert.rejects(
     () => buildReleaseChangelogFacts({ repoRoot, releaseId: 'R-2026.04.99.9' }),
-    /summary\.json/i,
+    /MISSING_RELEASE_PACKET/i,
   );
 });
 

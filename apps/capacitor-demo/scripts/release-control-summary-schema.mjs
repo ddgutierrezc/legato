@@ -146,6 +146,8 @@ const validatePublishedArtifacts = (entries, errors) => {
   }
 };
 
+const isSha = (value) => /^[0-9a-f]{40}$/i.test(String(value ?? '').trim());
+
 export const validateDiagnosticEnvelope = (candidate = {}) => {
   const errors = [];
   const validCodes = new Set(RELEASE_OPS_REASON_CODES);
@@ -220,6 +222,9 @@ export const validateClosureBundleEnvelope = (candidate = {}) => {
     'source_commit',
     'run_url',
     'reconciliation_verdict',
+    'packet_ref',
+    'reconciliation_ref',
+    'expected_head',
     'generated_at',
   ];
   for (const field of requiredFields) {
@@ -232,6 +237,10 @@ export const validateClosureBundleEnvelope = (candidate = {}) => {
     errors.push('reconciliation_verdict must be pass|fail.');
   }
 
+  if (!Array.isArray(candidate?.publish_refs)) {
+    errors.push('publish_refs must be an array.');
+  }
+
   validatePublishedArtifacts(candidate?.published_artifacts, errors);
 
   if (!Array.isArray(candidate?.evidence_index_refs) || candidate.evidence_index_refs.length === 0) {
@@ -240,6 +249,107 @@ export const validateClosureBundleEnvelope = (candidate = {}) => {
 
   if (!isIsoTimestamp(candidate?.generated_at)) {
     errors.push('generated_at must be ISO-8601 UTC timestamp.');
+  }
+
+  if (!isSha(candidate?.expected_head)) {
+    errors.push('expected_head must be 40-char SHA.');
+  }
+
+  if (candidate?.current_head !== undefined && String(candidate.current_head).trim() && !isSha(candidate.current_head)) {
+    errors.push('current_head must be 40-char SHA when provided.');
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    value: candidate,
+  };
+};
+
+export const validateReleaseExecutionPacketEnvelope = (candidate = {}) => {
+  const errors = [];
+  const requiredTopLevel = ['schema_version', 'release_id', 'phase', 'repo_root'];
+  for (const field of requiredTopLevel) {
+    if (!hasText(candidate?.[field])) {
+      errors.push(`${field} is required.`);
+    }
+  }
+
+  if (String(candidate?.schema_version ?? '').trim() !== 'release-execution-packet/v1') {
+    errors.push('schema_version must be release-execution-packet/v1.');
+  }
+
+  if (!['preflight', 'publish', 'reconcile', 'closeout'].includes(String(candidate?.phase ?? '').trim())) {
+    errors.push('phase must be preflight|publish|reconcile|closeout.');
+  }
+
+  if (!Array.isArray(candidate?.selected_targets)) {
+    errors.push('selected_targets must be an array.');
+  }
+
+  if (!candidate?.target_modes || typeof candidate.target_modes !== 'object' || Array.isArray(candidate.target_modes)) {
+    errors.push('target_modes must be an object.');
+  }
+
+  if (!candidate?.inputs || typeof candidate.inputs !== 'object' || Array.isArray(candidate.inputs)) {
+    errors.push('inputs must be an object.');
+  } else {
+    if (!hasText(candidate.inputs.narrative_ref)) {
+      errors.push('inputs.narrative_ref is required.');
+    }
+    if (!hasText(candidate.inputs.changelog_anchor)) {
+      errors.push('inputs.changelog_anchor is required.');
+    }
+  }
+
+  if (!candidate?.artifacts || typeof candidate.artifacts !== 'object' || Array.isArray(candidate.artifacts)) {
+    errors.push('artifacts must be an object.');
+  } else {
+    const requiredArtifactRefs = ['summary_ref', 'facts_ref', 'reconciliation_ref', 'closure_bundle_ref'];
+    for (const refField of requiredArtifactRefs) {
+      if (!hasText(candidate.artifacts[refField])) {
+        errors.push(`artifacts.${refField} is required.`);
+      }
+    }
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    value: candidate,
+  };
+};
+
+export const validateFreshHeadCloseoutEnvelope = (candidate = {}) => {
+  const errors = [];
+  if (String(candidate?.schema_version ?? '').trim() !== 'release-closeout-fresh-head/v1') {
+    errors.push('schema_version must be release-closeout-fresh-head/v1.');
+  }
+  if (!hasText(candidate?.release_id)) {
+    errors.push('release_id is required.');
+  }
+  if (!['PASS', 'FAIL'].includes(String(candidate?.status ?? '').trim())) {
+    errors.push('status must be PASS|FAIL.');
+  }
+  if (!isSha(candidate?.expected_head)) {
+    errors.push('expected_head is required and must be a 40-char SHA.');
+  }
+  if (!isSha(candidate?.current_head)) {
+    errors.push('current_head is required and must be a 40-char SHA.');
+  }
+
+  const normalizedCode = String(candidate?.code ?? '').trim();
+  const reasonCodes = new Set(RELEASE_OPS_REASON_CODES);
+  if (normalizedCode && !reasonCodes.has(normalizedCode)) {
+    errors.push('reason code must be one of release-ops taxonomy values.');
+  }
+
+  if (candidate?.status === 'FAIL' && !normalizedCode) {
+    errors.push('code is required when status=FAIL.');
+  }
+
+  if (!Array.isArray(candidate?.recovery)) {
+    errors.push('recovery must be an array.');
   }
 
   return {
