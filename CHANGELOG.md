@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - GitHub Release communications contract (facts + required human narrative) wired to release-control evidence.
 
+## [capacitor-publish-0-1-11-002] - 2026-04-28
+
+### Added
+- This release delivers authenticated media request support and explicit streaming media semantics to the published Capacitor package, aligning the runtime behavior with the public API and support matrix.
+- Version matrix: npm `@ddgutierrezc/legato-capacitor@0.1.11`, npm `@ddgutierrezc/legato-contract@0.1.7`, Android `dev.dgutierrez:legato-android-core:0.1.4`, iOS `LegatoCore@0.1.3`.
+- Honors static per-track request headers in Android and iOS playback.
+- Makes streaming vs non-streaming semantics explicit and validated.
+- Aligns package distribution with Android core 0.1.4 and iOS distribution v0.1.3.
+- Durable evidence: https://www.npmjs.com/package/@ddgutierrezc%2Flegato-capacitor/v/0.1.11, https://www.npmjs.com/package/@ddgutierrezc%2Flegato-contract/v/0.1.7, https://repo1.maven.org/maven2/dev/dgutierrez/legato-android-core/0.1.4/, https://github.com/ddgutierrezc/legato-ios-core/releases/tag/v0.1.3.
+
+### Changed
+- User impact: Capacitor consumers can now rely on per-track request headers in real playback requests, and on clearer streaming/non-streaming capability, duration, and seek semantics across Android and iOS.
+- Upgrade notes: Upgrade to @ddgutierrezc/legato-capacitor@0.1.11 and pair it with @ddgutierrezc/legato-contract@0.1.7. No extra artifact selection is required beyond the package update.
+- Breaking changes: None.
+
 ## [contract-publish-0-1-7-004] - 2026-04-27
 
 ### Added
