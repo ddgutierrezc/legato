@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - GitHub Release communications contract (facts + required human narrative) wired to release-control evidence.
+- Canonical `1.0.0` decision artifacts published under `docs/releases/`: criteria (`v1-release-criteria-v1.md`), gap matrix (`v1-release-gap-matrix-v1.md`), deferrals (`v1-release-deferral-register-v1.md`), and final verdict record (`v1-release-go-no-go-record-v1.md`).
 
 ## [capacitor-publish-0-1-11-002] - 2026-04-28
 

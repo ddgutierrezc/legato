@@ -164,6 +164,11 @@ await sync.stop();
 
 Maintainer-heavy CLI/release/SPM operational details are documented in [`../../docs/maintainers/legato-capacitor-operator-guide.md`](../../docs/maintainers/legato-capacitor-operator-guide.md).
 
+## Release truth source
+
+- Canonical `1.0.0` release decision source: [`../../docs/releases/v1-release-go-no-go-record-v1.md`](../../docs/releases/v1-release-go-no-go-record-v1.md)
+- Accepted post-`1.0` deferrals: [`../../docs/releases/v1-release-deferral-register-v1.md`](../../docs/releases/v1-release-deferral-register-v1.md)
+
 ## MVP limitations
 
 - Android runtime playback is implemented (Media3/ExoPlayer runtime + foreground service transport controls) for package-supported flows.
