@@ -32,7 +32,8 @@ test('v1 release gap matrix maps each criterion exactly once with evidence-backe
   assert.match(matrix, /# V1\.0\.0 Release Gap Matrix/i);
   assert.match(matrix, /\| Criterion ID \| Status \| Evidence References \| Freshness \| Owner \| Action \|/i);
   assert.match(matrix, /\|\s*RC-\d+\s*\|\s*PASS\s*\|/i);
-  assert.match(matrix, /\|\s*RC-\d+\s*\|\s*GAP\s*\|/i);
+  assert.match(matrix, /\|\s*RC-05\s*\|\s*PASS\s*\|/i);
+  assert.match(matrix, /\|\s*RC-06\s*\|\s*BLOCKED\s*\|/i);
   assert.match(matrix, /\|\s*RC-\d+\s*\|\s*BLOCKED\s*\|/i);
   assert.match(matrix, /No PASS claim without source-backed evidence/i);
   assert.match(matrix, /Revision History \(append-only\)/i);
