@@ -18,6 +18,11 @@ For installation flow, API surface, and migration guidance, use the canonical do
 
 This README is an orientation entrypoint only.
 
+## CLI scope note
+
+This package is the only public package that ships the `legato` command.
+The `legato native` CLI remains a repo-owned maintainer helper for native setup and diagnostics, not a contract-only consumer surface.
+
 ## Maintainer operations
 
 Maintainer-heavy CLI/release/SPM operational details are documented in [`../../docs/maintainers/legato-capacitor-operator-guide.md`](../../docs/maintainers/legato-capacitor-operator-guide.md).
