@@ -321,6 +321,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Download release execution packet
+        uses: actions/download-artifact@v8
+        with:
+          name: release-packet-${{ inputs.release_id }}
+          path: apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}
+
       - name: Build aggregated summary
         env:
           SELECTED_TARGETS_JSON: ${{ needs.validate-dispatch.outputs.targets_json }}
