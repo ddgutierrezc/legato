@@ -16,4 +16,6 @@ For package roles, public exports, and usage patterns, use the canonical docs-si
 
 This README is an orientation entrypoint only.
 
+Streaming semantics interpretation is documented in the canonical package guide and architecture guardrails, not expanded in this thin README.
+
 Maintainer verification map: [`../../docs/maintainers/package-documentation-foundation-v1-source-map.md`](../../docs/maintainers/package-documentation-foundation-v1-source-map.md)

@@ -18,6 +18,13 @@ For installation flow, API surface, and migration guidance, use the canonical do
 
 This README is an orientation entrypoint only.
 
+## Contractual scope notes
+
+- Streaming semantics claims follow a **conservative policy**: capability signals are inferred only from source-backed native/runtime evidence and must not be expanded into unsupported guarantees.
+- Inference and scope constraints for streaming behavior remain bounded to the documented v1 guardrails; out-of-scope claims (for example DRM/process-death coverage in this milestone) are intentionally excluded.
+- `@ddgutierrezc/legato-capacitor` is the **first concrete adapter** and currently the **only implemented binding** for the contract's transport-neutral surface.
+- Release decision traceability for v1 is anchored in [`../../docs/releases/v1-release-go-no-go-record-v1.md`](../../docs/releases/v1-release-go-no-go-record-v1.md).
+
 ## CLI scope note
 
 This package is the only public package that ships the `legato` command.
