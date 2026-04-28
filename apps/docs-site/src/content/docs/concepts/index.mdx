@@ -1,0 +1,25 @@
+---
+title: Concepts
+description: Public documentation boundaries and canonical authority for Legato docs.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Audience boundaries
+
+Legato documentation follows three audience classes:
+
+- **Public**: consumer-facing package usage and integration guidance in `apps/docs-site/`.
+- **Maintainer**: internal procedures and operational runbooks in `docs/maintainers/` and `docs/releases/`.
+- **Archive/Evidence**: historical spikes and evidence artifacts in `docs/architecture/spikes/` and release evidence files.
+
+## Canonical authority order
+
+1. Docs-site pages (`apps/docs-site/src/content/docs/**`) are canonical for public guidance.
+2. Root and package READMEs are concise entrypoints that summarize and link back to docs-site pages.
+3. Maintainer and release runbooks remain canonical only for maintainer audiences.
+
+<Aside type="caution">
+Do not import or link maintainer runbook files into public docs pages.
+Public pages should stay consumer-safe and avoid operational internals.
+</Aside>

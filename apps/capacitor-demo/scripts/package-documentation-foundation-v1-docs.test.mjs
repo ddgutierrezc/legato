@@ -14,34 +14,38 @@ const scopeDocPath = resolve(repoRoot, 'docs/maintainers/package-documentation-f
 const sourceMapPath = resolve(repoRoot, 'docs/maintainers/package-documentation-foundation-v1-source-map.md');
 const operatorGuidePath = resolve(repoRoot, 'docs/maintainers/legato-capacitor-operator-guide.md');
 
-test('root README stays consumer-first with package decision matrix and maintainer-doc link', async () => {
+test('root README is a thin orientation page linking canonical docs-site sections', async () => {
   const rootReadme = await readFile(rootReadmePath, 'utf8');
 
-  assert.match(rootReadme, /package decision matrix/i);
-  assert.match(rootReadme, /@ddgutierrezc\/legato-contract/i);
-  assert.match(rootReadme, /@ddgutierrezc\/legato-capacitor/i);
-  assert.match(rootReadme, /\(packages\/contract\/README\.md\)/i);
-  assert.match(rootReadme, /\(packages\/capacitor\/README\.md\)/i);
+  assert.match(rootReadme, /canonical docs/i);
+  assert.match(rootReadme, /apps\/docs-site\/src\/content\/docs\/getting-started\/index\.mdx/i);
+  assert.match(rootReadme, /apps\/docs-site\/src\/content\/docs\/packages\/contract\/index\.mdx/i);
+  assert.match(rootReadme, /apps\/docs-site\/src\/content\/docs\/packages\/capacitor\/index\.mdx/i);
+  assert.match(rootReadme, /apps\/docs-site\/src\/content\/docs\/reference\/index\.mdx/i);
+  assert.match(rootReadme, /apps\/docs-site\/src\/content\/docs\/releases\/index\.mdx/i);
   assert.match(rootReadme, /docs\/maintainers\/package-documentation-foundation-v1-scope\.md/i);
+  assert.doesNotMatch(rootReadme, /## Package decision matrix/i);
+  assert.doesNotMatch(rootReadme, /## Usage/i);
 });
 
-test('contract README documents verified event exports and links to source map', async () => {
+test('contract README is thin and defers full guidance to docs-site', async () => {
   const contractReadme = await readFile(contractReadmePath, 'utf8');
 
-  assert.match(contractReadme, /LEGATO_EVENT_NAMES/);
-  assert.doesNotMatch(contractReadme, /\bLEGATO_EVENTS\b/);
-  assert.match(contractReadme, /public surface/i);
+  assert.match(contractReadme, /apps\/docs-site\/src\/content\/docs\/packages\/contract\/index\.mdx/i);
+  assert.match(contractReadme, /npm install @ddgutierrezc\/legato-contract/i);
   assert.match(contractReadme, /docs\/maintainers\/package-documentation-foundation-v1-source-map\.md/i);
+  assert.doesNotMatch(contractReadme, /## Public surface/i);
+  assert.doesNotMatch(contractReadme, /## Streaming semantics interpretation/i);
 });
 
-test('capacitor README keeps consumer onboarding and links maintainer operator guide', async () => {
+test('capacitor README is thin and routes details to docs-site', async () => {
   const capacitorReadme = await readFile(capacitorReadmePath, 'utf8');
 
-  assert.match(capacitorReadme, /capacitor-native integration/i);
-  assert.match(capacitorReadme, /audioPlayer/);
-  assert.match(capacitorReadme, /mediaSession/);
+  assert.match(capacitorReadme, /apps\/docs-site\/src\/content\/docs\/packages\/capacitor\/index\.mdx/i);
+  assert.match(capacitorReadme, /npm install @ddgutierrezc\/legato-capacitor @ddgutierrezc\/legato-contract/i);
   assert.match(capacitorReadme, /docs\/maintainers\/legato-capacitor-operator-guide\.md/i);
-  assert.match(capacitorReadme, /legato native doctor/i);
+  assert.doesNotMatch(capacitorReadme, /## API surface/i);
+  assert.doesNotMatch(capacitorReadme, /### Legacy → namespaced migration map/i);
 });
 
 test('maintainer docs enforce scope non-goals and source-of-truth references', async () => {
@@ -56,6 +60,9 @@ test('maintainer docs enforce scope non-goals and source-of-truth references', a
   assert.match(scopeDoc, /no invented api docs|do not invent/i);
   assert.match(scopeDoc, /packages\/contract\/src\/index\.ts/i);
   assert.match(scopeDoc, /packages\/capacitor\/src\/index\.ts/i);
+  assert.match(scopeDoc, /non-public boundary/i);
+  assert.match(scopeDoc, /root-canonical/i);
+  assert.match(scopeDoc, /must not be published in `?apps\/docs-site`?/i);
 
   assert.match(sourceMap, /packages\/contract\/src\/events\.ts/i);
   assert.match(sourceMap, /packages\/contract\/package\.json/i);

@@ -1,0 +1,44 @@
+---
+title: Contract Package
+description: Contract-only package guide for shared Legato playback types, events, and invariants.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Use `@ddgutierrezc/legato-contract` when you need shared contract primitives without Capacitor runtime behavior.
+
+## Install
+
+<Steps>
+
+1. Install the package.
+
+   ```bash
+   npm install @ddgutierrezc/legato-contract
+   ```
+
+2. Import from the package root.
+
+   ```ts
+   import { LEGATO_EVENT_NAMES } from '@ddgutierrezc/legato-contract';
+   ```
+
+3. Build your app against typed contract events, snapshots, and invariants.
+
+</Steps>
+
+## Package role
+
+- Contract-only surface for `track`, `state`, `queue`, `snapshot`, and `errors`.
+- Event constants and payload maps, including `LEGATO_EVENT_NAMES`.
+- Capability and invariant helpers.
+- Transport-neutral `binding-adapter` contract primitives.
+
+## Public export contract
+
+- ✅ Supported: root import from `@ddgutierrezc/legato-contract`.
+- ❌ Unsupported: undocumented deep imports like `@ddgutierrezc/legato-contract/dist/*`.
+
+<Aside type="note">
+This page summarizes consumer-safe guidance only. Maintainer verification maps and release runbooks stay outside the public docs-site boundary.
+</Aside>

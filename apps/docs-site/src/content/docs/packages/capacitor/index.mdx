@@ -1,0 +1,51 @@
+---
+title: Capacitor Package
+description: Capacitor integration guide for Legato runtime APIs, events, and migration posture.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Use `@ddgutierrezc/legato-capacitor` when you need Capacitor runtime integration.
+
+## Install
+
+<Steps>
+
+1. Install runtime and contract packages.
+
+   ```bash
+   npm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract
+   ```
+
+2. Run the first health check.
+
+   ```bash
+   npx legato native doctor
+   ```
+
+3. Initialize runtime APIs.
+
+   ```ts
+   import { audioPlayer, mediaSession } from '@ddgutierrezc/legato-capacitor';
+
+   await audioPlayer.setup();
+   await mediaSession.setup();
+   ```
+
+</Steps>
+
+## Runtime surface
+
+- `audioPlayer`: playback and queue commands, read-model queries, playback events.
+- `mediaSession`: remote/session listener surface.
+- `Legato`: compatibility facade for existing integrations.
+
+## Migration posture
+
+- Existing apps can keep `Legato` with no immediate migration pressure.
+- New integrations should prefer namespaced surfaces (`audioPlayer`, `mediaSession`).
+- Listener helpers like `addAudioPlayerListener` align new code with explicit boundaries.
+
+<Aside type="caution">
+This public page excludes maintainer-only release/CLI runbook depth. Keep operational internals in root maintainer docs.
+</Aside>
