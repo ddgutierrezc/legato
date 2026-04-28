@@ -33,3 +33,9 @@ This document defines scope boundaries for `package-documentation-foundation-v1`
 - Maintainer operations are linked via `docs/maintainers/legato-capacitor-operator-guide.md`.
 - Verification is enforced by `node --test ./scripts/package-documentation-foundation-v1-docs.test.mjs` from `apps/capacitor-demo`.
 - Confirmation: implementation stayed within scope (no full docs migration and no fabricated API surface).
+
+## Non-public boundary
+
+- `docs/maintainers/*` remains root-canonical maintainer material unless a page is explicitly rewritten for the public docs site.
+- Source-backed maintainer/release evidence under root `docs/` must not be published in `apps/docs-site` by default.
+- Public docs in `apps/docs-site` may link to maintainer paths when needed, but must not mirror maintainer-only operational detail as consumer-facing guidance.

@@ -2,37 +2,23 @@
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/Hhnumyk2N)
 
-Legato provides a contract package and a Capacitor integration package for continuous audio playback flows.
+Legato provides shared playback contracts and a Capacitor integration package for continuous audio playback flows.
 
 ![Texto alternativo](brand.png)
 
 
 
-## Which package should I install?
+## Canonical docs
 
-## Package decision matrix
+The canonical public documentation lives in `apps/docs-site/`.
 
-| If you need... | Install | Read first |
-|---|---|---|
-| Shared playback types/events/contracts with no Capacitor runtime | `@ddgutierrezc/legato-contract` | [`packages/contract/README.md`](packages/contract/README.md) |
-| Capacitor plugin runtime + namespaced APIs (`audioPlayer`, `mediaSession`) | `@ddgutierrezc/legato-capacitor` + `@ddgutierrezc/legato-contract` | [`packages/capacitor/README.md`](packages/capacitor/README.md) |
+- Getting Started: [`apps/docs-site/src/content/docs/getting-started/index.mdx`](apps/docs-site/src/content/docs/getting-started/index.mdx)
+- Contract package guide: [`apps/docs-site/src/content/docs/packages/contract/index.mdx`](apps/docs-site/src/content/docs/packages/contract/index.mdx)
+- Capacitor package guide: [`apps/docs-site/src/content/docs/packages/capacitor/index.mdx`](apps/docs-site/src/content/docs/packages/capacitor/index.mdx)
+- API/Reference entrypoint: [`apps/docs-site/src/content/docs/reference/index.mdx`](apps/docs-site/src/content/docs/reference/index.mdx)
+- Release notes surface: [`apps/docs-site/src/content/docs/releases/index.mdx`](apps/docs-site/src/content/docs/releases/index.mdx)
 
-## Install
-
-```bash
-npm install @ddgutierrezc/legato-contract
-```
-
-or
-
-```bash
-npm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract
-```
-
-## Usage
-
-- Contract-only consumers: use shared symbols like `LEGATO_EVENT_NAMES` from `@ddgutierrezc/legato-contract`.
-- Capacitor consumers: start from `@ddgutierrezc/legato-capacitor` and use `audioPlayer` / `mediaSession`.
+Use this root README as orientation only. Detailed tutorials and API walkthroughs belong in docs-site.
 
 ## Releases
 
@@ -51,7 +37,7 @@ Maintainer-only scope and operational boundaries are documented in [`docs/mainta
 
 ## Contributing
 
-If you update README/package docs, also run docs drift checks from `apps/capacitor-demo`.
+If you update README/package docs, keep them thin and align links to canonical docs-site pages.
 
 <!-- OSS_LINKS:START -->
 ## Community

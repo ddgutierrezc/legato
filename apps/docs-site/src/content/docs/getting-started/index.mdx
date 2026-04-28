@@ -1,0 +1,44 @@
+---
+title: Getting Started
+description: Install Legato packages, choose the right surface, and complete your first integration.
+---
+
+import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
+
+Legato provides two public packages for continuous audio playback integrations.
+
+## Package decision matrix
+
+| If you need... | Install | Canonical guide |
+|---|---|---|
+| Shared playback events and contract types (no Capacitor runtime) | `@ddgutierrezc/legato-contract` | `packages/contract` (coming in this docs site) |
+| Capacitor runtime plugin APIs (`audioPlayer`, `mediaSession`) | `@ddgutierrezc/legato-capacitor` + `@ddgutierrezc/legato-contract` | `packages/capacitor` (coming in this docs site) |
+
+## Install
+
+<Steps>
+
+1. Install the package set that matches your integration.
+
+   ```bash
+   npm install @ddgutierrezc/legato-contract
+   ```
+
+   or
+
+   ```bash
+   npm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract
+   ```
+
+2. Verify your package manager resolved the dependencies without peer warnings.
+
+3. Continue with package-specific guides.
+
+</Steps>
+
+## Next steps
+
+<CardGrid>
+  <Card title="Read core concepts" icon="puzzle">Understand public vs maintainer boundaries before diving deeper.</Card>
+  <Card title="Join community channels" icon="star">Get contribution and support links in the Community section.</Card>
+</CardGrid>
