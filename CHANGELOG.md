@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - GitHub Release communications contract (facts + required human narrative) wired to release-control evidence.
 - Canonical `1.0.0` decision artifacts published under `docs/releases/`: criteria (`v1-release-criteria-v1.md`), gap matrix (`v1-release-gap-matrix-v1.md`), deferrals (`v1-release-deferral-register-v1.md`), and final verdict record (`v1-release-go-no-go-record-v1.md`).
 
+## [1.0.0] - 2026-04-28
+
+### Added
+- First stable **Capacitor-first** Legato release line published across npm, Maven Central, and iOS distribution.
+- Stable public package line:
+  - `@ddgutierrezc/legato-contract@1.0.0`
+  - `@ddgutierrezc/legato-capacitor@1.0.0`
+- Stable native distribution line:
+  - `dev.dgutierrez:legato-android-core:1.0.0`
+  - `legato-ios-core v1.0.0`
+- Durable 1.0.0 release governance, changelog, and GitHub release communication flow.
+
+### Changed
+- Android and iOS runtimes are now aligned enough to support the declared 1.0.0 Capacitor-first contract.
+- Consumer validation, public API JSDoc, authenticated media requests, and streaming semantics are now part of the supported release baseline.
+
+### Fixed
+- Closed the gap between package API promises and runtime behavior for authenticated media headers.
+- Closed key observable parity gaps between Android and iOS for capabilities, seekability, and playback semantics.
+
+### Security
+- No new security capability claims beyond the documented scope; advanced DRM/token-refresh remain explicitly out of scope for 1.0.0.
+
+## [contract-publish-1-0-0-001] - 2026-04-28
+
+### Added
+- This is the first stable 1.0.0 release of the Legato shared contract package for Capacitor-first consumers.
+- Version matrix: npm `@ddgutierrezc/legato-capacitor@1.0.0`, npm `@ddgutierrezc/legato-contract@1.0.0`, Android `dev.dgutierrez:legato-android-core:1.0.0`, iOS `LegatoCore@1.0.0`.
+- Stabilizes the public contract surface for Capacitor-first 1.0.0.
+- Includes authenticated media request and streaming semantics support in the contract model.
+- Aligns with the current runtime parity and lifecycle milestones.
+- Durable evidence: https://www.npmjs.com/package/@ddgutierrezc%2Flegato-capacitor/v/1.0.0, https://www.npmjs.com/package/@ddgutierrezc%2Flegato-contract/v/1.0.0, https://repo1.maven.org/maven2/dev/dgutierrez/legato-android-core/1.0.0/, https://github.com/ddgutierrezc/legato-ios-core/releases/tag/v1.0.0.
+
+### Changed
+- User impact: Consumers now have a stable 1.0.0 contract surface covering events, capabilities, streaming semantics, and authenticated media request fields used by the current platform runtimes.
+- Upgrade notes: Upgrade to @ddgutierrezc/legato-contract@1.0.0. Downstream packages should align to the 1.0.0 line.
+- Breaking changes: None relative to the final 0.1.x line; 1.0.0 formalizes the existing stable contract.
+
 ## [capacitor-publish-0-1-11-002] - 2026-04-28
 
 ### Added
