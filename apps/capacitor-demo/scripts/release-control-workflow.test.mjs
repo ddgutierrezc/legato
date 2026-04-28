@@ -52,6 +52,7 @@ test('release control workflow emits release_id keyed final summary artifact', a
   assert.match(workflow, /needs:\s*\[validate-dispatch, preflight-completeness\]/i);
   assert.match(workflow, /needs\.preflight-completeness\.outputs\.ok\s*==\s*'true'/i);
   assert.match(workflow, /aggregate-release-summary\.mjs/i);
+  assert.match(workflow, /release-execution-packet\.json/i);
   assert.match(workflow, /release-control-summary-\$\{\{ inputs\.release_id \}\}/i);
   assert.match(workflow, /summary\.json/i);
   assert.match(workflow, /summary\.md/i);
@@ -96,6 +97,8 @@ test('release control workflow enforces release communications reconciliation ga
   assert.match(workflow, /needs\.validate-dispatch\.outputs\.ios_selected/i);
   assert.match(workflow, /release-notes-/i);
   assert.match(workflow, /release-closure-bundle\.mjs/i);
+  assert.match(workflow, /validate-release-closeout\.mjs/i);
+  assert.match(workflow, /fresh-head-closeout\.json/i);
   assert.match(workflow, /closure-bundle\.json/i);
   assert.match(workflow, /release-closure-bundle-\$\{\{ inputs\.release_id \}\}/i);
   assert.match(workflow, /CHANGELOG\.md/i);

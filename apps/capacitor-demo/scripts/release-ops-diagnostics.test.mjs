@@ -12,7 +12,15 @@ test('release ops diagnostics exports canonical reason-code taxonomy', () => {
     'PATH_OR_CWD',
     'SERIALIZATION_ERROR',
     'PACKAGE_TARGET_SCOPE',
+    'MISSING_RELEASE_PACKET',
+    'MISSING_REQUIRED_INPUT',
     'MISSING_NARRATIVE_OR_DERIVATIVE_NOTES',
+    'DERIVATIVE_BACKLINK_DRIFT',
+    'CANONICAL_AUTHORITY_DRIFT',
+    'MISSING_DURABLE_EVIDENCE',
+    'STALE_HEAD',
+    'NON_FAST_FORWARD_HEAD',
+    'STEP_ORDER_VIOLATION',
     'UNKNOWN',
   ]);
 });

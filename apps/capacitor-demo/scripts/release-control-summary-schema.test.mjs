@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import {
   validateClosureBundleEnvelope,
   validateDiagnosticEnvelope,
+  validateFreshHeadCloseoutEnvelope,
   validatePreflightEnvelope,
+  validateReleaseExecutionPacketEnvelope,
   normalizeTargetSummary,
   validateReleaseNotesFactContract,
   validateTargetSummary,
@@ -126,4 +128,46 @@ test('summary schema rejects closure bundle missing required traceability fields
 
   assert.equal(invalid.ok, false);
   assert.match(invalid.errors.join('\n'), /source_commit is required/i);
+});
+
+test('summary schema validates release execution packet envelope', () => {
+  const valid = validateReleaseExecutionPacketEnvelope({
+    schema_version: 'release-execution-packet/v1',
+    release_id: 'R-2026.04.27.1',
+    phase: 'preflight',
+    repo_root: '/tmp/legato',
+    selected_targets: ['android', 'ios'],
+    target_modes: { android: 'publish', ios: 'publish' },
+    inputs: {
+      narrative_ref: 'docs/releases/notes/R-2026.04.27.1.json',
+      ios_derivative_ref: 'docs/releases/notes/R-2026.04.27.1-ios-derivative.md',
+      changelog_anchor: 'CHANGELOG.md#r-r-202604271',
+      npm_package_target: 'contract',
+    },
+    artifacts: {
+      summary_ref: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.27.1/summary.json',
+      facts_ref: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.27.1/release-facts.json',
+      reconciliation_ref: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.27.1/reconciliation-report.json',
+      closure_bundle_ref: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.27.1/closure-bundle.json',
+    },
+  });
+
+  assert.equal(valid.ok, true);
+  assert.equal(valid.errors.length, 0);
+});
+
+test('summary schema rejects malformed fresh-head closeout envelope', () => {
+  const invalid = validateFreshHeadCloseoutEnvelope({
+    schema_version: 'release-closeout-fresh-head/v1',
+    release_id: 'R-2026.04.27.1',
+    status: 'PASS',
+    code: 'NOT_A_REASON',
+    expected_head: 'abc',
+    current_head: '',
+    recovery: [],
+  });
+
+  assert.equal(invalid.ok, false);
+  assert.match(invalid.errors.join('\n'), /reason code/i);
+  assert.match(invalid.errors.join('\n'), /current_head is required/i);
 });

@@ -2,7 +2,8 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { validateClosureBundleEnvelope } from './release-control-summary-schema.mjs';
+import { validateClosureBundleEnvelope, validateReleaseExecutionPacketEnvelope } from './release-control-summary-schema.mjs';
+import { toRepoRelativePath } from './release-paths.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 
@@ -54,22 +55,40 @@ export const buildReleaseClosureBundle = async ({
   summaryPath,
   factsPath,
   reconciliationPath,
+   releasePacketPath,
   evidenceIndexRefs = [],
+   expectedHead,
+   currentHead,
 } = {}) => {
   const summary = await readJson(summaryPath);
   const facts = await readJson(factsPath);
   const reconciliation = await readJson(reconciliationPath);
+  const packet = await readJson(releasePacketPath);
+
+  const packetValidation = validateReleaseExecutionPacketEnvelope(packet);
+  if (!packetValidation.ok) {
+    throw new Error(packetValidation.errors.join(' '));
+  }
+
+  const canonicalReleaseId = String(releaseId ?? summary?.release_id ?? packet?.release_id ?? '').trim();
+  const canonicalSourceCommit = String(sourceCommit ?? summary?.source_commit ?? '').trim();
 
   const bundle = {
     schema_version: 'release-closure-bundle/v1',
-    release_id: String(releaseId ?? summary?.release_id ?? '').trim(),
-    source_commit: String(sourceCommit ?? summary?.source_commit ?? '').trim(),
+    release_id: canonicalReleaseId,
+    source_commit: canonicalSourceCommit,
     run_url: String(runUrl ?? '').trim(),
     reconciliation_verdict: reconciliation?.ok ? 'pass' : 'fail',
     published_artifacts: collectPublishedArtifacts({ summary, facts }),
+    publish_refs: ['android-summary.json', 'ios-summary.json', 'npm-summary.json']
+      .map((entry) => resolve(dirname(summaryPath), entry)),
     evidence_index_refs: Array.isArray(evidenceIndexRefs)
       ? evidenceIndexRefs.map((entry) => String(entry ?? '').trim()).filter(Boolean)
       : [],
+    packet_ref: toRepoRelativePath(process.cwd(), resolve(releasePacketPath)),
+    reconciliation_ref: toRepoRelativePath(process.cwd(), resolve(reconciliationPath)),
+    expected_head: String(expectedHead ?? canonicalSourceCommit).trim(),
+    current_head: String(currentHead ?? '').trim(),
     summary_ref: String(summaryPath ?? '').trim(),
     generated_at: toIsoTimestamp(),
   };
@@ -139,6 +158,11 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
       i += 1;
       continue;
     }
+    if (arg === '--release-packet' && args[i + 1]) {
+      options.releasePacketPath = args[i + 1];
+      i += 1;
+      continue;
+    }
     if (arg === '--evidence-index-ref' && args[i + 1]) {
       options.evidenceIndexRefs = options.evidenceIndexRefs ?? [];
       options.evidenceIndexRefs.push(args[i + 1]);
@@ -147,6 +171,16 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     }
     if (arg === '--output-dir' && args[i + 1]) {
       options.outputDir = args[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--expected-head' && args[i + 1]) {
+      options.expectedHead = args[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--current-head' && args[i + 1]) {
+      options.currentHead = args[i + 1];
       i += 1;
     }
   }

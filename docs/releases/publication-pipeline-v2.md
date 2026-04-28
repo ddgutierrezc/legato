@@ -42,6 +42,7 @@ Any unsupported mode is rejected preflight by `release-control-contract.mjs` bef
 
 Deterministic gate before lane fanout:
 
+- `release-execution-packet/v1` is materialized first at `apps/capacitor-demo/artifacts/release-control/<release_id>/release-execution-packet.json`.
 - `release-preflight-completeness.mjs` runs after dispatch validation and before Android/iOS/npm fanout.
 - Gate artifact: `apps/capacitor-demo/artifacts/release-control/<release_id>/preflight.json`
 - Fanout hard-blocks unless `preflight.ok === true`.
@@ -65,7 +66,15 @@ Reason-coded diagnostics emitted by preflight/retry paths:
 | `PATH_OR_CWD` | Repo root/path resolution failed. | No | Run from repo root or pass explicit `--repo-root`. |
 | `SERIALIZATION_ERROR` | JSON payload malformed/unsafe for aggregation. | No | Fix payload source (summary/facts) before rerun. |
 | `PACKAGE_TARGET_SCOPE` | npm package target out of allowed scope. | No | Use `npm_package_target=capacitor|contract`. |
+| `MISSING_RELEASE_PACKET` | The release execution packet is missing before gate execution. | No | Regenerate `release-execution-packet/v1` and rerun. |
+| `MISSING_REQUIRED_INPUT` | Required packet input reference is missing. | No | Fill packet refs (`narrative_ref`, `changelog_anchor`, lane refs) and rerun. |
 | `MISSING_NARRATIVE_OR_DERIVATIVE_NOTES` | Required narrative/derivative note file is missing. | No | Author required notes from templates, then rerun. |
+| `DERIVATIVE_BACKLINK_DRIFT` | iOS derivative note is missing canonical backlinks. | No | Restore canonical release/changelog backlink fields. |
+| `CANONICAL_AUTHORITY_DRIFT` | Facts contradict canonical authority ownership. | No | Reconcile authority metadata and release notes before publish. |
+| `MISSING_DURABLE_EVIDENCE` | Claimed publish lacks durable evidence URLs/paths. | No | Attach durable evidence and rerun reconciliation. |
+| `STALE_HEAD` | Closeout head is stale against expected head. | No | Fetch/rebase and regenerate fresh mixed evidence. |
+| `NON_FAST_FORWARD_HEAD` | Branch state is diverged/non-fast-forward. | No | Restore fast-forward state and rerun closeout validation. |
+| `STEP_ORDER_VIOLATION` | Attempted step execution out of protocol order. | No | Continue from required next step in protocol. |
 | `UNKNOWN` | Unclassified release failure class. | No | Inspect lane artifacts and rerun with corrected inputs. |
 
 ## iOS publish transaction (CI-owned)
@@ -177,6 +186,8 @@ Canonical release surfaces that must stay aligned:
 
 Mandatory release communication lifecycle:
 
+Required protocol order: `preflight → publish → reconcile → closeout`.
+
 1. Collect lane summaries (`android`, `ios`, `npm`) and generate `summary.json`.
 2. Generate facts (`release:changelog:facts`) including authority metadata and target procedure references.
 3. Update canonical changelog entry (`release:changelog:update`) from facts + required human narrative.
@@ -184,7 +195,8 @@ Mandatory release communication lifecycle:
 5. Validate reconciliation (`validate:release:reconciliation`) against `CHANGELOG.md`, durable evidence policy, and stop-the-line rules.
 6. Persist evidence dossier (`release:evidence:persist`) and publish canonical release surface.
 7. Produce closure bundle (`release-closure-bundle.mjs`) with run URL, reconciliation verdict, and evidence index refs.
-8. Produce derivative iOS communication using `docs/releases/templates/ios-derivative-release-template.md` with explicit backlinks to canonical `legato` release + changelog anchor.
+8. Validate closeout freshness (`validate-release-closeout.mjs`) and persist `fresh-head-closeout.json`.
+9. Produce derivative iOS communication using `docs/releases/templates/ios-derivative-release-template.md` with explicit backlinks to canonical `legato` release + changelog anchor.
 
 Fail-closed behavior:
 

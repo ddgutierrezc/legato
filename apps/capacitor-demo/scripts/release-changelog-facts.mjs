@@ -1,42 +1,12 @@
 import { access, readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
-const scriptDir = dirname(fileURLToPath(import.meta.url));
+import { resolveLegatoRepoRoot, resolveReleasePaths, toRepoRelativePath } from './release-paths.mjs';
+import { validateReleaseExecutionPacketEnvelope } from './release-control-summary-schema.mjs';
 
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'));
 
 const pathExists = async (path) => access(path).then(() => true).catch(() => false);
-
-const isRepoRoot = async (candidateRoot) => {
-  const capacitorManifest = resolve(candidateRoot, 'packages/capacitor/package.json');
-  const contractManifest = resolve(candidateRoot, 'packages/contract/package.json');
-  return (await pathExists(capacitorManifest)) && (await pathExists(contractManifest));
-};
-
-const resolveRepoRoot = async (repoRoot) => {
-  if (repoRoot) {
-    const explicitRoot = resolve(repoRoot);
-    if (!await isRepoRoot(explicitRoot)) {
-      throw new Error(`PATH_OR_CWD: repo root does not contain required package manifests (${explicitRoot}).`);
-    }
-    return explicitRoot;
-  }
-
-  const candidates = [
-    process.cwd(),
-    resolve(scriptDir, '../../..'),
-    resolve(scriptDir, '../..'),
-  ];
-
-  for (const candidate of candidates) {
-    if (await isRepoRoot(candidate)) {
-      return candidate;
-    }
-  }
-
-  throw new Error('PATH_OR_CWD: unable to resolve repository root from cwd or script-relative candidates.');
-};
 
 const toIso = () => new Date().toISOString();
 
@@ -61,19 +31,33 @@ const mavenVersionUrl = (group, artifact, version) => {
 };
 const iosTagUrl = (packageUrl, version) => `${String(packageUrl ?? '').replace(/\.git$/, '')}/releases/tag/v${String(version ?? '').replace(/^v/, '')}`;
 
-export const buildReleaseChangelogFacts = async ({ repoRoot, releaseId, releaseSummaryPath } = {}) => {
-  const resolvedRoot = await resolveRepoRoot(repoRoot);
+export const buildReleaseChangelogFacts = async ({ repoRoot, releaseId, releaseSummaryPath, releasePacketPath } = {}) => {
+  const resolvedRoot = await resolveLegatoRepoRoot({ repoRoot });
   const effectiveReleaseId = String(releaseId ?? '').trim();
+  const resolvedPaths = resolveReleasePaths({ repoRoot: resolvedRoot, releaseId: effectiveReleaseId });
+  const packetPath = resolve(releasePacketPath ?? resolvedPaths.packetPath);
   let summaryPath = releaseSummaryPath ? resolve(releaseSummaryPath) : '';
 
+  const packet = await readJson(packetPath).catch(() => {
+    throw new Error(`MISSING_RELEASE_PACKET: Missing required release packet at ${packetPath}`);
+  });
+  const packetValidation = validateReleaseExecutionPacketEnvelope(packet);
+  if (!packetValidation.ok) {
+    throw new Error(`SERIALIZATION_ERROR: release packet invalid (${packetValidation.errors.join('; ')})`);
+  }
+
+  const packetReleaseId = String(packet.release_id ?? '').trim();
+  const effectiveId = effectiveReleaseId || packetReleaseId;
+
   if (!summaryPath) {
-    if (!effectiveReleaseId) {
+    if (!effectiveId) {
       throw new Error('release_id is required when --summary is not provided.');
     }
 
     const candidatePaths = [
-      resolve(resolvedRoot, 'apps/capacitor-demo/artifacts/release-control', effectiveReleaseId, 'summary.json'),
-      resolve(resolvedRoot, 'artifacts/release-control', effectiveReleaseId, 'summary.json'),
+      resolve(resolvedRoot, packet?.artifacts?.summary_ref ?? ''),
+      resolve(resolvedRoot, 'apps/capacitor-demo/artifacts/release-control', effectiveId, 'summary.json'),
+      resolve(resolvedRoot, 'artifacts/release-control', effectiveId, 'summary.json'),
     ];
     summaryPath = candidatePaths[0];
     for (const candidate of candidatePaths) {
@@ -98,14 +82,19 @@ export const buildReleaseChangelogFacts = async ({ repoRoot, releaseId, releaseS
   const androidVersion = normalizeVersion(nativeArtifacts?.android?.version);
   const iosVersion = normalizeVersion(nativeArtifacts?.ios?.version);
 
-  const effectiveId = effectiveReleaseId || String(summary.release_id ?? '').trim();
-  const releaseTag = `release/${effectiveId}`;
+  const canonicalReleaseId = effectiveId || String(summary.release_id ?? '').trim();
+  const releaseTag = `release/${canonicalReleaseId}`;
 
   return {
-    release_id: effectiveId,
+    release_id: canonicalReleaseId,
     release_tag: releaseTag,
+    release_packet_ref: toRepoRelativePath(resolvedRoot, packetPath),
     source_commit: String(summary.source_commit ?? '').trim(),
     generated_at: toIso(),
+    protocol: {
+      required_step_order: ['preflight', 'publish', 'reconcile', 'closeout'],
+      packet_phase: String(packet.phase ?? '').trim(),
+    },
     targets: ['android', 'ios', 'npm'].map((target) => {
       const value = summary.targets[target] ?? {};
       return {
@@ -150,7 +139,7 @@ export const buildReleaseChangelogFacts = async ({ repoRoot, releaseId, releaseS
         source_of_truth: '.github/workflows/release-android.yml',
         publish_step_ref: 'android-publish',
         verification_step_ref: 'android-verify',
-        durable_evidence_ref: `apps/capacitor-demo/artifacts/release-control/${effectiveId}/android-summary.json`,
+         durable_evidence_ref: `apps/capacitor-demo/artifacts/release-control/${canonicalReleaseId}/android-summary.json`,
         rollback_or_hold_rule: 'preflight-only maps to blocked; publish failures map to failed.',
       },
       npm: {
@@ -203,11 +192,11 @@ export const buildReleaseChangelogFacts = async ({ repoRoot, releaseId, releaseS
       ],
       ephemeral: [
         {
-          label: 'release control summary',
-          path: `apps/capacitor-demo/artifacts/release-control/${effectiveId}/summary.json`,
-        },
-      ],
-    },
+           label: 'release control summary',
+           path: `apps/capacitor-demo/artifacts/release-control/${canonicalReleaseId}/summary.json`,
+         },
+       ],
+     },
   };
 };
 
@@ -228,6 +217,11 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     }
     if (arg === '--summary' && args[i + 1]) {
       options.releaseSummaryPath = args[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === '--release-packet' && args[i + 1]) {
+      options.releasePacketPath = args[i + 1];
       i += 1;
       continue;
     }

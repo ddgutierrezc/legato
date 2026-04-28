@@ -14,6 +14,8 @@ const npmContractPath = resolve(currentDir, '../../../docs/releases/contracts/np
 const iosContractPath = resolve(currentDir, '../../../docs/releases/contracts/ios-distribution-deploy-procedure-contract-v1.md');
 const canonicalTemplatePolicyPath = resolve(currentDir, '../../../docs/releases/templates/release-note-template-governance-v1.md');
 const iosDerivativeTemplatePath = resolve(currentDir, '../../../docs/releases/templates/ios-derivative-release-template.md');
+const skillPath = resolve(currentDir, '../../../.agents/skills/release-communications/SKILL.md');
+const skillRegistryPath = resolve(currentDir, '../../../.atl/skill-registry.md');
 
 test('release communication governance docs define canonical vs derivative ownership and evidence policy', async () => {
   const [governance, policy, stopTheLine] = await Promise.all([
@@ -88,4 +90,21 @@ test('template governance and future skill contract docs define synchronization 
   assert.match(futureSkill, /derivative notes/i);
   assert.match(futureSkill, /reconciliation report/i);
   assert.match(futureSkill, /stop-the-line reason codes/i);
+  assert.match(futureSkill, /non-goals/i);
+  assert.match(futureSkill, /no platform rewrite/i);
+  assert.match(futureSkill, /human-authored narrative/i);
+});
+
+test('release communications skill and registry enforce mandatory ordered protocol triggers', async () => {
+  const [skill, registry] = await Promise.all([
+    readFile(skillPath, 'utf8'),
+    readFile(skillRegistryPath, 'utf8'),
+  ]);
+
+  assert.match(skill, /release-execution-packet\/v1/i);
+  assert.match(skill, /preflight\s*->\s*publish\s*->\s*reconcile\s*->\s*closeout/i);
+  assert.match(skill, /must\s+load\s+this\s+skill\s+before/i);
+  assert.match(registry, /release-communications/i);
+  assert.match(registry, /mandatory/i);
+  assert.match(registry, /release|publish|deploy|changelog/i);
 });

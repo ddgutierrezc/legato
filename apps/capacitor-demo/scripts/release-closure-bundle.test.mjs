@@ -33,6 +33,27 @@ const createFixture = async () => {
 
   await writeFile(resolve(artifactRoot, 'reconciliation-report.json'), JSON.stringify({ ok: true, errors: [] }, null, 2));
 
+  await writeFile(resolve(artifactRoot, 'release-execution-packet.json'), JSON.stringify({
+    schema_version: 'release-execution-packet/v1',
+    release_id: releaseId,
+    phase: 'closeout',
+    repo_root: root,
+    selected_targets: ['android', 'ios'],
+    target_modes: { android: 'publish', ios: 'publish' },
+    inputs: {
+      narrative_ref: `docs/releases/notes/${releaseId}.json`,
+      ios_derivative_ref: `docs/releases/notes/${releaseId}-ios-derivative.md`,
+      changelog_anchor: `CHANGELOG.md#r-${releaseId.toLowerCase()}`,
+      npm_package_target: 'contract',
+    },
+    artifacts: {
+      summary_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/summary.json`,
+      facts_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/release-facts.json`,
+      reconciliation_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/reconciliation-report.json`,
+      closure_bundle_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/closure-bundle.json`,
+    },
+  }, null, 2));
+
   return { root, releaseId, artifactRoot };
 };
 
@@ -45,7 +66,9 @@ test('release closure bundle builds canonical traceability contract with referen
     summaryPath: resolve(fixture.artifactRoot, 'summary.json'),
     factsPath: resolve(fixture.artifactRoot, 'release-facts.json'),
     reconciliationPath: resolve(fixture.artifactRoot, 'reconciliation-report.json'),
+    releasePacketPath: resolve(fixture.artifactRoot, 'release-execution-packet.json'),
     evidenceIndexRefs: ['docs/releases/evidence-index/R-2026.04.27.5.json'],
+    expectedHead: '0123456789abcdef0123456789abcdef01234567',
   });
 
   assert.equal(bundle.schema_version, 'release-closure-bundle/v1');
@@ -55,6 +78,9 @@ test('release closure bundle builds canonical traceability contract with referen
   assert.ok(Array.isArray(bundle.published_artifacts));
   assert.ok(bundle.published_artifacts.length >= 2);
   assert.ok(bundle.published_artifacts.every((entry) => !Object.prototype.hasOwnProperty.call(entry, 'payload')));
+  assert.match(bundle.packet_ref, /release-execution-packet\.json/i);
+  assert.match(bundle.reconciliation_ref, /reconciliation-report\.json/i);
+  assert.equal(bundle.expected_head, '0123456789abcdef0123456789abcdef01234567');
 });
 
 test('release closure bundle writer emits json and pointer markdown artifacts', async () => {
@@ -66,6 +92,7 @@ test('release closure bundle writer emits json and pointer markdown artifacts', 
     summaryPath: resolve(fixture.artifactRoot, 'summary.json'),
     factsPath: resolve(fixture.artifactRoot, 'release-facts.json'),
     reconciliationPath: resolve(fixture.artifactRoot, 'reconciliation-report.json'),
+    releasePacketPath: resolve(fixture.artifactRoot, 'release-execution-packet.json'),
     evidenceIndexRefs: ['docs/releases/evidence-index/R-2026.04.27.5.json'],
     outputDir: fixture.artifactRoot,
   });
@@ -86,6 +113,7 @@ test('release closure bundle fails closed when required source commit is missing
       summaryPath: resolve(fixture.artifactRoot, 'summary.json'),
       factsPath: resolve(fixture.artifactRoot, 'release-facts.json'),
       reconciliationPath: resolve(fixture.artifactRoot, 'reconciliation-report.json'),
+      releasePacketPath: resolve(fixture.artifactRoot, 'release-execution-packet.json'),
       evidenceIndexRefs: ['docs/releases/evidence-index/R-2026.04.27.5.json'],
     }),
     /source_commit is required/i,
