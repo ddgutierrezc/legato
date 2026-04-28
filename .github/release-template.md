@@ -28,6 +28,7 @@
 - Durable evidence links are REQUIRED for every factual claim.
 - Ephemeral artifact URLs are optional appendices only.
 - Durable evidence checklist (minimum): npm package URL(s), Maven artifact URL, iOS `legato-ios-core` tag URL, and canonical manifest/changelog links.
+- V1 release truth backlink (required for `1.0.0` and later stable decisions): `docs/releases/v1-release-go-no-go-record-v1.md`
 
 ## Known Limitations
 - `<required, use "None" if none>`
