@@ -120,6 +120,14 @@
       "sessions": 34,
       "memories": 127,
       "prompts": 81
+    },
+    {
+      "id": "51539bda",
+      "created_by": "davidgutierrez",
+      "created_at": "2026-04-28T23:40:02Z",
+      "sessions": 6,
+      "memories": 36,
+      "prompts": 12
     }
   ]
 }
