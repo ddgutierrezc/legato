@@ -177,7 +177,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: release-packet-${{ inputs.release_id }}
-          path: apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}
+          path: .
 
       - name: Run release packet preflight completeness gate
         id: preflight
@@ -242,7 +242,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: release-packet-${{ inputs.release_id }}
-          path: apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}
+          path: .
 
       - name: Mint iOS distribution repo token
         id: ios-app-token
