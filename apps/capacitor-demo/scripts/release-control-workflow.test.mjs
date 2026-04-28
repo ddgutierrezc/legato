@@ -53,6 +53,9 @@ test('release control workflow emits release_id keyed final summary artifact', a
   assert.match(workflow, /needs\.preflight-completeness\.outputs\.ok\s*==\s*'true'/i);
   assert.match(workflow, /aggregate-release-summary\.mjs/i);
   assert.match(workflow, /release-execution-packet\.json/i);
+  assert.match(workflow, /Upload release execution packet/i);
+  assert.match(workflow, /release-packet-\$\{\{ inputs\.release_id \}\}/i);
+  assert.match(workflow, /Download release execution packet/i);
   assert.match(workflow, /release-control-summary-\$\{\{ inputs\.release_id \}\}/i);
   assert.match(workflow, /summary\.json/i);
   assert.match(workflow, /summary\.md/i);

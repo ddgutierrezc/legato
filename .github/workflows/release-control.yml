@@ -145,6 +145,12 @@ jobs:
           node -e 'const fs=require("node:fs");const path=require("node:path");const c=JSON.parse(fs.readFileSync("./artifacts/release-control-contract.json","utf8"));const packet={...(c.value?.packet ?? {}),phase:"preflight",repo_root:path.resolve(process.cwd(),"../..")};if(!packet.schema_version){throw new Error("missing release packet in contract output")}fs.writeFileSync(process.argv[1], `${JSON.stringify(packet,null,2)}\n`,"utf8");' "$packet_path"
           echo "release_packet_path=$packet_path" >> "$GITHUB_OUTPUT"
 
+      - name: Upload release execution packet
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-packet-${{ inputs.release_id }}
+          path: apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/release-execution-packet.json
+
   preflight-completeness:
     needs: validate-dispatch
     runs-on: ubuntu-latest
@@ -166,6 +172,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Download release execution packet
+        uses: actions/download-artifact@v8
+        with:
+          name: release-packet-${{ inputs.release_id }}
+          path: apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}
 
       - name: Run release packet preflight completeness gate
         id: preflight
@@ -225,6 +237,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Download release execution packet
+        uses: actions/download-artifact@v8
+        with:
+          name: release-packet-${{ inputs.release_id }}
+          path: apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}
 
       - name: Mint iOS distribution repo token
         id: ios-app-token
