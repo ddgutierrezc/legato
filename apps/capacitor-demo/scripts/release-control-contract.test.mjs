@@ -56,11 +56,31 @@ test('release control contract normalizes a valid cross-platform request with on
   assert.equal(result.value.target_modes.android, 'publish');
   assert.equal(result.value.target_modes.ios, 'publish');
   assert.equal(result.value.target_modes.npm, 'protected-publish');
-  assert.equal(result.value.packet.schema_version, 'release-execution-packet/v1');
+  assert.equal(result.value.packet.schema_version, 'release-execution-packet/v2');
   assert.equal(result.value.packet.phase, 'preflight');
   assert.equal(result.value.packet.release_id, 'R-2026.04.24.1');
+  assert.equal(result.value.packet.release_identity.release_key, 'stable/v0.1.1/capacitor');
   assert.deepEqual(result.value.packet.selected_targets, ['android', 'ios', 'npm']);
-  assert.equal(result.value.packet.inputs.narrative_ref, 'docs/releases/notes/R-2026.04.24.1.json');
+  assert.equal(result.value.packet.inputs.canonical_refs.narrative_ref, 'docs/releases/notes/stable-v0.1.1-capacitor.json');
+  assert.equal(result.value.packet.inputs.compatibility_refs.narrative_ref, 'docs/releases/notes/R-2026.04.24.1.json');
+});
+
+test('release control contract keeps release identity stable across reruns while release id changes', () => {
+  const first = validateReleaseControlContract({
+    releaseId: 'R-2026.04.24.1',
+    targets: 'ios',
+    targetModes: { ios: 'publish' },
+  });
+  const second = validateReleaseControlContract({
+    releaseId: 'R-2026.04.24.2',
+    targets: 'ios',
+    targetModes: { ios: 'publish' },
+  });
+
+  assert.equal(first.ok, true);
+  assert.equal(second.ok, true);
+  assert.equal(first.value.packet.release_identity.release_key, second.value.packet.release_identity.release_key);
+  assert.notEqual(first.value.packet.release_id, second.value.packet.release_id);
 });
 
 test('release control contract rejects unsupported iOS mode and reports allowed values', () => {
@@ -100,4 +120,17 @@ test('release control contract rejects explicit non-goal scope violation for pla
   assert.equal(result.ok, false);
   assert.match(result.errors.join('\n'), /NON_GOAL_VIOLATION/i);
   assert.equal(result.diagnostics[0].code, 'NON_GOAL_VIOLATION');
+});
+
+test('release control contract fails closed with IDENTITY_AMBIGUOUS when explicit release key conflicts', () => {
+  const result = validateReleaseControlContract({
+    releaseId: 'R-2026.04.28.22',
+    targets: 'android',
+    targetModes: { android: 'publish' },
+    releaseKey: 'stable/v9.9.9/contract',
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /IDENTITY_AMBIGUOUS/i);
+  assert.equal(result.diagnostics.some((entry) => entry.code === 'IDENTITY_AMBIGUOUS'), true);
 });

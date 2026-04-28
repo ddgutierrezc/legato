@@ -132,16 +132,29 @@ test('summary schema rejects closure bundle missing required traceability fields
 
 test('summary schema validates release execution packet envelope', () => {
   const valid = validateReleaseExecutionPacketEnvelope({
-    schema_version: 'release-execution-packet/v1',
+    schema_version: 'release-execution-packet/v2',
     release_id: 'R-2026.04.27.1',
     phase: 'preflight',
     repo_root: '/tmp/legato',
+    release_identity: {
+      channel: 'stable',
+      version: '0.1.1',
+      package_target: 'contract',
+      release_key: 'stable/v0.1.1/contract',
+    },
     selected_targets: ['android', 'ios'],
     target_modes: { android: 'publish', ios: 'publish' },
     inputs: {
-      narrative_ref: 'docs/releases/notes/R-2026.04.27.1.json',
-      ios_derivative_ref: 'docs/releases/notes/R-2026.04.27.1-ios-derivative.md',
-      changelog_anchor: 'CHANGELOG.md#r-r-202604271',
+      canonical_refs: {
+        narrative_ref: 'docs/releases/notes/stable-v0.1.1-contract.json',
+        ios_derivative_ref: 'docs/releases/notes/stable-v0.1.1-contract-ios-derivative.md',
+        changelog_anchor: 'CHANGELOG.md#release-stable-v0.1.1-contract',
+      },
+      compatibility_refs: {
+        narrative_ref: 'docs/releases/notes/R-2026.04.27.1.json',
+        ios_derivative_ref: 'docs/releases/notes/R-2026.04.27.1-ios-derivative.md',
+        changelog_anchor: 'CHANGELOG.md#r-r-202604271',
+      },
       npm_package_target: 'contract',
     },
     artifacts: {
@@ -154,6 +167,30 @@ test('summary schema validates release execution packet envelope', () => {
 
   assert.equal(valid.ok, true);
   assert.equal(valid.errors.length, 0);
+});
+
+test('summary schema fails packet validation when release identity is missing', () => {
+  const invalid = validateReleaseExecutionPacketEnvelope({
+    schema_version: 'release-execution-packet/v2',
+    release_id: 'R-2026.04.27.1',
+    phase: 'preflight',
+    repo_root: '/tmp/legato',
+    selected_targets: ['android'],
+    target_modes: { android: 'publish' },
+    inputs: {
+      canonical_refs: { narrative_ref: 'docs/releases/notes/stable-v0.1.1-capacitor.json', changelog_anchor: 'CHANGELOG.md#release-stable-v0.1.1-capacitor' },
+      compatibility_refs: { narrative_ref: 'docs/releases/notes/R-2026.04.27.1.json', changelog_anchor: 'CHANGELOG.md#r-r-202604271' },
+    },
+    artifacts: {
+      summary_ref: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.27.1/summary.json',
+      facts_ref: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.27.1/release-facts.json',
+      reconciliation_ref: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.27.1/reconciliation-report.json',
+      closure_bundle_ref: 'apps/capacitor-demo/artifacts/release-control/R-2026.04.27.1/closure-bundle.json',
+    },
+  });
+
+  assert.equal(invalid.ok, false);
+  assert.match(invalid.errors.join('\n'), /release_identity/i);
 });
 
 test('summary schema rejects malformed fresh-head closeout envelope', () => {

@@ -34,16 +34,24 @@ const createFixture = async () => {
   await writeFile(resolve(artifactRoot, 'reconciliation-report.json'), JSON.stringify({ ok: true, errors: [] }, null, 2));
 
   await writeFile(resolve(artifactRoot, 'release-execution-packet.json'), JSON.stringify({
-    schema_version: 'release-execution-packet/v1',
+    schema_version: 'release-execution-packet/v2',
     release_id: releaseId,
     phase: 'closeout',
     repo_root: root,
+    release_identity: { channel: 'stable', version: '0.1.1', package_target: 'contract', release_key: 'stable/v0.1.1/contract' },
     selected_targets: ['android', 'ios'],
     target_modes: { android: 'publish', ios: 'publish' },
     inputs: {
-      narrative_ref: `docs/releases/notes/${releaseId}.json`,
-      ios_derivative_ref: `docs/releases/notes/${releaseId}-ios-derivative.md`,
-      changelog_anchor: `CHANGELOG.md#r-${releaseId.toLowerCase()}`,
+      canonical_refs: {
+        narrative_ref: 'docs/releases/notes/stable-v0.1.1-contract.json',
+        ios_derivative_ref: 'docs/releases/notes/stable-v0.1.1-contract-ios-derivative.md',
+        changelog_anchor: 'CHANGELOG.md#release-stable-v0.1.1-contract',
+      },
+      compatibility_refs: {
+        narrative_ref: `docs/releases/notes/${releaseId}.json`,
+        ios_derivative_ref: `docs/releases/notes/${releaseId}-ios-derivative.md`,
+        changelog_anchor: `CHANGELOG.md#r-${releaseId.toLowerCase()}`,
+      },
       npm_package_target: 'contract',
     },
     artifacts: {

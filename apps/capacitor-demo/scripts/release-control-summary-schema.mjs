@@ -275,12 +275,23 @@ export const validateReleaseExecutionPacketEnvelope = (candidate = {}) => {
     }
   }
 
-  if (String(candidate?.schema_version ?? '').trim() !== 'release-execution-packet/v1') {
-    errors.push('schema_version must be release-execution-packet/v1.');
+  if (String(candidate?.schema_version ?? '').trim() !== 'release-execution-packet/v2') {
+    errors.push('schema_version must be release-execution-packet/v2.');
   }
 
   if (!['preflight', 'publish', 'reconcile', 'closeout'].includes(String(candidate?.phase ?? '').trim())) {
     errors.push('phase must be preflight|publish|reconcile|closeout.');
+  }
+
+  const identity = candidate?.release_identity;
+  if (!identity || typeof identity !== 'object' || Array.isArray(identity)) {
+    errors.push('release_identity is required.');
+  } else {
+    for (const field of ['channel', 'version', 'package_target', 'release_key']) {
+      if (!hasText(identity[field])) {
+        errors.push(`release_identity.${field} is required.`);
+      }
+    }
   }
 
   if (!Array.isArray(candidate?.selected_targets)) {
@@ -294,11 +305,18 @@ export const validateReleaseExecutionPacketEnvelope = (candidate = {}) => {
   if (!candidate?.inputs || typeof candidate.inputs !== 'object' || Array.isArray(candidate.inputs)) {
     errors.push('inputs must be an object.');
   } else {
-    if (!hasText(candidate.inputs.narrative_ref)) {
-      errors.push('inputs.narrative_ref is required.');
-    }
-    if (!hasText(candidate.inputs.changelog_anchor)) {
-      errors.push('inputs.changelog_anchor is required.');
+    for (const parentKey of ['canonical_refs', 'compatibility_refs']) {
+      const refs = candidate.inputs[parentKey];
+      if (!refs || typeof refs !== 'object' || Array.isArray(refs)) {
+        errors.push(`inputs.${parentKey} is required.`);
+        continue;
+      }
+      if (!hasText(refs.narrative_ref)) {
+        errors.push(`inputs.${parentKey}.narrative_ref is required.`);
+      }
+      if (!hasText(refs.changelog_anchor)) {
+        errors.push(`inputs.${parentKey}.changelog_anchor is required.`);
+      }
     }
   }
 

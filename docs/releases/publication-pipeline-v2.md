@@ -42,7 +42,9 @@ Any unsupported mode is rejected preflight by `release-control-contract.mjs` bef
 
 Deterministic gate before lane fanout:
 
-- `release-execution-packet/v1` is materialized first at `apps/capacitor-demo/artifacts/release-control/<release_id>/release-execution-packet.json`.
+- `release-execution-packet/v2` is materialized first at `apps/capacitor-demo/artifacts/release-control/<release_id>/release-execution-packet.json`.
+- Packet v2 includes canonical `release_identity` (`channel`, `version`, `package_target`, `release_key`) and keeps `release_id` as run correlation metadata.
+- Local and CI now share the same entrypoint: `npm run release:prepare` (builder + validator + preflight completeness).
 - `release-preflight-completeness.mjs` runs after dispatch validation and before Android/iOS/npm fanout.
 - Gate artifact: `apps/capacitor-demo/artifacts/release-control/<release_id>/preflight.json`
 - Fanout hard-blocks unless `preflight.ok === true`.
@@ -51,12 +53,13 @@ Deterministic gate before lane fanout:
 
 Required run-level checks:
 
-- Narrative file exists: `docs/releases/notes/<release_id>.json`
+- Canonical narrative file exists: `docs/releases/notes/<release_key-slug>.json`
+- Compatibility alias accepted during migration: `docs/releases/notes/<release_id>.json`
 - Changelog anchor format is canonical: `CHANGELOG.md#r-...`
 
 Lane-scoped checks:
 
-- iOS selected: `docs/releases/notes/<release_id>-ios-derivative.md` is required.
+- iOS selected: canonical derivative `docs/releases/notes/<release_key-slug>-ios-derivative.md` is preferred; legacy `<release_id>-ios-derivative.md` remains compatibility-only.
 - npm selected: `npm_package_target` must be `capacitor|contract`.
 
 Reason-coded diagnostics emitted by preflight/retry paths:
@@ -66,7 +69,11 @@ Reason-coded diagnostics emitted by preflight/retry paths:
 | `PATH_OR_CWD` | Repo root/path resolution failed. | No | Run from repo root or pass explicit `--repo-root`. |
 | `SERIALIZATION_ERROR` | JSON payload malformed/unsafe for aggregation. | No | Fix payload source (summary/facts) before rerun. |
 | `PACKAGE_TARGET_SCOPE` | npm package target out of allowed scope. | No | Use `npm_package_target=capacitor|contract`. |
-| `MISSING_RELEASE_PACKET` | The release execution packet is missing before gate execution. | No | Regenerate `release-execution-packet/v1` and rerun. |
+| `MISSING_RELEASE_PACKET` | The release execution packet is missing before gate execution. | No | Regenerate `release-execution-packet/v2` and rerun. |
+| `IDENTITY_MISSING` | Packet does not include full canonical `release_identity`. | No | Populate `release_identity` fields and rerun prepare/preflight. |
+| `IDENTITY_AMBIGUOUS` | Canonical identity conflicts for the same artifact tuple. | No | Resolve conflicting identity fields, then rerun. |
+| `IDENTITY_LOOKUP_MISS` | Canonical identity-backed narrative/evidence refs cannot be resolved. | No | Create canonical identity-backed notes/evidence paths. |
+| `LEGACY_ALIAS_USED` | Canonical note path missing; compatibility `<release_id>` alias used. | Yes | Migrate to canonical identity-backed file names before next release. |
 | `MISSING_REQUIRED_INPUT` | Required packet input reference is missing. | No | Fill packet refs (`narrative_ref`, `changelog_anchor`, lane refs) and rerun. |
 | `MISSING_NARRATIVE_OR_DERIVATIVE_NOTES` | Required narrative/derivative note file is missing. | No | Author required notes from templates, then rerun. |
 | `DERIVATIVE_BACKLINK_DRIFT` | iOS derivative note is missing canonical backlinks. | No | Restore canonical release/changelog backlink fields. |

@@ -43,14 +43,47 @@ export const resolveLegatoRepoRoot = async ({ repoRoot } = {}) => {
   throw new Error('PATH_OR_CWD: unable to resolve repository root from cwd or script-relative candidates.');
 };
 
-export const resolveReleasePaths = ({ repoRoot, releaseId } = {}) => {
-  const root = resolve(repoRoot ?? process.cwd());
-  const normalizedReleaseId = String(releaseId ?? '').trim();
-  const artifactRoot = resolve(root, 'apps/capacitor-demo/artifacts/release-control', normalizedReleaseId || 'missing-release-id');
+export const slugReleaseKey = (releaseKey) => String(releaseKey ?? '').trim().replaceAll('/', '-');
 
+export const buildCanonicalRefs = ({ releaseIdentity, releaseId }) => {
+  const releaseKey = String(releaseIdentity?.release_key ?? '').trim();
+  const slug = slugReleaseKey(releaseKey);
+  const canonical = {
+    narrative_ref: slug ? `docs/releases/notes/${slug}.json` : '',
+    ios_derivative_ref: slug ? `docs/releases/notes/${slug}-ios-derivative.md` : '',
+    changelog_anchor: slug ? `CHANGELOG.md#release-${slug}` : '',
+  };
+  const compatibility = {
+    narrative_ref: `docs/releases/notes/${releaseId}.json`,
+    ios_derivative_ref: `docs/releases/notes/${releaseId}-ios-derivative.md`,
+    changelog_anchor: `CHANGELOG.md#r-${String(releaseId ?? '').toLowerCase()}`,
+  };
+  return { canonical, compatibility };
+};
+
+export const resolveInputRefWithCompatibility = async ({ repoRoot, canonicalRef, compatibilityRef }) => {
+  const canonicalPath = resolve(repoRoot, String(canonicalRef ?? '').trim());
+  if (String(canonicalRef ?? '').trim() && await pathExists(canonicalPath)) {
+    return { resolvedRef: canonicalRef, resolvedPath: canonicalPath, usedAlias: false };
+  }
+  const compatibilityPath = resolve(repoRoot, String(compatibilityRef ?? '').trim());
+  if (String(compatibilityRef ?? '').trim() && await pathExists(compatibilityPath)) {
+    return { resolvedRef: canonicalRef, resolvedPath: compatibilityPath, usedAlias: true };
+  }
+  return { resolvedRef: canonicalRef, resolvedPath: canonicalPath, usedAlias: false, missing: true };
+};
+
+export const resolveReleasePaths = ({ repoRoot, releaseId, releaseIdentity } = {}) => {
+  const base = {
+    repoRoot: resolve(repoRoot ?? process.cwd()),
+    releaseId: String(releaseId ?? '').trim(),
+  };
+  const root = base.repoRoot;
+  const normalizedReleaseId = base.releaseId;
+  const artifactRoot = resolve(root, 'apps/capacitor-demo/artifacts/release-control', normalizedReleaseId || 'missing-release-id');
+  const canonicalRefs = buildCanonicalRefs({ releaseIdentity, releaseId: normalizedReleaseId });
   return {
-    repoRoot: root,
-    releaseId: normalizedReleaseId,
+    ...base,
     artifactRoot,
     packetPath: resolve(artifactRoot, 'release-execution-packet.json'),
     summaryPath: resolve(artifactRoot, 'summary.json'),
@@ -61,6 +94,8 @@ export const resolveReleasePaths = ({ repoRoot, releaseId } = {}) => {
     narrativePath: resolve(root, `docs/releases/notes/${normalizedReleaseId}.json`),
     derivativeNotesPath: resolve(root, `docs/releases/notes/${normalizedReleaseId}-ios-derivative.md`),
     changelogPath: resolve(root, 'CHANGELOG.md'),
+    canonicalNarrativePath: resolve(root, canonicalRefs.canonical.narrative_ref),
+    compatibilityNarrativePath: resolve(root, canonicalRefs.compatibility.narrative_ref),
   };
 };
 

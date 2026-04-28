@@ -46,16 +46,24 @@ const createFixtureRepo = async () => {
   }, null, 2));
 
   await writeFile(resolve(root, 'apps/capacitor-demo/artifacts/release-control/R-2026.04.26.1/release-execution-packet.json'), JSON.stringify({
-    schema_version: 'release-execution-packet/v1',
+    schema_version: 'release-execution-packet/v2',
     release_id: 'R-2026.04.26.1',
     phase: 'reconcile',
     repo_root: root,
+    release_identity: { channel: 'stable', version: '0.1.1', package_target: 'contract', release_key: 'stable/v0.1.1/contract' },
     selected_targets: ['android', 'ios', 'npm'],
     target_modes: { android: 'publish', ios: 'publish', npm: 'protected-publish' },
     inputs: {
-      narrative_ref: 'docs/releases/notes/R-2026.04.26.1.json',
-      ios_derivative_ref: 'docs/releases/notes/R-2026.04.26.1-ios-derivative.md',
-      changelog_anchor: 'CHANGELOG.md#r-r-202604261',
+      canonical_refs: {
+        narrative_ref: 'docs/releases/notes/stable-v0.1.1-contract.json',
+        ios_derivative_ref: 'docs/releases/notes/stable-v0.1.1-contract-ios-derivative.md',
+        changelog_anchor: 'CHANGELOG.md#release-stable-v0.1.1-contract',
+      },
+      compatibility_refs: {
+        narrative_ref: 'docs/releases/notes/R-2026.04.26.1.json',
+        ios_derivative_ref: 'docs/releases/notes/R-2026.04.26.1-ios-derivative.md',
+        changelog_anchor: 'CHANGELOG.md#r-r-202604261',
+      },
       npm_package_target: 'contract',
     },
     artifacts: {
