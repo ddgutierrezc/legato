@@ -1,0 +1,42 @@
+---
+title: Snapshot Model
+description: Why PlaybackSnapshot and QueueSnapshot form Legato's shared read model.
+---
+
+Snapshots are the shared read model because consumers need a consistent view of playback at any moment, independent of runtime implementation details.
+
+## Why snapshots are central
+
+A snapshot captures observable playback state as data, not behavior. This makes it portable across adapters, event streams, and UI layers.
+
+In Legato, the read model is split into:
+
+- `PlaybackSnapshot` for current playback projection,
+- `QueueSnapshot` for queue projection and active index.
+
+## `PlaybackSnapshot` and `QueueSnapshot` roles
+
+- `PlaybackSnapshot` carries state, active item pointers, timeline values, and the queue projection.
+- `QueueSnapshot` carries ordered `items` and nullable `currentIndex`.
+
+This pairing keeps timeline and queue concerns explicit while still allowing a single playback payload to include queue context.
+
+## Nullability as signal, not error
+
+The contract uses nullability and optionality to represent runtime uncertainty explicitly:
+
+- `duration: null` means unknown or live-like timeline semantics.
+- `currentTrack` and `currentIndex` are nullable when no active item exists.
+- `bufferedPosition` is optional and can be `null` when runtime data is unavailable.
+
+These states are intentional parts of the model. Consumers should treat them as valid contract values, not exceptional conditions.
+
+## Practical consequence for consumers
+
+Because snapshots encode uncertainty in the type shape, consumers can apply policy without guessing runtime internals. For example, UI can render unknown duration states directly, and queue views can handle `currentIndex: null` as "no active selection".
+
+## Related pages
+
+- [Snapshots reference](../../reference/snapshots/)
+- [Invariants reference](../../reference/invariants/)
+- [Model a Track](../../how-to/model-a-track/)

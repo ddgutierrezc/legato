@@ -1,0 +1,72 @@
+---
+title: Model a Track
+description: Build a valid Track payload with required fields, optional metadata, type, and headers.
+---
+
+This guide shows how to model a `Track` object that matches the shared contract.
+
+## 1) Start with required fields
+
+`Track` requires only `id` and `url`.
+
+```ts
+import type { Track } from '@ddgutierrezc/legato-contract';
+
+const minimalTrack: Track = {
+  id: 'episode-001',
+  url: 'https://cdn.example.com/audio/episode-001.mp3',
+};
+```
+
+## 2) Add optional display metadata
+
+Add metadata only when your product surface needs it.
+
+```ts
+const withMetadata: Track = {
+  id: 'episode-001',
+  url: 'https://cdn.example.com/audio/episode-001.mp3',
+  title: 'Episode 1',
+  artist: 'Legato Team',
+  album: 'Release Notes',
+  artwork: 'https://cdn.example.com/artwork/episode-001.jpg',
+  duration: 1840,
+};
+```
+
+## 3) Declare media semantics with `type`
+
+When known, set `type` to one of the supported literals exported by the contract (`file`, `progressive`, `hls`, `dash`).
+
+```ts
+const typedTrack: Track = {
+  id: 'episode-001',
+  url: 'https://cdn.example.com/audio/episode-001.mp3',
+  type: 'progressive',
+};
+```
+
+## 4) Add per-track transport headers when needed
+
+Use `headers` for static per-track HTTP request headers.
+
+```ts
+const protectedTrack: Track = {
+  id: 'episode-001',
+  url: 'https://cdn.example.com/audio/episode-001.mp3',
+  type: 'progressive',
+  headers: {
+    Authorization: 'Bearer demo-token',
+    'X-Client-Version': '1.0.0',
+  },
+};
+```
+
+## Expected result
+
+You can now construct `Track` values that satisfy the contract using required fields first, then optional metadata, `type`, and `headers` as consumer needs evolve.
+
+## Related pages
+
+- [Track reference](../../reference/track/)
+- [Validate Runtime Invariants](../validate-runtime-invariants/)
