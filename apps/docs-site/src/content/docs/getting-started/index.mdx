@@ -1,13 +1,17 @@
 ---
 title: Getting Started
-description: Install Legato packages, choose the right surface, and complete your first integration.
+description: Decision hub to choose your first Legato path and execute a practical onboarding flow.
 ---
 
 import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
 
-Legato provides two public packages for continuous audio playback integrations.
+Use this page as a decision hub. In a few minutes you should know which path to run first:
 
-## Start with the problem, not the package
+- Contract-first
+- Capacitor runtime-first
+- Production confidence hardening
+
+## Start with the risk, not the package
 
 Pick a package based on where your integration risk lives:
 
@@ -16,20 +20,37 @@ Pick a package based on where your integration risk lives:
 
 Legato is intentionally layered: `legato-contract` gives the vocabulary, `legato-capacitor` gives a concrete runtime integration.
 
-## Package decision matrix
+## Decision matrix
 
 | If you need... | Install | Why this is the fit |
 |---|---|---|
 | Shared playback events, snapshots, and invariants across multiple runtimes or app layers | `@ddgutierrezc/legato-contract` | You can stabilize app logic first without coupling it to Capacitor runtime APIs. |
 | Hybrid app playback with Capacitor runtime integration (`audioPlayer`, `mediaSession`) | `@ddgutierrezc/legato-capacitor` + `@ddgutierrezc/legato-contract` | You need runtime commands/listeners, while still reusing the same shared contract semantics. |
+| Rollout safety and upgrade confidence for existing integrations | Usually both packages + your app validation layer | Your main risk is release behavior drift, capability assumptions, and non-explicit compatibility decisions. |
 
-## Decision aid
+## Quick chooser
 
-Use this quick checklist:
+Choose the first path that is true:
 
-- Are you designing a playback domain model shared by frontend, services, or tests? Start with `@ddgutierrezc/legato-contract`.
-- Do you need native runtime control surfaces today (playback commands, media-session events)? Add `@ddgutierrezc/legato-capacitor`.
-- Do you expect to evolve from app-logic validation into native integration? Start contract-first, then add Capacitor when runtime concerns become real.
+1. You are defining shared playback semantics first (types, events, invariants) -> start with `@ddgutierrezc/legato-contract`.
+2. You already need device/runtime controls now (play, pause, remote events, media session) -> start with `@ddgutierrezc/legato-capacitor` and `@ddgutierrezc/legato-contract`.
+3. You already run in production and your main concern is safe upgrades and confidence gates -> start with the production confidence path.
+
+## Next 15 minutes
+
+<CardGrid>
+  <Card title="Contract-first" icon="puzzle" href="/getting-started/golden-paths/#path-1-contract-first">
+    Read the contract rationale, model one track, and validate invariant usage.
+  </Card>
+  <Card title="Capacitor runtime-first" icon="play" href="/getting-started/golden-paths/#path-2-capacitor-runtime-first">
+    Set up the plugin, run first queue playback, and attach essential listeners.
+  </Card>
+  <Card title="Production confidence" icon="lock" href="/getting-started/golden-paths/#path-3-production-hardening">
+    Execute compatibility and migration checks before broad rollout.
+  </Card>
+</CardGrid>
+
+- Full guided sequences: [Golden Paths](/getting-started/golden-paths/)
 
 ## Typical scenarios and tradeoffs
 
@@ -59,6 +80,8 @@ You can start by making your app logic consume contract snapshots/events, then p
 - Picking `@ddgutierrezc/legato-capacitor` only because "we might need native later" while no runtime integration exists yet.
 - Treating `@ddgutierrezc/legato-contract` as a full runtime solution; it does not provide playback execution APIs.
 - Delaying contract modeling until after runtime wiring, then retrofitting app logic to shared types under time pressure.
+- Treating a finite `duration` as seek support; seek is capability-projected at runtime.
+- Upgrading dependencies without validating `error.code`, capability literals, and setup lifecycle assumptions.
 
 ## Install
 
@@ -82,18 +105,18 @@ You can start by making your app logic consume contract snapshots/events, then p
 
 </Steps>
 
-## Next steps
+## Recommended follow-up
 
 <CardGrid>
-  <Card title="Contract-first rationale" icon="puzzle">Read why Legato separates shared semantics from runtime implementation details.</Card>
-  <Card title="Snapshot mental model" icon="open-book">Understand how to interpret nullable and projected playback state before building UI.</Card>
-  <Card title="Capability projection" icon="lightbulb">Learn why runtime-supported controls must come from capability projections.</Card>
-  <Card title="Join community channels" icon="star">Get contribution and support links in the Community section.</Card>
+  <Card title="Golden Paths" icon="open-book" href="/getting-started/golden-paths/">Run a profile-based onboarding sequence with explicit outcomes.</Card>
+  <Card title="Contract-first rationale" icon="puzzle" href="/packages/contract/explanation/why-contract-first/">Understand why shared semantics come before runtime specifics.</Card>
+  <Card title="Capability projection" icon="lightbulb" href="/packages/capacitor/explanation/capability-projection/">Avoid static runtime assumptions when enabling controls.</Card>
+  <Card title="Production quickstart" icon="lock" href="/how-to/production-quickstart-capacitor/">Validate a realistic production-oriented integration flow.</Card>
 </CardGrid>
 
-- [Why Contract-First](../packages/contract/explanation/why-contract-first/)
 - [Snapshot Model](../packages/contract/explanation/snapshot-model/)
-- [Capability Projection](../packages/capacitor/explanation/capability-projection/)
+- [Migration and Versioning](../how-to/migration-and-versioning/)
+- [Compatibility](../reference/compatibility/)
 
 ## Support and community
 
