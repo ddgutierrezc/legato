@@ -15,6 +15,8 @@
     "@astrojs/check": "^0.9.9",
     "@astrojs/starlight": "^0.38.4",
     "astro": "^6.1.9",
+    "astro-mermaid": "^2.0.1",
+    "mermaid": "^11.14.0",
     "sharp": "^0.34.5",
     "typescript": "^5.9.3"
   }

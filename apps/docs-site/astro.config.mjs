@@ -1,11 +1,15 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import mermaid from 'astro-mermaid';
 import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://legato-docs.netlify.app',
 	integrations: [
+		mermaid({
+			enableLog: false,
+		}),
 		starlight({
 			title: 'Legato Docs',
 			description:

@@ -1,0 +1,78 @@
+---
+title: Consumer State Model
+description: How to model consumer-side state from snapshots, events, and runtime capabilities without false assumptions.
+---
+
+Legato does not ask consumers to treat every signal equally.
+
+The public model separates state into three distinct semantic channels:
+
+- **snapshots** for current playback projection,
+- **events** for specialized runtime signals,
+- **capabilities** for runtime permission/availability.
+
+When these channels are collapsed into one store concept, inference errors become almost guaranteed.
+
+## The three-channel model
+
+### 1) Snapshots are the read model
+
+`PlaybackSnapshot` is the canonical consumer projection for "what is true now":
+
+- state (`idle`, `loading`, `ready`, `playing`, `paused`, `buffering`, `ended`, `error`),
+- current track/index (both nullable),
+- timeline values (`position`, nullable `duration`, optional nullable `bufferedPosition`),
+- queue projection (`QueueSnapshot`).
+
+This is the model most UI state should derive from.
+
+### 2) Events are specialized signals
+
+Events are not a replacement for full state. They are targeted notifications:
+
+- state transition signal (`playback-state-changed`),
+- timeline updates (`playback-progress`),
+- queue/active item transitions,
+- error and remote-control signals.
+
+Use them to update or trigger behavior, but keep snapshot semantics as the structural anchor for durable rendering state.
+
+### 3) Capabilities are runtime permissions
+
+`CAPABILITIES` defines allowed capability names; `getCapabilities().supported` defines what is currently available.
+
+This is a separate concern from snapshot timeline evidence. A finite `duration` does not, by itself, authorize seek behavior.
+
+## Nullability is semantic, not missing data
+
+In the contract model, nullable fields are meaningful outcomes:
+
+- `currentTrack: null` and `currentIndex: null` can represent no active item,
+- `duration: null` can represent unknown/live-like timeline semantics.
+
+Treating `null` as a temporary defect instead of a valid state tends to create fragile fallback logic and accidental UI lies.
+
+## Common consumer anti-patterns
+
+- **Capability inference from timeline**: enabling seek only because `duration` is finite, instead of checking `getCapabilities().supported`.
+- **Message-text branching**: keying behavior on `error.message` instead of stable `error.code` literals.
+- **Event-only store architecture**: treating last event as full state without periodic/full snapshot reconciliation.
+- **Transport leakage into UI policy**: coupling screen logic to plugin assumptions rather than contract literals and projections.
+- **Null-erasing normalization**: coercing nullable fields into fake defaults that hide real runtime semantics.
+
+## Practical architectural posture
+
+For most integrations, a resilient consumer model keeps these concerns separate:
+
+- snapshot-backed render state,
+- event-driven reactions,
+- capability-gated affordances.
+
+This structure minimizes coupling and makes upgrades safer because each branch depends on the correct public authority.
+
+## Related pages
+
+- [Playback Lifecycle](./playback-lifecycle/)
+- [Guarantees and Non-Guarantees](./guarantees-and-non-guarantees/)
+- [Snapshot Model](/packages/contract/explanation/snapshot-model/)
+- [Capability Projection](/packages/capacitor/explanation/capability-projection/)
