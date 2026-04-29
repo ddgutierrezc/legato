@@ -1,0 +1,55 @@
+---
+title: Guarantees and Non-Guarantees
+description: Stable guarantees versus runtime-dependent behavior in Legato integrations.
+---
+
+This page is a mental safety boundary.
+
+Use it to decide what you can rely on as stable contract behavior and what you must treat as runtime-dependent.
+
+## Stable guarantees (contract-safe assumptions)
+
+These are documented public contract anchors:
+
+- **Stable event-name vocabulary** via `LEGATO_EVENT_NAMES` (`playback-*`, `remote-*`).
+- **Stable event payload shapes** via `LegatoEventPayloadMap` (for example `playback-progress`, `playback-error`, `remote-seek`).
+- **Stable error-code literals** via `LEGATO_ERROR_CODES` for machine-readable branching.
+- **Stable snapshot structural model** via `PlaybackSnapshot` / `QueueSnapshot` fields and nullability semantics.
+- **Stable capability vocabulary** via `CAPABILITIES` as allowed names.
+
+In practice: treat these symbols and shapes as compatibility keys across app layers.
+
+## Non-guarantees (runtime-dependent behavior)
+
+These are explicitly NOT guaranteed by contract semantics alone:
+
+- **Event ordering guarantees across all runtimes**: event names and payload types are stable; global ordering guarantees are not documented as universal.
+- **Retry policy guarantees**: no public contract promise defines automatic retry behavior for runtime failures.
+- **Permanent capability support**: capability names are stable, but support is projected dynamically by `getCapabilities().supported`.
+- **Seek entitlement from duration alone**: finite `duration` indicates media length evidence, not seek permission by itself.
+- **Universal platform parity**: native/runtime behavior can differ while still projecting into the same contract model.
+
+In practice: runtime observation is authoritative for availability and timing behavior.
+
+## Safe reasoning model
+
+Use a two-key model when designing product logic:
+
+1. **Meaning key**: contract literals/types define what values mean.
+2. **Availability key**: runtime projection defines what operations are possible now.
+
+If these keys are mixed, false assumptions appear quickly (for example enabling seek from timeline metadata only).
+
+## Examples
+
+- Handle errors by `error.code`, not by parsing `error.message` text.
+- Subscribe using known event names and typed payloads, but do not hardcode a global event sequencing assumption.
+- Enable seek controls only when `supported.includes('seek')` is true, even if `duration` is finite.
+
+## Related pages
+
+- [Architecture](./)
+- [System Overview](./system-overview/)
+- [Contract and Runtime Boundaries](./contract-and-runtime-boundaries/)
+- [Capability Projection](../../packages/capacitor/explanation/capability-projection/)
+- [Snapshots Reference](../../packages/contract/reference/snapshots/)

@@ -1,0 +1,67 @@
+---
+title: Contract and Runtime Boundaries
+description: Why Legato separates shared semantics from runtime integration, and what this separation protects.
+---
+
+Legato separates semantic authority from runtime execution authority on purpose.
+
+This is not a packaging preference. It is an architectural control that keeps product behavior stable while runtime integration evolves.
+
+## Why the separation exists
+
+Playback systems fail at interpretation seams:
+
+- one layer calls something "seekable" because duration is finite,
+- another layer treats seek as unavailable at runtime,
+- and product logic silently drifts into contradictory assumptions.
+
+Legato addresses this by fixing shared meaning in the contract package and keeping runtime adaptation in the integration package.
+
+## What lives on the contract side
+
+`@ddgutierrezc/legato-contract` defines cross-layer meaning:
+
+- event-name literals and payload maps,
+- snapshot and queue read-model shapes,
+- playback-state literals,
+- error-code literals,
+- capability vocabulary and invariant expectations.
+
+Contract scope answers: "What does this value mean everywhere?"
+
+## What lives on the runtime side
+
+`@ddgutierrezc/legato-capacitor` and the native plugin boundary define runtime integration behavior:
+
+- command execution (`play`, `pause`, `seekTo`, queue operations),
+- listener transport from native to app,
+- capability projection at the moment of observation,
+- and platform-dependent playback outcomes.
+
+Runtime scope answers: "What happens now on this platform/session/context?"
+
+## Problems this boundary avoids
+
+This split reduces common architectural failures:
+
+- **Semantic drift**: app modules interpreting the same event/snapshot differently.
+- **Runtime leakage**: domain rules coupled to plugin quirks instead of contract semantics.
+- **Refactor blast radius**: runtime changes forcing unrelated business-policy rewrites.
+- **False entitlement assumptions**: treating capability names as permanently available features.
+
+## Design consequence
+
+The boundary encourages a durable pattern:
+
+- branch app logic on contract-stable literals and shapes,
+- branch availability on runtime projection (`getCapabilities()`),
+- and keep transport/native details behind the integration layer.
+
+That pattern is what lets Legato remain portable without flattening real runtime differences.
+
+## Related pages
+
+- [Architecture](./)
+- [System Overview](./system-overview/)
+- [Guarantees and Non-Guarantees](./guarantees-and-non-guarantees/)
+- [Why Contract-First](../../packages/contract/explanation/why-contract-first/)

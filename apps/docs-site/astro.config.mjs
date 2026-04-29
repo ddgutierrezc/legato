@@ -28,7 +28,10 @@ export default defineConfig({
 				},
 				{
 					label: 'Concepts',
-					items: [{ label: 'Public vs Maintainer Boundaries', slug: 'concepts' }],
+					items: [
+						{ label: 'Public vs Maintainer Boundaries', slug: 'concepts' },
+						{ label: 'Architecture', slug: 'explanation/architecture' },
+					],
 				},
 				{
 					label: 'Package Guides',
