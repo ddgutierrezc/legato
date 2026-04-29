@@ -1,0 +1,56 @@
+---
+title: Binding Adapter
+description: Reference for BindingAdapter and related adapter boundary types in @ddgutierrezc/legato-contract.
+---
+
+`BindingAdapter` defines the runtime-facing contract implemented by host bindings.
+
+## Core adapter surface
+
+```ts
+interface BindingAdapter {
+  setup(): Promise<void>;
+  add(options: AddOptions): Promise<PlaybackSnapshot>;
+  remove(options: RemoveOptions): Promise<PlaybackSnapshot>;
+  reset(): Promise<PlaybackSnapshot>;
+  play(): Promise<void>;
+  pause(): Promise<void>;
+  stop(): Promise<void>;
+  seekTo(options: SeekToOptions): Promise<void>;
+  skipTo(options: SkipToOptions): Promise<PlaybackSnapshot>;
+  skipToNext(): Promise<void>;
+  skipToPrevious(): Promise<void>;
+  getState(): Promise<PlaybackState>;
+  getPosition(): Promise<number>;
+  getDuration(): Promise<number | null>;
+  getCurrentTrack(): Promise<Track | null>;
+  getQueue(): Promise<QueueSnapshot>;
+  getSnapshot(): Promise<PlaybackSnapshot>;
+  getCapabilities(): Promise<BindingCapabilitiesSnapshot>;
+  addListener<E extends LegatoEventName>(
+    eventName: E,
+    listener: (payload: LegatoEventPayloadMap[E]) => void,
+  ): Promise<BindingListenerHandle>;
+  removeAllListeners(): Promise<void>;
+}
+```
+
+## Related exported types
+
+- `BindingListenerHandle`: listener registration handle with `remove(): Promise<void> | void`.
+- `BindingCapabilitiesSnapshot`: `{ supported: Capability[] }` runtime capability snapshot.
+- `BindingAdapterError`: `LegatoError` plus optional `source?: string` metadata.
+- `AddOptions`: `{ tracks: Track[]; startIndex?: number }`.
+- `RemoveOptions`: `{ id?: string; index?: number }`.
+- `SeekToOptions`: `{ position: number }`.
+- `SkipToOptions`: `{ index: number }`.
+
+## Contract role
+
+`BindingAdapter` is the transport boundary between runtime implementations and contract consumers. Adapters project state, queue, events, capabilities, and operation results through this interface.
+
+## Related pages
+
+- [Capabilities](../capabilities/)
+- [Events](../events/)
+- [Snapshots](../snapshots/)
