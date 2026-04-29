@@ -14,10 +14,14 @@ hero:
       variant: secondary
 ---
 
-import { Aside, Card, CardGrid } from '@astrojs/starlight/components';
+import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
 
 <div style="display: flex; justify-content: center; margin: 0 0 2rem 0;">
-	<img src="/brand.png" alt="Legato brand" style="max-width: 320px; width: 100%; height: auto;" />
+  <img
+    src="/brand.png"
+    alt="Legato brand"
+    style="max-width: 800px; width: 100%; height: auto;"
+  />
 </div>
 
 ## Why this docs site exists
@@ -26,23 +30,26 @@ This site is the **canonical public surface** for Legato documentation.
 If guidance in a README conflicts with content here, this docs site is authoritative.
 
 <Aside type="note">
-Maintainer operations, release evidence, and architecture spikes remain in root `docs/` and are intentionally not exposed in this public navigation.
+  Maintainer operations, release evidence, and architecture spikes remain in
+  root `docs/` and are intentionally not exposed in this public navigation.
 </Aside>
 
 <CardGrid stagger>
-	<Card title="Getting Started" icon="rocket">
-		Choose the right package, install quickly, and complete your first integration flow.
-	</Card>
-	<Card title="Concepts" icon="puzzle">
-		Learn the public boundary, canonical authority rules, and where maintainer docs live.
-	</Card>
-	<Card title="Package Guides" icon="open-book">
-		Find dedicated guides for the contract and Capacitor packages.
-	</Card>
-	<Card title="Reference" icon="setting">
-		Use public API/reference entrypoints for integration details.
-	</Card>
-	<Card title="Community" icon="star">
-		Get contribution and support links without maintainer-only runbook details.
-	</Card>
+  <Card title="Getting Started" icon="rocket">
+    Choose the right package, install quickly, and complete your first
+    integration flow.
+  </Card>
+  <Card title="Concepts" icon="puzzle">
+    Learn the public boundary, canonical authority rules, and where maintainer
+    docs live.
+  </Card>
+  <Card title="Package Guides" icon="open-book">
+    Find dedicated guides for the contract and Capacitor packages.
+  </Card>
+  <Card title="Reference" icon="setting">
+    Use public API/reference entrypoints for integration details.
+  </Card>
+  <Card title="Community" icon="star">
+    Get contribution and support links without maintainer-only runbook details.
+  </Card>
 </CardGrid>
