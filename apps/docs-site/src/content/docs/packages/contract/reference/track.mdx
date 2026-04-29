@@ -1,0 +1,62 @@
+---
+title: Track
+description: Reference for Track and TrackType in @ddgutierrezc/legato-contract.
+---
+
+`Track` is the queue item shape shared across adapter and consumer boundaries.
+
+## TrackType
+
+`TrackType` is derived from `TRACK_TYPES`:
+
+```ts
+const TRACK_TYPES = ['file', 'progressive', 'hls', 'dash'] as const;
+type TrackType = (typeof TRACK_TYPES)[number];
+```
+
+## Track fields
+
+| Field | Type | Required | Notes |
+|------|------|----------|-------|
+| `id` | `string` | Yes | Stable track identifier for remove/skip operations. |
+| `url` | `string` | Yes | Playback URL consumed by native transport. |
+| `title` | `string` | No | Optional display metadata. |
+| `artist` | `string` | No | Optional display metadata. |
+| `album` | `string` | No | Optional display metadata. |
+| `artwork` | `string` | No | Optional artwork URL for lockscreen/notification surfaces. |
+| `duration` | `number` | No | Optional duration in seconds when known. |
+| `type` | `TrackType` | No | Declared media semantics used by native capability projectors. |
+| `headers` | `Record<string, string>` | No | Static per-track HTTP headers used by native playback transport. |
+
+## `headers` scope and guarantees
+
+Based on the contract comments, v1 support scope is intentionally narrow:
+
+- Applied by Android/iOS runtime media requests for that specific track.
+- Isolated per track, not shared across queue transitions.
+
+v1 non-goals explicitly documented in the contract:
+
+- DRM or license-request authentication flows.
+- Token refresh or dynamic auth callbacks.
+- Cookie/session renewal orchestration.
+
+## Minimal example
+
+```ts
+import type { Track } from '@ddgutierrezc/legato-contract';
+
+const track: Track = {
+  id: 'song-42',
+  url: 'https://cdn.example.com/song-42.mp3',
+  type: 'progressive',
+  headers: {
+    Authorization: 'Bearer demo-token',
+  },
+};
+```
+
+## Related pages
+
+- [Snapshots](../snapshots/)
+- [Events](../events/)

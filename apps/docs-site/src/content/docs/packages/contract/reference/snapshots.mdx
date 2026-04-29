@@ -1,0 +1,75 @@
+---
+title: Snapshots
+description: Reference for PlaybackSnapshot and QueueSnapshot in @ddgutierrezc/legato-contract.
+---
+
+Snapshots are immutable read-model projections shared by Legato runtimes and consumers.
+
+## PlaybackSnapshot
+
+```ts
+interface PlaybackSnapshot {
+  state: PlaybackState;
+  currentTrack: Track | null;
+  currentIndex: number | null;
+  position: number;
+  duration: number | null;
+  bufferedPosition?: number | null;
+  queue: QueueSnapshot;
+}
+```
+
+Observable semantics from the contract:
+
+- `duration` is nullable. `null` means unknown or live-like timeline semantics.
+- A finite `duration` value is evidence of finite media length, not a seekability guarantee by itself.
+- `currentTrack` and `currentIndex` can both be `null` when no active item exists.
+- `bufferedPosition` is optional and may be `null`.
+
+### Minimal example
+
+```ts
+import type { PlaybackSnapshot } from '@ddgutierrezc/legato-contract';
+
+const snapshot: PlaybackSnapshot = {
+  state: 'ready',
+  currentTrack: null,
+  currentIndex: null,
+  position: 0,
+  duration: null,
+  queue: {
+    items: [],
+    currentIndex: null,
+  },
+};
+```
+
+## QueueSnapshot
+
+```ts
+interface QueueSnapshot {
+  items: Track[];
+  currentIndex: number | null;
+}
+```
+
+Observable semantics from the contract:
+
+- `items` preserves queue order.
+- `currentIndex` is nullable when no active item exists.
+
+### Minimal example
+
+```ts
+import type { QueueSnapshot } from '@ddgutierrezc/legato-contract';
+
+const queue: QueueSnapshot = {
+  items: [],
+  currentIndex: null,
+};
+```
+
+## Related pages
+
+- [Track](../track/)
+- [Events](../events/)

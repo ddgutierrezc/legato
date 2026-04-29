@@ -1,0 +1,88 @@
+---
+title: Events
+description: Reference for event names and payload maps exported by @ddgutierrezc/legato-contract.
+---
+
+This page documents event-name tuples and payload maps exported by the contract package.
+
+## Player events
+
+### `PLAYER_EVENT_NAMES`
+
+```ts
+const PLAYER_EVENT_NAMES = [
+  'playback-state-changed',
+  'playback-active-track-changed',
+  'playback-queue-changed',
+  'playback-progress',
+  'playback-ended',
+  'playback-error',
+] as const;
+```
+
+### `PlayerEventPayloadMap`
+
+- `playback-state-changed` -> `{ state: PlaybackState }`
+- `playback-active-track-changed` -> `{ track: Track | null; index: number | null }`
+- `playback-queue-changed` -> `{ queue: QueueSnapshot }`
+- `playback-progress` -> `{ position: number; duration: number | null; bufferedPosition: number | null }`
+- `playback-ended` -> `{ snapshot: PlaybackSnapshot }`
+- `playback-error` -> `{ error: LegatoError }`
+
+## Remote events
+
+### `MEDIA_SESSION_EVENT_NAMES`
+
+```ts
+const MEDIA_SESSION_EVENT_NAMES = [
+  'remote-play',
+  'remote-pause',
+  'remote-next',
+  'remote-previous',
+  'remote-seek',
+] as const;
+```
+
+### `MediaSessionEventPayloadMap`
+
+- `remote-play` -> `Record<string, never>`
+- `remote-pause` -> `Record<string, never>`
+- `remote-next` -> `Record<string, never>`
+- `remote-previous` -> `Record<string, never>`
+- `remote-seek` -> `{ position: number }`
+
+## Legacy and canonical unified tuples
+
+The contract also exports:
+
+- `LEGACY_PLAYER_EVENT_NAMES` as the concatenation of player + remote tuples.
+- `LEGATO_EVENT_NAMES` as the canonical event-name tuple currently mapped to `LEGACY_PLAYER_EVENT_NAMES`.
+
+Related type aliases:
+
+- `PlayerEventName`, `MediaSessionEventName`, `LegacyPlayerEventName`, `LegatoEventName`
+- `PlayerEventPayload<E>`, `MediaSessionEventPayload<E>`, `LegacyPlayerEventPayload<E>`, `LegatoEventPayload<E>`
+- `LegacyPlayerEventPayloadMap`, `LegatoEventPayloadMap`
+
+## Minimal usage
+
+```ts
+import {
+  LEGATO_EVENT_NAMES,
+  type LegatoEventName,
+  type LegatoEventPayload,
+} from '@ddgutierrezc/legato-contract';
+
+function onEvent<E extends LegatoEventName>(name: E, payload: LegatoEventPayload<E>) {
+  if (name === 'playback-error') {
+    payload.error.code;
+  }
+}
+
+LEGATO_EVENT_NAMES;
+```
+
+## Related pages
+
+- [Snapshots](../snapshots/)
+- [Errors](../errors/)

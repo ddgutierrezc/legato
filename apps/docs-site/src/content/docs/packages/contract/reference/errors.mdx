@@ -1,0 +1,60 @@
+---
+title: Errors
+description: Reference for LegatoError and public error-code literals in @ddgutierrezc/legato-contract.
+---
+
+The contract exposes a stable error shape and code literals for machine-readable handling.
+
+## LegatoError
+
+```ts
+interface LegatoError {
+  code: LegatoErrorCode;
+  message: string;
+  details?: unknown;
+}
+```
+
+## Public error codes
+
+`LegatoErrorCode` is derived from `LEGATO_ERROR_CODES`:
+
+```ts
+const LEGATO_ERROR_CODES = [
+  'player_not_setup',
+  'invalid_index',
+  'empty_queue',
+  'no_active_track',
+  'invalid_url',
+  'load_failed',
+  'playback_failed',
+  'seek_failed',
+  'unsupported_operation',
+  'platform_error',
+] as const;
+```
+
+## Handling guidance
+
+- Branch logic on `error.code` because it is the stable machine-readable contract.
+- Treat `error.message` as human-readable runtime text, not as a stable parser target.
+- Use `details` only as optional, transport-specific context.
+
+### Minimal example
+
+```ts
+import type { LegatoError } from '@ddgutierrezc/legato-contract';
+
+function classify(error: LegatoError): 'retry' | 'fatal' {
+  if (error.code === 'load_failed' || error.code === 'playback_failed') {
+    return 'retry';
+  }
+
+  return 'fatal';
+}
+```
+
+## Related pages
+
+- [Events](../events/)
+- [Contract reference index](../)
