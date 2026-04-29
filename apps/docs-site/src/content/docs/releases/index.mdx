@@ -7,6 +7,14 @@ This page summarizes public release highlights from [`CHANGELOG.md`](https://git
 
 Use it to decide whether a release affects your runtime behavior, dependency alignment, or migration work.
 
+## Start here before any upgrade
+
+1. Open the target entry in `CHANGELOG.md` and confirm the exact package line you plan to adopt.
+2. Check whether your integration is contract-only, Capacitor runtime, or both.
+3. Validate version pairings in a branch before production rollout.
+
+If you are new to package selection, use the [Packages hub](/packages/) first.
+
 ## How to read a Legato release
 
 When you evaluate a release entry, check in this order:
@@ -18,6 +26,23 @@ When you evaluate a release entry, check in this order:
 5. **Durable evidence**: links to npm/Maven/iOS release records.
 
 If a release includes only partial evidence for your stack, treat it as informative and validate behavior in your own CI before production rollout.
+
+## What to evaluate by consumer profile
+
+### Contract-only consumers (`@ddgutierrezc/legato-contract`)
+
+- Prioritize `Changed` entries that affect semantics, events, capabilities, or error expectations.
+- Re-run compile-time checks and contract-centered tests that depend on event payloads and invariants.
+
+### Capacitor app consumers (`@ddgutierrezc/legato-capacitor` + contract)
+
+- Prioritize runtime behavior notes, native artifact alignment, and setup lifecycle expectations.
+- Re-run real-device smoke tests for playback lifecycle, queue updates, remote controls, and capability gating.
+
+### Release operators / maintainers
+
+- Prioritize evidence links and distribution parity claims across npm, Maven, and iOS release records.
+- Keep release communications aligned with factual `CHANGELOG.md` claims only.
 
 ## Who should care about which changes
 
@@ -48,6 +73,8 @@ Consumer action baseline for this line:
 
 For older entries (including `0.1.x` lines), read the root `CHANGELOG.md` history.
 
+- Changelog source of truth: [`CHANGELOG.md`](https://github.com/ddgutierrezc/legato/blob/main/CHANGELOG.md)
+
 ## Upgrade workflow before adopting any release
 
 1. Compare your current package versions against the release version matrix.
@@ -56,3 +83,5 @@ For older entries (including `0.1.x` lines), read the root `CHANGELOG.md` histor
 4. If capabilities/semantics changed, re-check UI gating logic built on `getCapabilities()` and `error.code`.
 
 For a step-by-step upgrade checklist, continue with [Migration and Versioning](/how-to/migration-and-versioning/).
+
+For package selection and role boundaries, use [Packages](/packages/) and [Getting Started](/getting-started/).
