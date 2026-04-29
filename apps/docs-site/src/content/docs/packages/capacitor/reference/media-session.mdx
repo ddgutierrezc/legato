@@ -1,0 +1,111 @@
+---
+title: Media Session API
+description: Complete API reference for the MediaSessionApi interface.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The `mediaSession` namespace provides listeners for remote control events from system media controls, Bluetooth devices, and the lock screen.
+
+## Interface
+
+```ts
+interface MediaSessionApi {
+  setup(): Promise<void>;
+  addListener<E extends MediaSessionEventName>(
+    eventName: E,
+    listener: MediaSessionListener<E>
+  ): Promise<BindingListenerHandle>;
+  removeAllListeners(): Promise<void>;
+}
+```
+
+## Methods
+
+### `setup()`
+
+Initializes the native plugin. MUST be called before registering listeners.
+
+```ts
+await mediaSession.setup();
+```
+
+**Returns:** `Promise<void>`
+
+<Aside type="note">
+Unlike `audioPlayer.setup()`, `mediaSession.setup()` does NOT initialize the playback system. It only prepares the media session service. Call both `audioPlayer.setup()` and `mediaSession.setup()` for full integration.
+</Aside>
+
+---
+
+### `addListener(eventName, listener)`
+
+Registers a listener for remote control events.
+
+```ts
+const handle = await mediaSession.addListener('remote-play', () => {
+  console.log('User pressed play on remote control');
+});
+
+// Remove listener when done
+await handle.remove();
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `eventName` | `MediaSessionEventName` | Yes | Remote event to subscribe to. |
+| `listener` | `MediaSessionListener<E>` | Yes | Callback with typed payload. |
+
+**Returns:** `Promise<BindingListenerHandle>`
+
+### Supported event names
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `remote-play` | `{}` | User triggered play from remote control. |
+| `remote-pause` | `{}` | User triggered pause from remote control. |
+| `remote-next` | `{}` | User triggered next track. |
+| `remote-previous` | `{}` | User triggered previous track. |
+| `remote-seek` | `{ position: number }` | User triggered seek. **Only emitted if runtime supports seek.** |
+
+---
+
+### `removeAllListeners()`
+
+Removes all registered media session listeners.
+
+```ts
+await mediaSession.removeAllListeners();
+```
+
+**Returns:** `Promise<void>`
+
+---
+
+## Payload types
+
+### `MediaSessionEventPayloadMap`
+
+```ts
+interface MediaSessionEventPayloadMap {
+  'remote-play': {};
+  'remote-pause': {};
+  'remote-next': {};
+  'remote-previous': {};
+  'remote-seek': { position: number };
+}
+```
+
+## Listener type
+
+```ts
+type MediaSessionListener<E extends MediaSessionEventName> = (
+  payload: MediaSessionEventPayloadMap[E]
+) => void;
+```
+
+<Aside type="tip">
+For shortcut helpers like `onRemotePlay` and `onRemotePause`, see the [Events Reference](events.mdx).
+</Aside>

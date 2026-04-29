@@ -1,51 +1,74 @@
 ---
 title: Capacitor Package
-description: Capacitor integration guide for Legato runtime APIs, events, and migration posture.
+description: Capacitor integration guide for Legato runtime APIs, events, and synchronization.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-Use `@ddgutierrezc/legato-capacitor` when you need Capacitor runtime integration.
+Use `@ddgutierrezc/legato-capacitor` when you need Capacitor runtime integration for audio playback on iOS and Android.
 
-## Install
+## What is legato-capacitor?
 
-<Steps>
+A Capacitor plugin that exposes Legato playback APIs to web and hybrid JavaScript runtimes. It provides:
 
-1. Install runtime and contract packages.
+- **Audio player commands** — play, pause, seek, queue management, and state queries.
+- **Media session integration** — remote control from lock screen, notification center, and Bluetooth controls.
+- **Event subscriptions** — typed listeners for playback lifecycle and remote commands.
+- **Sync controllers** — local snapshot mirroring for offline or UI-only display contexts.
 
-   ```bash
-   npm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract
-   ```
+## Exposed namespaces
 
-2. Run the first health check.
+| Export | Purpose |
+|--------|---------|
+| `audioPlayer` | Playback commands, queue operations, read-model queries, and player events. |
+| `mediaSession` | Remote control event listeners. |
+| `Legato` | Unified facade combining `audioPlayer` and `mediaSession` surfaces with a single event listener. See [Legato Facade](reference/legato.mdx). |
 
-   ```bash
-   npx legato native doctor
-   ```
+## Package exports
 
-3. Initialize runtime APIs.
+```ts
+import { audioPlayer, mediaSession, Legato } from '@ddgutierrezc/legato-capacitor';
+import {
+  AUDIO_PLAYER_EVENTS,
+  MEDIA_SESSION_EVENTS,
+  LEGATO_EVENTS,
+  addAudioPlayerListener,
+  addMediaSessionListener,
+  addLegatoListener,
+  onPlaybackStateChanged,
+  onPlaybackActiveTrackChanged,
+  onPlaybackQueueChanged,
+  onPlaybackProgress,
+  onPlaybackEnded,
+  onPlaybackError,
+  onRemotePlay,
+  onRemotePause,
+  onRemoteNext,
+  onRemotePrevious,
+  onRemoteSeek,
+} from '@ddgutierrezc/legato-capacitor';
+import { createLegatoSync, createAudioPlayerSync } from '@ddgutierrezc/legato-capacitor';
+```
 
-   ```ts
-   import { audioPlayer, mediaSession } from '@ddgutierrezc/legato-capacitor';
+## Documentation structure
 
-   await audioPlayer.setup();
-   await mediaSession.setup();
-   ```
+This package is documented in three sections following Diátaxis methodology:
 
-</Steps>
+<CardGrid>
+  <Card title="Overview" icon="open-book">
+    **[`index.mdx`](./)**
+    What the package provides and how to get started.
+  </Card>
+  <Card title="Reference" icon="seti:api">
+    **[`reference/`](./reference/)**
+    Detailed API reference for every exported method, type, and event.
+  </Card>
+  <Card title="How-to" icon="list-check">
+    **[`how-to/`](./how-to/)**
+    Task-oriented guides for common integration patterns.
+  </Card>
+</CardGrid>
 
-## Runtime surface
-
-- `audioPlayer`: playback and queue commands, read-model queries, playback events.
-- `mediaSession`: remote/session listener surface.
-- `Legato`: compatibility facade for existing integrations.
-
-## Migration posture
-
-- Existing apps can keep `Legato` with no immediate migration pressure.
-- New integrations should prefer namespaced surfaces (`audioPlayer`, `mediaSession`).
-- Listener helpers like `addAudioPlayerListener` align new code with explicit boundaries.
-
-<Aside type="caution">
-This public page excludes maintainer-only release/CLI runbook depth. Keep operational internals in root maintainer docs.
+<Aside type="note">
+See the [Contract Package](../contract/) for shared types and event constants that both the Capacitor plugin and other Legato runtimes consume.
 </Aside>

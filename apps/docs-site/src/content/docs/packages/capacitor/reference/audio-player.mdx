@@ -1,0 +1,401 @@
+---
+title: Audio Player API
+description: Complete API reference for the AudioPlayerApi interface.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The `audioPlayer` namespace provides playback commands, queue operations, state queries, and player event subscriptions.
+
+## Interface
+
+```ts
+interface AudioPlayerApi {
+  setup(): Promise<void>;
+  add(options: AddOptions): Promise<PlaybackSnapshot>;
+  remove(options: RemoveOptions): Promise<PlaybackSnapshot>;
+  reset(): Promise<PlaybackSnapshot>;
+  play(): Promise<void>;
+  pause(): Promise<void>;
+  stop(): Promise<void>;
+  seekTo(options: SeekToOptions): Promise<void>;
+  skipTo(options: SkipToOptions): Promise<PlaybackSnapshot>;
+  skipToNext(): Promise<void>;
+  skipToPrevious(): Promise<void>;
+  getState(): Promise<PlaybackState>;
+  getPosition(): Promise<number>;
+  getDuration(): Promise<number | null>;
+  getCurrentTrack(): Promise<Track | null>;
+  getQueue(): Promise<QueueSnapshot>;
+  getSnapshot(): Promise<PlaybackSnapshot>;
+  getCapabilities(): Promise<BindingCapabilitiesSnapshot>;
+  addListener<E extends AudioPlayerEventName>(
+    eventName: E,
+    listener: AudioPlayerListener<E>
+  ): Promise<BindingListenerHandle>;
+  removeAllListeners(): Promise<void>;
+}
+```
+
+## Methods
+
+### `setup()`
+
+Initializes the native plugin. MUST be called before any other playback operations.
+
+```ts
+await audioPlayer.setup();
+```
+
+**Returns:** `Promise<void>`
+
+---
+
+### `add(options)`
+
+Appends tracks to the playback queue.
+
+```ts
+const snapshot = await audioPlayer.add({
+  tracks: [
+    { id: 'track-1', url: 'https://example.com/audio-1.mp3', title: 'Track One' },
+    { id: 'track-2', url: 'https://example.com/audio-2.mp3', title: 'Track Two' },
+  ],
+  startIndex: 0, // optional: position to activate after insertion
+});
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tracks` | `Track[]` | Yes | Tracks to append in insertion order. |
+| `startIndex` | `number` | No | Queue index to activate after insertion. |
+
+**Returns:** `Promise<PlaybackSnapshot>`
+
+---
+
+### `remove(options)`
+
+Removes queue entries by ID or index.
+
+```ts
+// Remove by track ID
+await audioPlayer.remove({ id: 'track-1' });
+
+// Remove by index
+await audioPlayer.remove({ index: 0 });
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | `string` | No | Track identifier to remove. |
+| `index` | `number` | No | Queue index to remove. |
+
+**Returns:** `Promise<PlaybackSnapshot>`
+
+---
+
+### `reset()`
+
+Clears the queue and stops playback.
+
+```ts
+await audioPlayer.reset();
+```
+
+**Returns:** `Promise<PlaybackSnapshot>`
+
+---
+
+### `play()`
+
+Starts or resumes playback.
+
+```ts
+await audioPlayer.play();
+```
+
+**Returns:** `Promise<void>`
+
+<Aside type="note">
+This requires the queue to have at least one track added via `add()` and an active track selected.
+</Aside>
+
+---
+
+### `pause()`
+
+Pauses playback.
+
+```ts
+await audioPlayer.pause();
+```
+
+**Returns:** `Promise<void>`
+
+---
+
+### `stop()`
+
+Stops playback and resets position.
+
+```ts
+await audioPlayer.stop();
+```
+
+**Returns:** `Promise<void>`
+
+---
+
+### `seekTo(options)`
+
+Seeks to a specific position.
+
+```ts
+await audioPlayer.seekTo({ position: 30.5 }); // 30.5 seconds
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `position` | `number` | Yes | Target playback position in seconds. |
+
+**Returns:** `Promise<void>`
+
+<Aside type="note">
+Seek behavior may be limited by track type and runtime capabilities. Check `getCapabilities()` for supported features.
+</Aside>
+
+---
+
+### `skipTo(options)`
+
+Skips to a specific queue index.
+
+```ts
+const snapshot = await audioPlayer.skipTo({ index: 2 });
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `index` | `number` | Yes | Queue index to activate. |
+
+**Returns:** `Promise<PlaybackSnapshot>`
+
+---
+
+### `skipToNext()`
+
+Skips to the next track in the queue.
+
+```ts
+await audioPlayer.skipToNext();
+```
+
+**Returns:** `Promise<void>`
+
+---
+
+### `skipToPrevious()`
+
+Skips to the previous track in the queue.
+
+```ts
+await audioPlayer.skipToPrevious();
+```
+
+**Returns:** `Promise<void>`
+
+---
+
+### `getState()`
+
+Queries the current playback state.
+
+```ts
+const state = await audioPlayer.getState();
+// 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'buffering' | 'ended' | 'error'
+```
+
+**Returns:** `Promise<PlaybackState>`
+
+---
+
+### `getPosition()`
+
+Queries the current playback position in seconds.
+
+```ts
+const position = await audioPlayer.getPosition();
+```
+
+**Returns:** `Promise<number>`
+
+---
+
+### `getDuration()`
+
+Queries the current track duration.
+
+```ts
+const duration = await audioPlayer.getDuration();
+// number | null (null for live/unknown duration)
+```
+
+**Returns:** `Promise<number | null>`
+
+---
+
+### `getCurrentTrack()`
+
+Queries the active track.
+
+```ts
+const track = await audioPlayer.getCurrentTrack();
+```
+
+**Returns:** `Promise<Track | null>`
+
+---
+
+### `getQueue()`
+
+Queries the current queue state.
+
+```ts
+const queue = await audioPlayer.getQueue();
+```
+
+**Returns:** `Promise<QueueSnapshot>`
+
+---
+
+### `getSnapshot()`
+
+Queries the complete playback state.
+
+```ts
+const snapshot = await audioPlayer.getSnapshot();
+```
+
+**Returns:** `Promise<PlaybackSnapshot>`
+
+---
+
+### `getCapabilities()`
+
+Queries runtime-supported capabilities.
+
+```ts
+const caps = await audioPlayer.getCapabilities();
+// { supported: ['play', 'pause', 'stop', 'seek', 'skip-next', 'skip-previous'] }
+```
+
+**Returns:** `Promise<BindingCapabilitiesSnapshot>`
+
+<Aside type="note">
+Capability values are defined in the contract package as `'play' | 'pause' | 'stop' | 'seek' | 'skip-next' | 'skip-previous'`.
+Projection is runtime-dependent: for example, `seek` may only be reported when the current track and playback state allow it.
+See the [Snapshots Reference](snapshots.mdx#bindingcapabilitiessnapshot) for the full shape and practical usage.
+</Aside>
+
+---
+
+### `addListener(eventName, listener)`
+
+Registers a listener for player lifecycle events.
+
+```ts
+const handle = await audioPlayer.addListener('playback-state-changed', (payload) => {
+  console.log('State changed:', payload.state);
+});
+
+// Remove listener when done
+await handle.remove();
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `eventName` | `AudioPlayerEventName` | Yes | Event to subscribe to. |
+| `listener` | `AudioPlayerListener<E>` | Yes | Callback with typed payload. |
+
+**Returns:** `Promise<BindingListenerHandle>`
+
+---
+
+### `removeAllListeners()`
+
+Removes all registered player listeners.
+
+```ts
+await audioPlayer.removeAllListeners();
+```
+
+**Returns:** `Promise<void>`
+
+---
+
+## Type definitions
+
+### `AddOptions`
+
+```ts
+interface AddOptions {
+  tracks: Track[];
+  startIndex?: number;
+}
+```
+
+### `RemoveOptions`
+
+```ts
+interface RemoveOptions {
+  id?: string;
+  index?: number;
+}
+```
+
+### `SeekToOptions`
+
+```ts
+interface SeekToOptions {
+  position: number;
+}
+```
+
+### `SkipToOptions`
+
+```ts
+interface SkipToOptions {
+  index: number;
+}
+```
+
+### `BindingCapabilitiesSnapshot`
+
+```ts
+interface BindingCapabilitiesSnapshot {
+  supported: Capability[];
+}
+```
+
+### `BindingListenerHandle`
+
+```ts
+interface BindingListenerHandle {
+  remove(): Promise<void> | void;
+}
+```
+
+<Aside type="tip">
+For event-name constants and shortcut helpers, see the [Events Reference](events.mdx).
+</Aside>

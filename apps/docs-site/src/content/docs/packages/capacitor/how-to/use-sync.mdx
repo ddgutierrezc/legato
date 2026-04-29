@@ -1,0 +1,165 @@
+---
+title: Use Sync Controllers
+description: How to create and use sync controllers for local snapshot mirroring.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This guide covers how to create and use sync controllers for maintaining a local PlaybackSnapshot in sync with the native runtime.
+
+## When to use sync
+
+Sync controllers are useful when:
+
+- You need a local snapshot that stays in sync with native playback
+- You want to receive event callbacks without manually registering multiple listeners
+- You're building a UI component that displays playback state
+
+## Basic usage
+
+### Create and start sync
+
+```ts
+import { createLegatoSync } from '@ddgutierrezc/legato-capacitor';
+
+const sync = createLegatoSync({
+  onSnapshot: (snapshot) => {
+    console.log('State:', snapshot.state);
+    console.log('Position:', snapshot.position);
+    console.log('Track:', snapshot.currentTrack?.title);
+  },
+});
+
+await sync.start();
+```
+
+### Inspect current snapshot
+
+```ts
+const current = sync.getCurrent();
+if (current) {
+  console.log('Current state:', current.state);
+  console.log('Current position:', current.position);
+}
+```
+
+### Force resync
+
+```ts
+await sync.resync();
+```
+
+### Stop sync
+
+```ts
+await sync.stop();
+```
+
+<Aside type="tip">
+Always call `stop()` to clean up listeners when the component unmounts or the controller is no longer needed.
+</Aside>
+
+## Full example
+
+```ts
+import { createLegatoSync } from '@ddgutierrezc/legato-capacitor';
+import { audioPlayer } from '@ddgutierrezc/legato-capacitor';
+
+async function initSyncUI() {
+  const sync = createLegatoSync({
+    onSnapshot: (snapshot) => {
+      // Update UI elements
+      updatePlayPauseButton(snapshot.state === 'playing');
+      updateProgressBar(snapshot.position, snapshot.duration);
+      updateTrackInfo(snapshot.currentTrack);
+    },
+    onEvent: (eventName, payload) => {
+      console.log('Event:', eventName);
+    },
+  });
+
+  // Start sync
+  await sync.start();
+
+  // Add some tracks
+  await audioPlayer.add({
+    tracks: [{ id: '1', url: 'https://example.com/audio.mp3', title: 'Demo' }],
+  });
+
+  // Start playback
+  await audioPlayer.play();
+
+  // Return cleanup function
+  return () => sync.stop();
+}
+
+async function updatePlayPauseButton(isPlaying: boolean) {
+  // Update your UI
+}
+
+async function updateProgressBar(position: number, duration: number | null) {
+  // Update your progress bar
+}
+
+async function updateTrackInfo(track: any) {
+  // Update track info display
+}
+
+initSyncUI().then((cleanup) => {
+  // Call cleanup() when done
+});
+```
+
+## Expected result
+
+| Action | Result |
+|--------|--------|
+| `createLegatoSync()` | Creates controller with optional callbacks |
+| `start()` | Subscribes to events, returns initial snapshot |
+| `getCurrent()` | Returns current local snapshot or `null` |
+| `resync()` | Refreshes snapshot from native state |
+| `stop()` | Removes all listeners |
+
+## Using with audioPlayer only
+
+```ts
+import { createAudioPlayerSync } from '@ddgutierrezc/legato-capacitor';
+
+const sync = createAudioPlayerSync({
+  onSnapshot: (snapshot) => {
+    console.log('State:', snapshot.state);
+  },
+});
+
+await sync.start();
+```
+
+<Aside type="note">
+`createAudioPlayerSync` is a type alias for `createLegatoSync` with a constrained client option. Both produce identical behavior.
+</Aside>
+
+## Capabilities and sync behavior
+
+The sync controller mirrors native state using `getSnapshot()` and event listeners. Runtime capability projection (e.g., whether `seek` is supported) is not reflected in the local snapshot fields directly — use `audioPlayer.getCapabilities()` separately to conditionally enable UI features like seek bars or skip buttons.
+
+```ts
+const caps = await audioPlayer.getCapabilities();
+
+// Conditionally show/hide UI based on runtime capabilities
+if (caps.supported.includes('seek')) {
+  showSeekBar();
+}
+if (!caps.supported.includes('skip-next')) {
+  hideNextButton();
+}
+```
+
+<Aside type="note">
+Capabilities are runtime-dependent and may change based on the current track type and playback state. Check `getCapabilities()` when initializing UI and after track changes.
+</Aside>
+
+## Related pages
+
+- [Reference: Sync](../reference/sync.mdx) — for complete API documentation
+- [Reference: Audio Player](../reference/audio-player.mdx) — for getSnapshot() source
+- [Reference: Snapshots](../reference/snapshots.mdx) — for `PlaybackSnapshot` and `BindingCapabilitiesSnapshot` shapes

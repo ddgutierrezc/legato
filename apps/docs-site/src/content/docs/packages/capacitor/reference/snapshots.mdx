@@ -1,0 +1,169 @@
+---
+title: Snapshots
+description: Complete reference for PlaybackSnapshot, QueueSnapshot, and BindingCapabilitiesSnapshot types.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Snapshots are immutable read-model projections returned by query methods and events. They represent a point-in-time view of the playback runtime state.
+
+## PlaybackSnapshot
+
+Returned by `getSnapshot()`, and by mutating methods that change playback state (`add()`, `remove()`, `reset()`, `skipTo()`). Also appears in the `playback-ended` event payload.
+
+```ts
+interface PlaybackSnapshot {
+  /** Current playback state. */
+  state: PlaybackState;
+  /** Current active track, or null when none is active. */
+  currentTrack: Track | null;
+  /** Current active queue index, or null when none is active. */
+  currentIndex: number | null;
+  /** Playback position in seconds. */
+  position: number;
+  /**
+   * Nullable duration semantics:
+   * - null => unknown/live-like timeline semantics.
+   * - finite number => evidence of finite media length, but not a seekability guarantee by itself.
+   *
+   * Consumers should combine duration with projected canSeek capability.
+   */
+  duration: number | null;
+  /** Buffered position in seconds when provided by runtime. */
+  bufferedPosition?: number | null;
+  /** Queue projection associated with the snapshot. */
+  queue: QueueSnapshot;
+}
+```
+
+### Methods that return PlaybackSnapshot
+
+| Method | When |
+|--------|------|
+| `getSnapshot()` | Explicit query of current playback state. |
+| `add(options)` | After appending tracks to the queue. |
+| `remove(options)` | After removing queue entries. |
+| `reset()` | After clearing the queue. |
+| `skipTo(options)` | After skipping to a specific index. |
+
+### Events that carry PlaybackSnapshot
+
+| Event | Payload field |
+|-------|---------------|
+| `playback-ended` | `payload.snapshot` — terminal snapshot at end of playback. |
+
+---
+
+## QueueSnapshot
+
+Returned by `getQueue()`. Also embedded inside every `PlaybackSnapshot.queue` field.
+
+```ts
+interface QueueSnapshot {
+  /** Ordered queue items. */
+  items: Track[];
+  /** Active queue index, or null when no active item exists. */
+  currentIndex: number | null;
+}
+```
+
+### Methods that return QueueSnapshot
+
+| Method | When |
+|--------|------|
+| `getQueue()` | Explicit query of current queue state. |
+
+### Events that carry QueueSnapshot
+
+| Event | Payload field |
+|-------|---------------|
+| `playback-queue-changed` | `payload.queue` — full queue projection after structural changes. |
+
+---
+
+## BindingCapabilitiesSnapshot
+
+Returned by `getCapabilities()`. Describes which playback operations are currently supported by the runtime.
+
+```ts
+interface BindingCapabilitiesSnapshot {
+  /** Capabilities currently supported by the plugin runtime. */
+  supported: Capability[];
+}
+```
+
+### Capability values
+
+The `Capability` type is a union of runtime-supported feature literals:
+
+| Value | Description |
+|-------|-------------|
+| `'play'` | Runtime can start or resume playback. |
+| `'pause'` | Runtime can pause playback. |
+| `'stop'` | Runtime can stop playback and reset position. |
+| `'seek'` | Runtime supports seeking to arbitrary positions. |
+| `'skip-next'` | Runtime supports skipping to the next track. |
+| `'skip-previous'` | Runtime supports skipping to the previous track. |
+
+These values are defined in the contract package as:
+
+```ts
+const CAPABILITIES = [
+  'play',
+  'pause',
+  'stop',
+  'seek',
+  'skip-next',
+  'skip-previous',
+] as const;
+
+type Capability = (typeof CAPABILITIES)[number];
+```
+
+<Aside type="note">
+Capability projection is runtime-dependent. For example, `seek` may only be reported when the current track type and playback state allow it. Always check `getCapabilities()` at runtime rather than hardcoding assumptions.
+</Aside>
+
+### Practical usage
+
+```ts
+import { audioPlayer } from '@ddgutierrezc/legato-capacitor';
+
+const caps = await audioPlayer.getCapabilities();
+
+if (caps.supported.includes('seek')) {
+  // Enable seek UI
+  showSeekBar();
+} else {
+  // Hide seek UI or show disabled state
+  hideSeekBar();
+}
+
+if (caps.supported.includes('skip-next')) {
+  showNextButton();
+}
+```
+
+---
+
+## Type hierarchy
+
+```
+PlaybackSnapshot
+├── state: PlaybackState
+├── currentTrack: Track | null
+├── currentIndex: number | null
+├── position: number
+├── duration: number | null
+├── bufferedPosition?: number | null
+└── queue: QueueSnapshot
+    ├── items: Track[]
+    └── currentIndex: number | null
+```
+
+## Related pages
+
+- [Audio Player API](audio-player.mdx) — methods that return snapshots
+- [Events Reference](events.mdx) — events that carry snapshot payloads
+- [Legato Facade](legato.mdx) — unified API surface that includes snapshot methods
+- [Sync Controllers](sync.mdx) — local snapshot mirroring using these types

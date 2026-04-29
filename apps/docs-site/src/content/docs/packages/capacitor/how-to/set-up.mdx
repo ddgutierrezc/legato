@@ -1,0 +1,71 @@
+---
+title: Set Up Legato Capacitor
+description: How to install and initialize the legato-capacitor plugin.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+This guide covers how to install and initialize the Legato Capacitor plugin for audio playback.
+
+## Prerequisites
+
+- An existing Capacitor project (iOS and/or Android)
+- Node.js 18+ installed
+- `npm` or your preferred package manager
+
+## Installation
+
+<Steps>
+
+1. **Install the packages**
+
+   ```bash
+   npm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract
+   ```
+
+2. **Sync native platforms**
+
+   ```bash
+   npx cap sync
+   ```
+
+</Steps>
+
+## Initialization
+
+Import and initialize both `audioPlayer` and `mediaSession`:
+
+```ts
+import { audioPlayer, mediaSession } from '@ddgutierrezc/legato-capacitor';
+
+async function initialize() {
+  await audioPlayer.setup();
+  await mediaSession.setup();
+}
+
+initialize();
+```
+
+<Aside type="note">
+Both `audioPlayer.setup()` and `mediaSession.setup()` must be called before their respective APIs are used. Calling `audioPlayer.setup()` does NOT initialize media session, and vice-versa.
+</Aside>
+
+## Expected result
+
+After successful initialization:
+
+- `audioPlayer` is ready to accept playback commands
+- `mediaSession` is ready to receive remote control events
+- Native platform services are running
+
+You can verify the setup by querying the state:
+
+```ts
+const state = await audioPlayer.getState();
+console.log('Player state:', state); // 'idle'
+```
+
+## Next steps
+
+- [Play a Track](./play-track.mdx) — add tracks and start playback
+- [Listen to Events](./listen-events.mdx) — subscribe to playback and remote events
