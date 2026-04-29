@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://legato-docs.netlify.app',
 	integrations: [
 		starlight({
 			title: 'Legato Docs',
