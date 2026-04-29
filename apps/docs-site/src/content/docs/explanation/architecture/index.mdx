@@ -1,0 +1,34 @@
+---
+title: Architecture
+description: System-level architecture explanation for Legato as a contract-plus-runtime platform.
+---
+
+This section explains Legato as a system, not as an isolated package API.
+
+Use it to understand:
+
+- how responsibility is split between app code, shared contract semantics, Capacitor integration, and native runtime execution,
+- why those boundaries exist,
+- and which behaviors are stable guarantees versus runtime-dependent outcomes.
+
+## Architecture map
+
+| Page | Focus |
+|------|-------|
+| **[System Overview](./system-overview/)** | High-level layer model and responsibility split across consumer app, contract package, Capacitor package, and runtime/native layer. |
+| **[Contract and Runtime Boundaries](./contract-and-runtime-boundaries/)** | Why Legato separates shared semantics from integration mechanics, and which failure modes that boundary prevents. |
+| **[Guarantees and Non-Guarantees](./guarantees-and-non-guarantees/)** | Mental safety model for what is stable by contract and what remains runtime-dependent. |
+
+## When to read this first
+
+Read this architecture section before large integrations if you need to:
+
+- align product and platform teams on stable semantics,
+- avoid coupling UI policy to runtime quirks,
+- or make explicit risk decisions around capability projection and event handling.
+
+## Related pages
+
+- [Concepts](../../concepts/)
+- [Why Contract-First](../../packages/contract/explanation/why-contract-first/)
+- [Capability Projection](../../packages/capacitor/explanation/capability-projection/)
