@@ -5,7 +5,17 @@ description: Public compatibility matrix and support boundaries for Legato packa
 
 This page is the public source of truth for Legato package compatibility and support boundaries.
 
-Use this matrix before installs or upgrades to confirm supported package lines and peer dependency expectations.
+Use this matrix before any install or upgrade decision. It tells you which package lines are expected to work together, what is explicitly supported, and what must still be validated in your own app.
+
+If your team needs one rule: do not approve a rollout until your selected package line, peer dependencies, and capability assumptions all pass this page and your CI checks.
+
+## How to use this page before install or upgrade
+
+1. Identify your consumer profile: contract-only or Capacitor runtime.
+2. Confirm package major-line alignment and peer dependency requirements.
+3. Check support boundaries and known limitations on this page.
+4. Validate runtime behavior in your app CI/device smoke tests.
+5. Read the target release notes in [Releases](/releases/) before promoting to production.
 
 ## Scope of this matrix
 
@@ -21,6 +31,11 @@ This page does not cover:
 - Runtime behavior promises beyond the documented contract/error/capability surfaces
 - Native artifact version matrices not explicitly published in public release notes
 
+Read this section as a support boundary contract:
+
+- Items listed as covered are within the public compatibility commitment.
+- Items listed as not covered require consumer-owned verification before production rollout.
+
 ## Current package line (source-backed)
 
 | Package | Source | Public version observed |
@@ -29,6 +44,8 @@ This page does not cover:
 | `@ddgutierrezc/legato-capacitor` | `packages/capacitor/package.json` | `1.0.0` |
 
 These values reflect repository metadata at the time this documentation snapshot was written.
+
+Enterprise note: treat this as a documentation snapshot, then verify your exact lockfile/runtime state in CI before rollout.
 
 ## Declared dependency compatibility
 
@@ -43,6 +60,10 @@ Interpretation:
 - Capacitor host apps are expected to satisfy the `@capacitor/core` `^8.0.0` peer range.
 - Exact host-platform/version permutations are not fully enumerated here; validate in your app CI.
 
+Decision rule:
+
+- If your app does not satisfy the peer ranges, do not treat the integration as supported.
+
 ## Contract package expectations
 
 `@ddgutierrezc/legato-contract` is library-only and defines:
@@ -55,6 +76,10 @@ Compatibility expectation for contract-only consumers:
 
 - Branch behavior on stable literals (`error.code`, capability names, event names).
 - Treat human-readable text (`error.message`) as diagnostic, not compatibility key.
+
+Known limitation:
+
+- This matrix does not guarantee compatibility for custom adapters that depend on undocumented fields or message text.
 
 ## Capacitor package expectations
 
@@ -69,6 +94,10 @@ Compatibility expectation for runtime consumers:
 
 - Capability-dependent operations (for example seek) MUST be gated by `getCapabilities()`.
 - Event payload handling SHOULD use the documented payload maps and stable event names.
+
+Known limitation:
+
+- This matrix does not certify every OEM/device/background-policy permutation; production readiness still depends on your own device matrix tests.
 
 ## `legato native` CLI scope compatibility
 
@@ -89,6 +118,12 @@ Compatibility boundary:
 2. Satisfy `@capacitor/core` peer range required by `@ddgutierrezc/legato-capacitor`.
 3. Validate event/capability assumptions in-device using your own CI smoke tests.
 4. Read release notes before upgrades: [Releases](/releases/).
+
+## Known limitations and expectations
+
+- No implicit promise is made for undocumented APIs, private internals, or inferred behavior not stated in official docs and changelog.
+- Native distribution parity statements are authoritative only when explicitly recorded in release evidence.
+- This page defines compatibility intent; final rollout confidence comes from your app-specific validation.
 
 ## Related pages
 

@@ -7,14 +7,14 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 Use this hub when you need to decide which Legato package to adopt first.
 
-For the canonical package support view, use the [Compatibility and Support Matrix](/reference/compatibility/).
+For the canonical package support view, use the [Compatibility and Support Matrix](../reference/compatibility/).
 
 ## Package chooser
 
 | If your first risk is... | Start with | Why |
 |---|---|---|
-| Shared playback semantics across layers (events, snapshots, invariants) | [`@ddgutierrezc/legato-contract`](/packages/contract/) | You stabilize app vocabulary and behavior assumptions before runtime wiring. |
-| Native playback runtime integration in a Capacitor app (commands, media session, listeners) | [`@ddgutierrezc/legato-capacitor`](/packages/capacitor/) + `@ddgutierrezc/legato-contract` | You get runtime APIs while keeping the same shared contract model across app layers. |
+| Shared playback semantics across layers (events, snapshots, invariants) | [`@ddgutierrezc/legato-contract`](contract/) | You stabilize app vocabulary and behavior assumptions before runtime wiring. |
+| Native playback runtime integration in a Capacitor app (commands, media session, listeners) | [`@ddgutierrezc/legato-capacitor`](capacitor/) + `@ddgutierrezc/legato-contract` | You get runtime APIs while keeping the same shared contract model across app layers. |
 
 ## Package guides
 
@@ -31,7 +31,7 @@ For the canonical package support view, use the [Compatibility and Support Matri
 
 1. Pick the package from your integration risk, not from future guesses.
 2. If you choose Capacitor, keep `@ddgutierrezc/legato-contract` aligned to the same supported line.
-3. Review [Releases](/releases/) before upgrades so you can validate version matrix and user impact in your CI.
-4. Confirm final compatibility assumptions in the [Compatibility and Support Matrix](/reference/compatibility/).
+3. Review [Releases](../releases/) before upgrades so you can validate version matrix and user impact in your CI.
+4. Confirm final compatibility assumptions in the [Compatibility and Support Matrix](../reference/compatibility/).
 
-If you want an opinionated onboarding sequence, continue with [Golden Paths](/getting-started/golden-paths/).
+If you want an opinionated onboarding sequence, continue with [Golden Paths](../getting-started/golden-paths/).

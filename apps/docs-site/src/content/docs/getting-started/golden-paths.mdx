@@ -1,28 +1,28 @@
 ---
 title: Golden Paths
-description: Closed onboarding paths by profile for contract-first, Capacitor runtime-first, and production hardening flows.
+description: Prescriptive onboarding paths by risk profile: contract-first, runtime-first, or production hardening.
 ---
 
 import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
 
-Use this guide when you want a practical path instead of browsing docs section by section.
+Use this page after choosing a path in [Getting Started](/getting-started/).
 
 ## How to use this page
 
 1. Pick one path based on your current risk surface.
-2. Follow the sequence without skipping steps.
-3. Stop when you reach the expected outcome.
-4. Move to the next level only when the "level up" signal is true in your app.
+2. Run the sequence in order.
+3. Stop at the expected outcome.
+4. Move to another path only when the level-up signal is true in your app.
 
 ## Path 1: Contract-first
 
-### When to choose it
+### Choose this when
 
 - Your first problem is semantic consistency across app layers.
 - You need stable shared models for tracks, snapshots, events, errors, and capabilities.
 - Runtime plugin wiring is not your immediate blocker.
 
-### Recommended sequence
+### Sequence
 
 <Steps>
 
@@ -38,20 +38,20 @@ Use this guide when you want a practical path instead of browsing docs section b
 
 You have contract-aligned app logic that can evolve independently from runtime transport details.
 
-### Level up when
+### Level up signal
 
 - You now need real device playback controls or media-session integration.
 - Your app team is blocked by runtime behavior rather than model semantics.
 
 ## Path 2: Capacitor runtime-first
 
-### When to choose it
+### Choose this when
 
 - You already need runtime playback commands and listener wiring on device.
 - You need `audioPlayer` and `mediaSession` behavior validated in a real host app.
 - Your immediate risk is setup/order, queue lifecycle, and remote event handling.
 
-### Recommended sequence
+### Sequence
 
 <Steps>
 
@@ -67,20 +67,20 @@ You have contract-aligned app logic that can evolve independently from runtime t
 
 You have a runtime-integrated flow with explicit setup, event handling, and capability-gated controls.
 
-### Level up when
+### Level up signal
 
 - You are preparing rollout and upgrade safety checks.
 - You need repeatable production confidence across app and CI.
 
 ## Path 3: Production hardening
 
-### When to choose it
+### Choose this when
 
 - You already have an integration and need safer rollout confidence.
 - Your main risk is hidden assumptions during upgrades or capability handling.
 - You need explicit compatibility and migration checks before production promotion.
 
-### Recommended sequence
+### Sequence
 
 <Steps>
 
@@ -96,12 +96,12 @@ You have a runtime-integrated flow with explicit setup, event handling, and capa
 
 You operate with explicit rollout gates: capability checks, stable literal branching, and release-aware validation.
 
-### Level up when
+### Level up signal
 
 - Your team can validate upgrades with clear pass/fail criteria on CI and real devices.
 - Regressions are diagnosed via stable `error.code` and documented event/capability surfaces.
 
-## Common onboarding anti-patterns
+## Cross-path anti-patterns
 
 - Starting with runtime commands before agreeing on shared contract semantics.
 - Treating contract types as runtime execution APIs.
@@ -109,7 +109,7 @@ You operate with explicit rollout gates: capability checks, stable literal branc
 - Branching behavior on `error.message` text instead of stable `error.code` literals.
 - Reading release notes after dependency upgrades instead of before rollout planning.
 
-## Choose and continue
+## Need to re-route?
 
 <CardGrid>
   <Card title="Need help choosing?" icon="rocket" href="/getting-started/">

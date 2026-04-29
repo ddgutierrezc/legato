@@ -1,26 +1,26 @@
 ---
 title: Getting Started
-description: Decision hub to choose your first Legato path and execute a practical onboarding flow.
+description: Decision hub to choose your first Legato onboarding path based on integration risk.
 ---
 
-import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
+import { Card, CardGrid } from '@astrojs/starlight/components';
 
-Use this page as a decision hub. In a few minutes you should know which path to run first:
+Use this page to make one decision: which onboarding path to start first.
 
 - Contract-first
 - Capacitor runtime-first
 - Production confidence hardening
 
-Before choosing a package path, review the public [Compatibility and Support Matrix](/reference/compatibility/) for supported lines and peer ranges.
+Before choosing, review [Compatibility and Support Matrix](/reference/compatibility/) to confirm supported lines and peer ranges.
 
-## Start with the risk, not the package
+## Decide by risk, not by package name
 
-Pick a package based on where your integration risk lives:
+Pick the first path based on where your integration risk lives:
 
 - If your main risk is **shared semantics across app layers** (events, snapshots, track model, invariants), start with `@ddgutierrezc/legato-contract`.
 - If your main risk is **runtime integration with native playback surfaces** (commands, media session, listeners), use `@ddgutierrezc/legato-capacitor` and keep `@ddgutierrezc/legato-contract` as the shared model.
 
-Legato is intentionally layered: `legato-contract` gives the vocabulary, `legato-capacitor` gives a concrete runtime integration.
+Legato is intentionally layered: `legato-contract` defines shared semantics, and `legato-capacitor` integrates those semantics with Capacitor runtime behavior.
 
 ## Decision matrix
 
@@ -32,27 +32,28 @@ Legato is intentionally layered: `legato-contract` gives the vocabulary, `legato
 
 ## Quick chooser
 
-Choose the first path that is true:
+Choose the first statement that is true:
 
 1. You are defining shared playback semantics first (types, events, invariants) -> start with `@ddgutierrezc/legato-contract`.
 2. You already need device/runtime controls now (play, pause, remote events, media session) -> start with `@ddgutierrezc/legato-capacitor` and `@ddgutierrezc/legato-contract`.
 3. You already run in production and your main concern is safe upgrades and confidence gates -> start with the production confidence path.
 
-## Next 15 minutes
+## Start here
 
 <CardGrid>
   <Card title="Contract-first" icon="puzzle" href="/getting-started/golden-paths/#path-1-contract-first">
-    Read the contract rationale, model one track, and validate invariant usage.
+    Route to the contract-first path and execute the sequence.
   </Card>
   <Card title="Capacitor runtime-first" icon="play" href="/getting-started/golden-paths/#path-2-capacitor-runtime-first">
-    Set up the plugin, run first queue playback, and attach essential listeners.
+    Route to the runtime-first path and validate device playback flow.
   </Card>
   <Card title="Production confidence" icon="lock" href="/getting-started/golden-paths/#path-3-production-hardening">
-    Execute compatibility and migration checks before broad rollout.
+    Route to hardening checks before rollout or upgrade.
   </Card>
 </CardGrid>
 
-- Full guided sequences: [Golden Paths](/getting-started/golden-paths/)
+
+Then continue with [Golden Paths](/getting-started/golden-paths/) for the prescriptive sequence.
 
 ## Typical scenarios and tradeoffs
 
@@ -82,30 +83,8 @@ You can start by making your app logic consume contract snapshots/events, then p
 - Picking `@ddgutierrezc/legato-capacitor` only because "we might need native later" while no runtime integration exists yet.
 - Treating `@ddgutierrezc/legato-contract` as a full runtime solution; it does not provide playback execution APIs.
 - Delaying contract modeling until after runtime wiring, then retrofitting app logic to shared types under time pressure.
-- Treating a finite `duration` as seek support; seek is capability-projected at runtime.
+- Treating finite `duration` as seek support; seek is capability-projected at runtime.
 - Upgrading dependencies without validating `error.code`, capability literals, and setup lifecycle assumptions.
-
-## Install
-
-<Steps>
-
-1. Install the package set that matches your integration.
-
-   ```bash
-   npm install @ddgutierrezc/legato-contract
-   ```
-
-   or
-
-   ```bash
-   npm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract
-   ```
-
-2. Verify your package manager resolved the dependencies without peer warnings.
-
-3. Continue with package-specific guides.
-
-</Steps>
 
 ## Recommended follow-up
 

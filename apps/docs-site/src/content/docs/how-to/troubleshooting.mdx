@@ -19,11 +19,11 @@ Use `error.code` as the machine-stable branch key.
 
 | `error.code` | Most likely category | Next action |
 |---|---|---|
-| `player_not_setup` | Initialization order | Ensure `await audioPlayer.setup()` ran before playback commands. See [Set Up Legato Capacitor](/packages/capacitor/how-to/set-up/). |
+| `player_not_setup` | Initialization order | Ensure `await audioPlayer.setup()` ran before playback commands. See [Set Up Legato Capacitor](../../packages/capacitor/how-to/set-up/). |
 | `empty_queue` | Queue preconditions | Verify `add({ tracks: [...] })` succeeds before `play()`. Then inspect `getSnapshot().queue`. |
 | `invalid_index` | Queue addressing | Validate `skipTo({ index })`, `remove({ index })`, or `startIndex` against current queue length. |
 | `no_active_track` | Active-track selection | Re-check `startIndex` and `currentIndex` in snapshot after queue insertion. |
-| `unsupported_operation` | Capability projection | Gate UI/action on `getCapabilities().supported`. See [Capabilities](/packages/contract/reference/capabilities/). |
+| `unsupported_operation` | Capability projection | Gate UI/action on `getCapabilities().supported`. See [Capabilities](../../packages/contract/reference/capabilities/). |
 | `seek_failed` | Seek runtime path | Confirm seek capability is currently supported before calling `seekTo`. |
 | `invalid_url` | Track input validity | Re-check `Track.url` value and transport-level accessibility in your environment. |
 | `load_failed` | Media loading | Re-check media URL reachability and track metadata assumptions; inspect `error.details` for adapter context. |
@@ -92,7 +92,7 @@ console.log('[capabilities]', await audioPlayer.getCapabilities());
 
 ## Related pages
 
-- [Errors Reference](/packages/capacitor/reference/errors/)
-- [Native CLI](/packages/capacitor/reference/cli-native/)
-- [Use Sync](/packages/capacitor/how-to/use-sync/)
-- [Migration and Versioning](/how-to/migration-and-versioning/)
+- [Errors Reference](../../packages/capacitor/reference/errors/)
+- [Native CLI](../../packages/capacitor/reference/cli-native/)
+- [Use Sync](../../packages/capacitor/how-to/use-sync/)
+- [Migration and Versioning](../migration-and-versioning/)
