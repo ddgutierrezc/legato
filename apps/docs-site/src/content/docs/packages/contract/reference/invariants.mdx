@@ -1,0 +1,42 @@
+---
+title: Invariants
+description: Reference for POSITION_MIN and LEGATO_INVARIANTS in @ddgutierrezc/legato-contract.
+---
+
+This page documents invariant-related exports used as shared contract expectations.
+
+## `POSITION_MIN`
+
+```ts
+const POSITION_MIN = 0;
+```
+
+`POSITION_MIN` defines the minimum allowed playback position value.
+
+## `LEGATO_INVARIANTS`
+
+```ts
+const LEGATO_INVARIANTS = {
+  TRACK_ID_MUST_BE_NON_EMPTY: 'track.id must be a non-empty string',
+  TRACK_URL_MUST_BE_NON_EMPTY: 'track.url must be a non-empty string',
+  QUEUE_CURRENT_INDEX_IN_BOUNDS:
+    'queue.currentIndex must be null or within [0, queue.items.length - 1]',
+  POSITION_NON_NEGATIVE: 'snapshot.position must be >= 0',
+  OPTIONAL_NUMERIC_FIELDS_NON_NEGATIVE:
+    'snapshot.duration and snapshot.bufferedPosition, when present, must be >= 0',
+} as const;
+```
+
+## Contract rules for consumers and adapters
+
+- Track items must provide non-empty `id` and `url` strings.
+- `queue.currentIndex` must be `null` or point to a valid index within `queue.items`.
+- `snapshot.position` must be greater than or equal to `0`.
+- `snapshot.duration` and `snapshot.bufferedPosition`, when present, must be greater than or equal to `0`.
+
+These exports document shared expectations. They do not introduce additional runtime validation APIs by themselves.
+
+## Related pages
+
+- [Track](../track/)
+- [Snapshots](../snapshots/)

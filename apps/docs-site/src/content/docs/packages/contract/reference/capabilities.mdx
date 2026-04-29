@@ -1,0 +1,39 @@
+---
+title: Capabilities
+description: Reference for CAPABILITIES and Capability in @ddgutierrezc/legato-contract.
+---
+
+This page documents runtime capability literals projected through the adapter boundary.
+
+## `CAPABILITIES`
+
+`Capability` is derived from `CAPABILITIES`:
+
+```ts
+const CAPABILITIES = [
+  'play',
+  'pause',
+  'stop',
+  'seek',
+  'skip-next',
+  'skip-previous',
+] as const;
+
+type Capability = (typeof CAPABILITIES)[number];
+```
+
+## Capability meanings
+
+- `play`: start or resume playback.
+- `pause`: pause active playback.
+- `stop`: stop playback.
+- `seek`: move playback to a target position.
+- `skip-next`: move to the next queue item.
+- `skip-previous`: move to the previous queue item.
+
+`CAPABILITIES` are runtime projections at the moment they are reported. They are not permanent guarantees across the full session and can change with queue, track, transport, or platform conditions.
+
+## Related pages
+
+- [Binding Adapter](../binding-adapter/)
+- [Snapshots](../snapshots/)

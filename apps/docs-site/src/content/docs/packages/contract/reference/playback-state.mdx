@@ -1,0 +1,43 @@
+---
+title: Playback State
+description: Reference for PLAYBACK_STATES and PlaybackState in @ddgutierrezc/legato-contract.
+---
+
+This page documents the canonical playback-state literals exported by the contract package.
+
+## `PLAYBACK_STATES`
+
+`PlaybackState` is derived from `PLAYBACK_STATES`:
+
+```ts
+const PLAYBACK_STATES = [
+  'idle',
+  'loading',
+  'ready',
+  'playing',
+  'paused',
+  'buffering',
+  'ended',
+  'error',
+] as const;
+
+type PlaybackState = (typeof PLAYBACK_STATES)[number];
+```
+
+## Observable state semantics
+
+- `idle`: no active playback work is currently in progress.
+- `loading`: the runtime is preparing media before stable playback.
+- `ready`: media is prepared and the runtime can transition to playback.
+- `playing`: playback is currently advancing.
+- `paused`: playback is intentionally halted and can resume.
+- `buffering`: playback flow is temporarily waiting for media data.
+- `ended`: the active item reached its playback end.
+- `error`: the runtime entered an error state for the current playback flow.
+
+These values define the observable contract vocabulary between adapters and consumers. The contract does not prescribe internal player implementation details for how a runtime reaches each state.
+
+## Related pages
+
+- [Snapshots](../snapshots/)
+- [Events](../events/)
