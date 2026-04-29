@@ -1,0 +1,80 @@
+---
+title: Consume Events and Payloads
+description: Use Legato event constants and payload typing for transport-neutral event handling.
+---
+
+This guide shows a transport-neutral pattern for consuming contract events with type-safe payload narrowing.
+
+## 1) Import canonical event exports
+
+```ts
+import {
+  LEGATO_EVENT_NAMES,
+  type LegatoEventName,
+  type LegatoEventPayload,
+} from '@ddgutierrezc/legato-contract';
+```
+
+`LEGATO_EVENT_NAMES` is the canonical tuple of supported names. `LegatoEventName` and `LegatoEventPayload<E>` provide typed event and payload coupling.
+
+## 2) Build a typed event handler
+
+Use a generic handler so payload type follows the event name.
+
+```ts
+function onLegatoEvent<E extends LegatoEventName>(
+  name: E,
+  payload: LegatoEventPayload<E>,
+) {
+  switch (name) {
+    case 'playback-state-changed': {
+      payload.state;
+      break;
+    }
+    case 'playback-active-track-changed': {
+      payload.track;
+      payload.index;
+      break;
+    }
+    case 'playback-progress': {
+      payload.position;
+      payload.duration;
+      payload.bufferedPosition;
+      break;
+    }
+    case 'playback-error': {
+      payload.error.code;
+      payload.error.message;
+      break;
+    }
+    case 'remote-seek': {
+      payload.position;
+      break;
+    }
+    default: {
+      break;
+    }
+  }
+}
+```
+
+## 3) Validate names before dispatching
+
+If you receive dynamic event names, validate against the exported tuple before invoking typed logic.
+
+```ts
+function isLegatoEventName(value: string): value is LegatoEventName {
+  return (LEGATO_EVENT_NAMES as readonly string[]).includes(value);
+}
+```
+
+This pattern does not depend on Capacitor APIs; it uses only contract exports.
+
+## Expected result
+
+You can consume all Legato event names with payload types that narrow automatically by event name, while keeping your event pipeline transport-neutral.
+
+## Related pages
+
+- [Events reference](../../reference/events/)
+- [Snapshots reference](../../reference/snapshots/)

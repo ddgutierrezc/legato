@@ -1,0 +1,76 @@
+---
+title: Validate Runtime Invariants
+description: Apply defensive consumer-side checks from POSITION_MIN and LEGATO_INVARIANTS.
+---
+
+This guide shows how to build manual defensive checks using only invariant constants exported by the contract.
+
+## 1) Import invariant constants
+
+```ts
+import {
+  LEGATO_INVARIANTS,
+  POSITION_MIN,
+  type PlaybackSnapshot,
+} from '@ddgutierrezc/legato-contract';
+```
+
+`@ddgutierrezc/legato-contract` does not export a runtime validator helper. The checks below are consumer-side usage built from exported constants.
+
+## 2) Validate a snapshot manually
+
+```ts
+function validateSnapshot(snapshot: PlaybackSnapshot): string[] {
+  const violations: string[] = [];
+
+  if (snapshot.position < POSITION_MIN) {
+    violations.push(LEGATO_INVARIANTS.POSITION_NON_NEGATIVE);
+  }
+
+  if (snapshot.duration !== null && snapshot.duration < POSITION_MIN) {
+    violations.push(LEGATO_INVARIANTS.OPTIONAL_NUMERIC_FIELDS_NON_NEGATIVE);
+  }
+
+  if (
+    snapshot.bufferedPosition !== undefined &&
+    snapshot.bufferedPosition !== null &&
+    snapshot.bufferedPosition < POSITION_MIN
+  ) {
+    violations.push(LEGATO_INVARIANTS.OPTIONAL_NUMERIC_FIELDS_NON_NEGATIVE);
+  }
+
+  const { items, currentIndex } = snapshot.queue;
+  const inBounds = currentIndex === null || (currentIndex >= 0 && currentIndex < items.length);
+  if (!inBounds) {
+    violations.push(LEGATO_INVARIANTS.QUEUE_CURRENT_INDEX_IN_BOUNDS);
+  }
+
+  if (snapshot.currentTrack) {
+    if (snapshot.currentTrack.id.trim().length === 0) {
+      violations.push(LEGATO_INVARIANTS.TRACK_ID_MUST_BE_NON_EMPTY);
+    }
+    if (snapshot.currentTrack.url.trim().length === 0) {
+      violations.push(LEGATO_INVARIANTS.TRACK_URL_MUST_BE_NON_EMPTY);
+    }
+  }
+
+  return violations;
+}
+```
+
+## 3) Decide how to react
+
+Use the returned invariant messages to decide your strategy:
+
+- reject incoming data,
+- log and continue with fallback state,
+- or route diagnostics to your observability pipeline.
+
+## Expected result
+
+You have a transport-neutral defensive validation layer that reuses contract constants as canonical invariant messages without depending on unexported runtime helpers.
+
+## Related pages
+
+- [Invariants reference](../../reference/invariants/)
+- [Snapshots reference](../../reference/snapshots/)
