@@ -9,13 +9,13 @@ This section provides complete API documentation for all exported members of `@d
 
 | Page | Description |
 |------|-------------|
-| **[Audio Player](audio-player.mdx)** | `AudioPlayerApi` — playback commands, queue operations, state queries, and player event listeners. |
-| **[Media Session](media-session.mdx)** | `MediaSessionApi` — remote control event listeners and subscription helpers. |
-| **[Legato Facade](legato.mdx)** | `Legato` — unified facade combining `audioPlayer` and `mediaSession` surfaces with a single event listener. |
-| **[Snapshots](snapshots.mdx)** | `PlaybackSnapshot`, `QueueSnapshot`, and `BindingCapabilitiesSnapshot` — shapes, sources, and usage. |
-| **[Events](events.mdx)** | Event-name constants, payload types, and shortcut listener helpers. |
-| **[Errors](errors.mdx)** | `LegatoError` interface and error code constants. |
-| **[Sync](sync.mdx)** | Sync controller factories for local snapshot mirroring. |
+| **[Audio Player](audio-player/)** | `AudioPlayerApi` — playback commands, queue operations, state queries, and player event listeners. |
+| **[Media Session](media-session/)** | `MediaSessionApi` — remote control event listeners and subscription helpers. |
+| **[Legato Facade](legato/)** | `Legato` — unified facade combining `audioPlayer` and `mediaSession` surfaces with a single event listener. |
+| **[Snapshots](snapshots/)** | `PlaybackSnapshot`, `QueueSnapshot`, and `BindingCapabilitiesSnapshot` — shapes, sources, and usage. |
+| **[Events](events/)** | Event-name constants, payload types, and shortcut listener helpers. |
+| **[Errors](errors/)** | `LegatoError` interface and error code constants. |
+| **[Sync](sync/)** | Sync controller factories for local snapshot mirroring. |
 
 ## Quick reference
 
@@ -38,7 +38,7 @@ The following types are re-exported from `@ddgutierrezc/legato-contract`:
 
 - `Track` — queue item shape
 - `PlaybackState` — playback state literals (`idle`, `loading`, `ready`, `playing`, `paused`, `buffering`, `ended`, `error`)
-- `PlaybackSnapshot` — full playback projection (see [Snapshots](snapshots.mdx))
-- `QueueSnapshot` — queue projection (see [Snapshots](snapshots.mdx))
-- `BindingCapabilitiesSnapshot` — runtime capability snapshot (see [Snapshots](snapshots.mdx))
+- `PlaybackSnapshot` — full playback projection (see [Snapshots](snapshots/))
+- `QueueSnapshot` — queue projection (see [Snapshots](snapshots/))
+- `BindingCapabilitiesSnapshot` — runtime capability snapshot (see [Snapshots](snapshots/))
 - `LegatoError` — error payload
