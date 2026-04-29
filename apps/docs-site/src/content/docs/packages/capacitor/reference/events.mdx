@@ -152,22 +152,22 @@ await unsubProgress.remove();
 
 | Event | Payload Type |
 |-------|-------------|
-| `playback-state-changed` | `{ state: PlaybackState }` |
-| `playback-active-track-changed` | `{ track: Track | null; index: number | null }` |
-| `playback-queue-changed` | `{ queue: QueueSnapshot }` |
-| `playback-progress` | `{ position: number; duration: number | null; bufferedPosition: number | null }` |
-| `playback-ended` | `{ snapshot: PlaybackSnapshot }` |
-| `playback-error` | `{ error: LegatoError }` |
+| `playback-state-changed` | ``{ state: PlaybackState }`` |
+| `playback-active-track-changed` | ``{ track: Track | null; index: number | null }`` |
+| `playback-queue-changed` | ``{ queue: QueueSnapshot }`` |
+| `playback-progress` | ``{ position: number; duration: number | null; bufferedPosition: number | null }`` |
+| `playback-ended` | ``{ snapshot: PlaybackSnapshot }`` |
+| `playback-error` | ``{ error: LegatoError }`` |
 
 ### Media session payloads
 
 | Event | Payload Type |
 |-------|-------------|
-| `remote-play` | `{}` |
-| `remote-pause` | `{}` |
-| `remote-next` | `{}` |
-| `remote-previous` | `{}` |
-| `remote-seek` | `{ position: number }` |
+| `remote-play` | ``{}`` |
+| `remote-pause` | ``{}`` |
+| `remote-next` | ``{}`` |
+| `remote-previous` | ``{}`` |
+| `remote-seek` | ``{ position: number }`` |
 
 <Aside type="note">
 The `remote-seek` event is only emitted when the runtime supports seek capability. Check `getCapabilities()` to determine if seek is available on the current platform.
