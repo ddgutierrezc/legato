@@ -17,7 +17,10 @@ export default defineConfig({
 			sidebar: [
 				{
 					label: 'Getting Started',
-					items: [{ label: 'Overview', slug: 'getting-started' }],
+					items: [
+						{ label: 'Overview', slug: 'getting-started' },
+						{ label: 'First Contract Integration', slug: 'tutorials/first-contract-integration' },
+					],
 				},
 				{
 					label: 'Concepts',

@@ -1,0 +1,143 @@
+---
+title: First Contract Integration
+description: Build a runtime-neutral model for tracks, queue snapshots, playback snapshots, and event payloads using @ddgutierrezc/legato-contract.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+This tutorial walks through a first integration of `@ddgutierrezc/legato-contract` in a plain TypeScript app. You will model `Track`, `QueueSnapshot`, and `PlaybackSnapshot`, then read event payload shapes without importing any Capacitor package.
+
+## Prerequisites
+
+- Node.js 18+ and npm.
+- A TypeScript project (or a new empty folder).
+- Basic familiarity with TypeScript interfaces and unions.
+
+## Install the package
+
+<Steps>
+
+1. Install the contract package.
+
+   ```bash
+   npm install @ddgutierrezc/legato-contract
+   ```
+
+2. Import contract types and constants.
+
+   ```ts
+   import {
+     LEGATO_EVENT_NAMES,
+     type LegatoEventPayload,
+     type PlaybackSnapshot,
+     type QueueSnapshot,
+     type Track,
+   } from '@ddgutierrezc/legato-contract';
+   ```
+
+</Steps>
+
+## 1) Model a Track
+
+Create a strongly typed track object from the contract:
+
+```ts
+import type { Track } from '@ddgutierrezc/legato-contract';
+
+const introTrack: Track = {
+  id: 'ep-001',
+  url: 'https://cdn.example.com/audio/episode-001.mp3',
+  title: 'Episode 001',
+  artist: 'Legato Team',
+  type: 'progressive',
+  headers: {
+    Authorization: 'Bearer static-token-for-demo',
+    'X-App-Client': 'docs-tutorial',
+  },
+};
+```
+
+What this gives you immediately:
+
+- `type` only accepts `'file' | 'progressive' | 'hls' | 'dash'`.
+- `headers` is a string map (`Record<string, string>`) scoped per track.
+
+## 2) Model a QueueSnapshot
+
+```ts
+import type { QueueSnapshot } from '@ddgutierrezc/legato-contract';
+
+const queue: QueueSnapshot = {
+  items: [introTrack],
+  currentIndex: 0,
+};
+```
+
+`QueueSnapshot` is the serializable queue projection used by snapshots and event payloads.
+
+## 3) Model a PlaybackSnapshot
+
+```ts
+import type { PlaybackSnapshot } from '@ddgutierrezc/legato-contract';
+
+const playback: PlaybackSnapshot = {
+  state: 'playing',
+  currentTrack: introTrack,
+  currentIndex: 0,
+  position: 12.4,
+  duration: 180,
+  bufferedPosition: 30,
+  queue,
+};
+```
+
+Important contract semantics visible in this shape:
+
+- `duration` can be `number | null`.
+- `currentTrack` and `currentIndex` can be `null` when no active item exists.
+- `queue` is always present and typed as `QueueSnapshot`.
+
+## 4) Read event payload shapes without Capacitor
+
+You can consume contract event names and payload maps directly in shared code:
+
+```ts
+import {
+  LEGATO_EVENT_NAMES,
+  type LegatoEventName,
+  type LegatoEventPayload,
+} from '@ddgutierrezc/legato-contract';
+
+function handleLegatoEvent<E extends LegatoEventName>(
+  eventName: E,
+  payload: LegatoEventPayload<E>,
+) {
+  if (eventName === 'playback-progress') {
+    payload.position;
+    payload.duration;
+    payload.bufferedPosition;
+  }
+
+  if (eventName === 'remote-seek') {
+    payload.position;
+  }
+}
+
+const allNames = LEGATO_EVENT_NAMES;
+```
+
+This pattern keeps your domain and UI code runtime-neutral while still fully typed.
+
+## Verify the result
+
+Your integration is correct when:
+
+- `Track`, `QueueSnapshot`, and `PlaybackSnapshot` objects type-check.
+- Invalid `type` values (for example `'stream'`) fail at compile time.
+- Event payload access narrows by event name (for example, `remote-seek` exposes `position`).
+
+## Next steps
+
+- Read the [Contract reference index](/packages/contract/reference/) for the canonical API surface.
+- Deep dive into [Track fields](/packages/contract/reference/track/).
+- Review [Snapshots](/packages/contract/reference/snapshots/), [Events](/packages/contract/reference/events/), and [Errors](/packages/contract/reference/errors/).
