@@ -9,9 +9,10 @@ This guide covers how to install and initialize the Legato Capacitor plugin for 
 
 ## Prerequisites
 
-- An existing Capacitor project (iOS and/or Android)
+- An existing Capacitor project with at least one native target (`ios` and/or `android`)
 - Node.js 18+ installed
 - `npm` or your preferred package manager
+- Your app already installs Capacitor dependencies and can run `npx cap sync` successfully
 
 ## Installation
 
@@ -25,9 +26,13 @@ This guide covers how to install and initialize the Legato Capacitor plugin for 
 
 2. **Sync native platforms**
 
-   ```bash
-   npx cap sync
-   ```
+    ```bash
+    npx cap sync
+    ```
+
+3. **Verify package installation and sync output**
+
+   Confirm both packages are present in `package.json` dependencies and that `npx cap sync` finished without errors.
 
 </Steps>
 
@@ -46,9 +51,41 @@ async function initialize() {
 initialize();
 ```
 
+Verify after setup:
+
+```ts
+const state = await audioPlayer.getState();
+console.log('Player state after setup:', state);
+// Expected on first setup: 'idle'
+```
+
 <Aside type="note">
 Both `audioPlayer.setup()` and `mediaSession.setup()` must be called before their respective APIs are used. Calling `audioPlayer.setup()` does NOT initialize media session, and vice-versa.
 </Aside>
+
+## Step-by-step verification checklist
+
+1. **After install**: `@ddgutierrezc/legato-capacitor` and `@ddgutierrezc/legato-contract` appear in dependencies.
+2. **After sync**: `npx cap sync` completes without errors.
+3. **After setup calls**: both `await audioPlayer.setup()` and `await mediaSession.setup()` resolve.
+4. **After state probe**: `audioPlayer.getState()` resolves (commonly `'idle'` before queue insertion).
+
+## Troubleshooting
+
+### Setup fails before playback commands
+
+- Verify `audioPlayer.setup()` is called and awaited before using `add()`, `play()`, `getSnapshot()`, or other player APIs.
+- If an operation reports `player_not_setup`, check that setup is not skipped by an app lifecycle branch and that initialization completes before user actions.
+
+### Remote events are not received
+
+- Verify `mediaSession.setup()` was called; `audioPlayer.setup()` alone does not prepare remote-control listeners.
+- Verify listeners are registered through `mediaSession` or remote helper APIs (for example `onRemotePlay`) after setup.
+
+### Native command checks fail
+
+- Run `legato native doctor` and review findings before debugging runtime behavior.
+- If you need a safe patch plan first, run `legato native configure --dry-run`.
 
 ## Expected result
 
@@ -67,5 +104,7 @@ console.log('Player state:', state); // 'idle'
 
 ## Next steps
 
-- [Play a Track](./play-track/) — add tracks and start playback
-- [Listen to Events](./listen-events/) — subscribe to playback and remote events
+- If you want to validate queue and playback commands first, continue with [Play a Track](./play-track/).
+- If you need UI/event-driven behavior next, continue with [Listen to Events](./listen-events/).
+- If you need a local state mirror in app code, continue with [Use Sync](./use-sync/).
+- If setup problems look platform-specific, check [Native CLI](../reference/cli-native/) and run doctor/configure flows.
