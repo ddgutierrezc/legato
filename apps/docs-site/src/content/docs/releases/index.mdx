@@ -1,9 +1,32 @@
 ---
 title: Releases
-description: Consumer-safe release notes surface sourced from the project changelog.
+description: Consumer-safe release notes surface sourced from the project changelog, with upgrade-focused guidance.
 ---
 
 This page summarizes public release highlights from [`CHANGELOG.md`](https://github.com/ddgutierrezc/legato/blob/main/CHANGELOG.md).
+
+Use it to decide whether a release affects your runtime behavior, dependency alignment, or migration work.
+
+## How to read a Legato release
+
+When you evaluate a release entry, check in this order:
+
+1. **Version matrix**: package versions and native artifact references, when provided.
+2. **User impact**: explicit behavior differences that could affect your app.
+3. **Upgrade notes**: concrete required actions or version pairings.
+4. **Breaking changes**: whether there is declared migration risk.
+5. **Durable evidence**: links to npm/Maven/iOS release records.
+
+If a release includes only partial evidence for your stack, treat it as informative and validate behavior in your own CI before production rollout.
+
+## Who should care about which changes
+
+| Change type in notes | Most affected consumers | Typical action |
+|---|---|---|
+| Contract semantics/types/events | `@ddgutierrezc/legato-contract` users (with or without Capacitor) | Re-check compile-time assumptions and event/error handling branches. |
+| Capacitor runtime behavior | `@ddgutierrezc/legato-capacitor` app integrators | Run device-level smoke tests for playback lifecycle, queue, and remote events. |
+| Native distribution alignment | Teams tracking Android/iOS native artifacts explicitly | Validate published artifact versions and repository evidence links. |
+| Governance/docs process updates | Maintainers and release operators | Confirm communication and evidence requirements are met. |
 
 ## Latest stable highlight
 
@@ -15,6 +38,21 @@ This page summarizes public release highlights from [`CHANGELOG.md`](https://git
   - `@ddgutierrezc/legato-capacitor@1.0.0`
 - Runtime parity and authenticated media request scope called out as supported baseline.
 
+Consumer action baseline for this line:
+
+- Keep `@ddgutierrezc/legato-contract` and `@ddgutierrezc/legato-capacitor` aligned in the `1.x` line.
+- For Capacitor apps, validate queue/playback/capabilities/remote controls on real target devices.
+- For contract-only users, validate event/error/capability assumptions against your adapters.
+
 ## Previous release notes
 
 For older entries (including `0.1.x` lines), read the root `CHANGELOG.md` history.
+
+## Upgrade workflow before adopting any release
+
+1. Compare your current package versions against the release version matrix.
+2. Read `Changed`, `Fixed`, and `Security` sections for behavior-impacting changes.
+3. Apply update in a branch and run your app-level playback regression checklist.
+4. If capabilities/semantics changed, re-check UI gating logic built on `getCapabilities()` and `error.code`.
+
+For a step-by-step upgrade checklist, continue with [Migration and Versioning](/how-to/migration-and-versioning/).

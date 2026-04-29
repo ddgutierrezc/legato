@@ -1,0 +1,96 @@
+---
+title: Compatibility
+description: Public compatibility expectations and support boundaries for Legato consumers.
+---
+
+This reference states what can be verified from public package metadata and documented API surfaces.
+
+## Scope of this matrix
+
+This page covers:
+
+- Published npm package lines for `@ddgutierrezc/legato-contract` and `@ddgutierrezc/legato-capacitor`
+- Declared dependency compatibility between those packages
+- Public scope of the `legato native` CLI shipped by `@ddgutierrezc/legato-capacitor`
+
+This page does not cover:
+
+- Guarantees about every host-app architecture or every Capacitor plugin combination
+- Runtime behavior promises beyond the documented contract/error/capability surfaces
+- Native artifact version matrices not explicitly published in public release notes
+
+## Current package line (source-backed)
+
+| Package | Source | Public version observed |
+|---|---|---|
+| `@ddgutierrezc/legato-contract` | `packages/contract/package.json` | `1.0.0` |
+| `@ddgutierrezc/legato-capacitor` | `packages/capacitor/package.json` | `1.0.0` |
+
+These values reflect repository metadata at the time this documentation snapshot was written.
+
+## Declared dependency compatibility
+
+`@ddgutierrezc/legato-capacitor` declares:
+
+- `peerDependencies["@ddgutierrezc/legato-contract"]: ^1.0.0`
+- `peerDependencies["@capacitor/core"]: ^8.0.0`
+
+Interpretation:
+
+- Capacitor consumers SHOULD align with `@ddgutierrezc/legato-contract` in the `1.x` line.
+- Capacitor host apps are expected to satisfy the `@capacitor/core` `^8.0.0` peer range.
+- Exact host-platform/version permutations are not fully enumerated here; validate in your app CI.
+
+## Contract package expectations
+
+`@ddgutierrezc/legato-contract` is library-only and defines:
+
+- Type-level contract surface (tracks, snapshots, playback state, queue model)
+- Stable event-name and payload maps
+- Stable error-code literals and capability literals
+
+Compatibility expectation for contract-only consumers:
+
+- Branch behavior on stable literals (`error.code`, capability names, event names).
+- Treat human-readable text (`error.message`) as diagnostic, not compatibility key.
+
+## Capacitor package expectations
+
+`@ddgutierrezc/legato-capacitor` re-exports contract types and provides runtime bridge APIs:
+
+- `audioPlayer` playback operations and queries
+- `mediaSession` remote-control listener surface
+- Unified `Legato` facade and listener helpers
+- Sync controller factories (`createLegatoSync`, `createAudioPlayerSync`)
+
+Compatibility expectation for runtime consumers:
+
+- Capability-dependent operations (for example seek) MUST be gated by `getCapabilities()`.
+- Event payload handling SHOULD use the documented payload maps and stable event names.
+
+## `legato native` CLI scope compatibility
+
+`legato native` is bundled from the package `bin` entry and publicly documents only the `native` command group:
+
+- `legato native doctor [--json]`
+- `legato native configure --dry-run [--json]`
+- `legato native configure --apply [--json]`
+
+Compatibility boundary:
+
+- CLI checks/mutations are intentionally narrow and repository-layout-aware.
+- It is a maintainer/integration aid for supported paths, not a generic Capacitor project migrator.
+
+## Practical alignment checklist
+
+1. Pin or resolve to a coherent package line (`contract` and `capacitor` in compatible major versions).
+2. Satisfy `@capacitor/core` peer range required by `@ddgutierrezc/legato-capacitor`.
+3. Validate event/capability assumptions in-device using your own CI smoke tests.
+4. Read release notes before upgrades: [Releases](/releases/).
+
+## Related pages
+
+- [Releases](/releases/)
+- [Migration and Versioning](/how-to/migration-and-versioning/)
+- [Contract Reference](/packages/contract/reference/)
+- [Capacitor Reference](/packages/capacitor/reference/)
