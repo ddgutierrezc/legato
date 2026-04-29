@@ -1,0 +1,100 @@
+---
+title: Errors Reference
+description: Complete reference for LegatoError interface and error codes.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This page documents the `LegatoError` interface and error codes emitted by the Legato runtime.
+
+## LegatoError interface
+
+Error payload shape used by `playback-error` events and API failures.
+
+```ts
+interface LegatoError {
+  /** Stable machine-readable code. */
+  code: LegatoErrorCode;
+  /** Human-readable error message from adapter/runtime. */
+  message: string;
+  /** Optional transport-specific details. */
+  details?: unknown;
+}
+```
+
+## Error codes
+
+### `LEGATO_ERROR_CODES`
+
+All supported error code literals.
+
+```ts
+import { LEGATO_ERROR_CODES } from '@ddgutierrezc/legato-contract';
+
+// LEGATO_ERROR_CODES = [
+//   'player_not_setup',
+//   'invalid_index',
+//   'empty_queue',
+//   'no_active_track',
+//   'invalid_url',
+//   'load_failed',
+//   'playback_failed',
+//   'seek_failed',
+//   'unsupported_operation',
+//   'platform_error'
+// ];
+```
+
+### Error code reference
+
+| Code | Description |
+|------|-------------|
+| `player_not_setup` | Playback APIs called before `audioPlayer.setup()`. |
+| `invalid_index` | Queue index out of bounds or invalid for current queue length. |
+| `empty_queue` | Playback attempted on empty queue. |
+| `no_active_track` | No active track selected in the queue. |
+| `invalid_url` | Track URL is malformed or unsupported. |
+| `load_failed` | Media failed to load (network error, unsupported format, etc.). |
+| `playback_failed` | Playback interrupted or failed during active playback. |
+| `seek_failed` | Seek operation failed (unsupported by track type or runtime). |
+| `unsupported_operation` | Operation not supported by current platform capabilities. |
+| `platform_error` | Platform-specific error (native layer failure). |
+
+## Handling errors
+
+### Via event listener
+
+```ts
+import { onPlaybackError } from '@ddgutierrezc/legato-capacitor';
+
+onPlaybackError(({ error }) => {
+  console.error('Playback error:', error.code, error.message);
+  if (error.details) {
+    console.error('Details:', error.details);
+  }
+});
+```
+
+### Via async error handling
+
+```ts
+try {
+  await audioPlayer.play();
+} catch (err) {
+  if (err.code) {
+    console.error('Legato error:', err.code);
+  } else {
+    throw err;
+  }
+}
+```
+
+<Aside type="note">
+Not all methods throw `LegatoError`. Check individual method documentation for error behavior.
+</Aside>
+
+## Related types
+
+- `PlaybackState` — can be `'error'` when a playback error occurs
+- `PlaybackSnapshot` — may contain error state information
+- `LEGATO_EVENTS` — includes `playback-error` for event-driven error handling

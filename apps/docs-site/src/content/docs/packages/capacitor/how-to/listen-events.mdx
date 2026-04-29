@@ -1,0 +1,160 @@
+---
+title: Listen to Events
+description: How to register and manage event listeners for playback and remote control.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This guide covers how to subscribe to playback lifecycle events and remote control events.
+
+## Event categories
+
+| Category | Namespace | Description |
+|----------|-----------|-------------|
+| Player events | `audioPlayer` | Playback state, track changes, progress, errors |
+| Remote events | `mediaSession` | Lock screen, Bluetooth, headphone controls |
+
+## Registering listeners
+
+### Using shortcut helpers (recommended)
+
+```ts
+import {
+  onPlaybackStateChanged,
+  onPlaybackEnded,
+  onPlaybackProgress,
+  onPlaybackError,
+} from '@ddgutierrezc/legato-capacitor';
+
+// State changes
+const unsubState = onPlaybackStateChanged(({ state }) => {
+  console.log('State:', state);
+});
+
+// Progress updates
+const unsubProgress = onPlaybackProgress(({ position, duration, bufferedPosition }) => {
+  console.log(`Position: ${position.toFixed(1)}s / ${duration}s`);
+});
+
+// Playback ended
+const unsubEnded = onPlaybackEnded(({ snapshot }) => {
+  console.log('Playback ended. Final state:', snapshot.state);
+});
+
+// Errors
+const unsubError = onPlaybackError(({ error }) => {
+  console.error('Error:', error.code, error.message);
+});
+
+// Clean up
+await unsubState.remove();
+await unsubProgress.remove();
+await unsubEnded.remove();
+await unsubError.remove();
+```
+
+<Aside type="tip">
+Shortcut helpers return a listener handle with a `remove()` method for cleanup.
+</Aside>
+
+### Using direct listener APIs
+
+```ts
+import { audioPlayer, mediaSession, LEGATO_EVENTS } from '@ddgutierrezc/legato-capacitor';
+
+// Player events via audioPlayer
+const playerHandle = await audioPlayer.addListener('playback-state-changed', (payload) => {
+  console.log('State:', payload.state);
+});
+
+// Remote events via mediaSession
+const remoteHandle = await mediaSession.addListener('remote-play', () => {
+  console.log('User pressed play');
+});
+
+// Clean up via handle
+await playerHandle.remove();
+await remoteHandle.remove();
+```
+
+### Using generic listener helpers
+
+```ts
+import { addLegatoListener, addAudioPlayerListener, addMediaSessionListener } from '@ddgutierrezc/legato-capacitor';
+
+// Any Legato event
+const handle1 = await addLegatoListener('playback-progress', (payload) => {
+  console.log('Progress:', payload.position);
+});
+
+// Player event only
+const handle2 = await addAudioPlayerListener('playback-active-track-changed', (payload) => {
+  console.log('Track:', payload.track?.title);
+});
+
+// Media session only
+const handle3 = await addMediaSessionListener('remote-seek', (payload) => {
+  console.log('Seek to:', payload.position);
+});
+```
+
+## Remote control listeners
+
+Subscribe to system media control events:
+
+```ts
+import { onRemotePlay, onRemotePause, onRemoteNext, onRemotePrevious } from '@ddgutierrezc/legato-capacitor';
+
+// Handle remote commands
+onRemotePlay(() => {
+  audioPlayer.play();
+});
+
+onRemotePause(() => {
+  audioPlayer.pause();
+});
+
+onRemoteNext(() => {
+  audioPlayer.skipToNext();
+});
+
+onRemotePrevious(() => {
+  audioPlayer.skipToPrevious();
+});
+```
+
+<Aside type="note">
+Remote events are only available on devices with system media controls. Desktop web browsers may not emit these events.
+</Aside>
+
+## Removing all listeners
+
+```ts
+// Remove all player listeners
+await audioPlayer.removeAllListeners();
+
+// Remove all media session listeners
+await mediaSession.removeAllListeners();
+```
+
+## Expected result
+
+| Action | Result |
+|--------|--------|
+| `onPlaybackStateChanged(...)` | Listener fires on every state transition |
+| `onPlaybackProgress(...)` | Listener fires periodically during playback |
+| `onPlaybackError(...)` | Listener fires when playback encounters an error |
+| `onRemotePlay(...)` | Listener fires when user taps play on remote control |
+| `.remove()` | Listener is detached and stops firing |
+| `removeAllListeners()` | All listeners for the namespace are removed |
+
+## Best practices
+
+1. **Always clean up** — Remove listeners in component unmount handlers or when no longer needed
+2. **Use handles** — Store handles from `addListener()` for manual removal
+3. **Check capabilities** — `remote-seek` only fires when runtime supports seek
+
+## Related pages
+
+- [Events Reference](../reference/events/) — for full payload documentation
+- [Reference: Audio Player](../reference/audio-player/) — for player API details

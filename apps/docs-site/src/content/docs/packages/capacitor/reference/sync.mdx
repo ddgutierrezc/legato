@@ -1,0 +1,158 @@
+---
+title: Sync Controllers
+description: Complete reference for sync controller factories and interfaces.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Sync controllers provide local snapshot mirroring for UI-only contexts or offline playback state management.
+
+## Overview
+
+The sync module exports two factory functions that create controllers for maintaining a local PlaybackSnapshot that stays in sync with the native runtime:
+
+- `createLegatoSync` — uses the full `Legato` facade
+- `createAudioPlayerSync` — uses only the `audioPlayer` surface
+
+Both return a `LegatoSyncController` with identical behavior.
+
+## Interfaces
+
+### `LegatoSyncOptions`
+
+Configuration options for sync controller creation.
+
+```ts
+interface LegatoSyncOptions {
+  /** Optional playback client override; defaults to the exported `Legato` facade. */
+  client?: AudioPlayerApi;
+  /** Optional callback invoked when local snapshot state changes. */
+  onSnapshot?: (snapshot: PlaybackSnapshot) => void;
+  /** Optional callback invoked for each received event payload. */
+  onEvent?: <E extends LegatoEventName>(eventName: E, payload: LegatoEventPayloadMap[E]) => void;
+}
+```
+
+### `AudioPlayerSyncOptions`
+
+Audio-player-specific options (extends `LegatoSyncOptions`).
+
+```ts
+interface AudioPlayerSyncOptions extends LegatoSyncOptions {
+  /** Optional playback client override constrained to the audio-player surface. */
+  client?: AudioPlayerApi;
+}
+```
+
+### `LegatoSyncController`
+
+Controller API for maintaining a local playback snapshot mirror.
+
+```ts
+interface LegatoSyncController {
+  /** Starts sync and returns initial snapshot. */
+  start(): Promise<PlaybackSnapshot>;
+  /** Resyncs from native state and returns updated snapshot. */
+  resync(): Promise<PlaybackSnapshot>;
+  /** Returns the current local snapshot, or null if sync not started. */
+  getCurrent(): PlaybackSnapshot | null;
+  /** Stops sync and removes all listeners. */
+  stop(): Promise<void>;
+}
+```
+
+## Factory functions
+
+### `createLegatoSync(options?)`
+
+Creates a sync controller using the full Legato facade.
+
+```ts
+import { createLegatoSync } from '@ddgutierrezc/legato-capacitor';
+
+const sync = createLegatoSync({
+  onSnapshot: (snapshot) => {
+    console.log('Update UI:', snapshot.state, snapshot.position);
+  },
+  onEvent: (eventName, payload) => {
+    console.log('Event:', eventName);
+  },
+});
+
+await sync.start();
+```
+
+### `createAudioPlayerSync(options?)`
+
+Creates a sync controller using only the audio-player surface.
+
+```ts
+import { createAudioPlayerSync } from '@ddgutierrezc/legato-capacitor';
+
+const sync = createAudioPlayerSync({
+  onSnapshot: (snapshot) => {
+    updateProgressBar(snapshot.position, snapshot.duration);
+  },
+});
+
+await sync.start();
+```
+
+## Usage patterns
+
+### Basic usage
+
+```ts
+const sync = createLegatoSync();
+
+const snapshot = await sync.start();
+// sync.getCurrent() now returns snapshot
+
+setInterval(() => {
+  const current = sync.getCurrent();
+  if (current) {
+    console.log(`Now playing: ${current.currentTrack?.title} at ${current.position}s`);
+  }
+}, 1000);
+
+// Stop sync when done
+await sync.stop();
+```
+
+### With manual resync
+
+```ts
+const sync = createLegatoSync();
+
+await sync.start();
+
+// Force resync (e.g., after app returns to foreground)
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible') {
+    await sync.resync();
+  }
+});
+```
+
+<Aside type="note">
+The sync controller attaches listeners for all `AUDIO_PLAYER_EVENTS` when `start()` is called. Call `stop()` to clean up listeners when the controller is no longer needed, especially in component unmount handlers.
+</Aside>
+
+### Event handling via sync
+
+The sync controller processes these events to update the local snapshot:
+
+| Event | Snapshot update |
+|-------|------------------|
+| `playback-state-changed` | Updates `state` field |
+| `playback-active-track-changed` | Updates `currentTrack`, `currentIndex`, `duration`, and queue `currentIndex` |
+| `playback-queue-changed` | Replaces entire `queue` |
+| `playback-progress` | Updates `position`, `duration`, `bufferedPosition` |
+| `playback-ended` | Replaces snapshot with terminal snapshot |
+| `playback-error`, remote events | No snapshot update (event delivered via `onEvent` callback only) |
+
+## Related pages
+
+- [Audio Player API](audio-player/) — for `getSnapshot()` source
+- [Events Reference](events/) — for event payload types
+- [How-to: Use Sync](../how-to/use-sync/) — task-oriented guide

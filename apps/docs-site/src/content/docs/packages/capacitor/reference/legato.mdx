@@ -1,0 +1,142 @@
+---
+title: Legato Facade
+description: Complete API reference for the unified Legato facade.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The `Legato` facade is a unified API surface that combines `audioPlayer` and `mediaSession` with a single event listener covering all Legato event names.
+
+## When to use Legato vs audioPlayer vs mediaSession
+
+| Export | Surface | Listener scope | Typical use |
+|--------|---------|----------------|-------------|
+| `audioPlayer` | Playback commands + player events | `AudioPlayerEventName` only | When you only need playback control and player lifecycle events. |
+| `mediaSession` | Media session commands + remote events | `MediaSessionEventName` only | When you only need remote control listeners. |
+| `Legato` | Playback commands + media session + unified events | `LegatoEventName` (all events) | When you want a single import for both playback control and all event types. |
+
+## Interface
+
+```ts
+type LegatoApi = AudioPlayerApi & MediaSessionApi;
+
+interface LegatoEventApi {
+  addListener<E extends LegatoEventName>(
+    eventName: E,
+    listener: LegatoListener<E>
+  ): Promise<BindingListenerHandle>;
+  removeAllListeners(): Promise<void>;
+}
+
+// Legato exposes both surfaces:
+const Legato: LegatoApi & LegatoEventApi;
+```
+
+`Legato` is the union of:
+- All `AudioPlayerApi` methods (play, pause, seek, queue ops, `getSnapshot()`, `getCapabilities()`, etc.)
+- All `MediaSessionApi` methods (`setup()`, `addListener`, `removeAllListeners`)
+- A unified `addListener` that accepts any `LegatoEventName` (player + media session events combined)
+
+## Key difference: addListener scopes
+
+```ts
+import { Legato, audioPlayer, mediaSession } from '@ddgutierrezc/legato-capacitor';
+
+// audioPlayer.addListener only accepts AudioPlayerEventName
+await audioPlayer.addListener('playback-state-changed', (payload) => { ... });
+// ❌ This would fail: 'remote-play' is not in AudioPlayerEventName
+// await audioPlayer.addListener('remote-play', ...);
+
+// mediaSession.addListener only accepts MediaSessionEventName
+await mediaSession.addListener('remote-play', () => { ... });
+// ❌ This would fail: 'playback-state-changed' is not in MediaSessionEventName
+// await mediaSession.addListener('playback-state-changed', ...);
+
+// Legato.addListener accepts ALL event names
+await Legato.addListener('playback-state-changed', (payload) => { ... });
+await Legato.addListener('remote-play', () => { ... });
+```
+
+## Playback methods
+
+`Legato` inherits all playback methods from `AudioPlayerApi`:
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `setup()` | `Promise<void>` | Initializes the native plugin. |
+| `add(options)` | `Promise<PlaybackSnapshot>` | Appends tracks to the queue. |
+| `remove(options)` | `Promise<PlaybackSnapshot>` | Removes queue entries by ID or index. |
+| `reset()` | `Promise<PlaybackSnapshot>` | Clears the queue and stops playback. |
+| `play()` | `Promise<void>` | Starts or resumes playback. |
+| `pause()` | `Promise<void>` | Pauses playback. |
+| `stop()` | `Promise<void>` | Stops playback and resets position. |
+| `seekTo(options)` | `Promise<void>` | Seeks to a specific position. |
+| `skipTo(options)` | `Promise<PlaybackSnapshot>` | Skips to a specific queue index. |
+| `skipToNext()` | `Promise<void>` | Skips to the next track. |
+| `skipToPrevious()` | `Promise<void>` | Skips to the previous track. |
+| `getState()` | `Promise<PlaybackState>` | Queries the current playback state. |
+| `getPosition()` | `Promise<number>` | Queries the current playback position. |
+| `getDuration()` | `Promise<number \| null>` | Queries the current track duration. |
+| `getCurrentTrack()` | `Promise<Track \| null>` | Queries the active track. |
+| `getQueue()` | `Promise<QueueSnapshot>` | Queries the current queue state. |
+| `getSnapshot()` | `Promise<PlaybackSnapshot>` | Queries the complete playback state. |
+| `getCapabilities()` | `Promise<BindingCapabilitiesSnapshot>` | Queries runtime-supported capabilities. |
+
+## Event methods
+
+```ts
+// Unified listener: accepts any LegatoEventName
+const handle = await Legato.addListener('playback-state-changed', (payload) => {
+  console.log('State:', payload.state);
+});
+
+// Also accepts media session events
+const remoteHandle = await Legato.addListener('remote-play', () => {
+  console.log('Remote play triggered');
+});
+
+// Remove a specific listener
+await handle.remove();
+
+// Remove all listeners
+await Legato.removeAllListeners();
+```
+
+## Usage example
+
+```ts
+import { Legato } from '@ddgutierrezc/legato-capacitor';
+
+// Initialize (setup is idempotent via the shared native plugin)
+await Legato.setup();
+
+// Add tracks and start playback
+await Legato.add({
+  tracks: [{ id: 't1', url: 'https://example.com/audio.mp3', title: 'My Track' }],
+  startIndex: 0,
+});
+await Legato.play();
+
+// Listen to ALL events with a single import
+const stateHandle = await Legato.addListener('playback-state-changed', (payload) => {
+  console.log('State:', payload.state);
+});
+
+const remoteHandle = await Legato.addListener('remote-pause', () => {
+  console.log('Paused from lock screen');
+});
+
+// Clean up
+await stateHandle.remove();
+await remoteHandle.remove();
+```
+
+<Aside type="tip">
+If you only need player events OR remote events, prefer `audioPlayer` or `mediaSession` respectively for tighter type scoping. Use `Legato` when you want a single import for everything.
+</Aside>
+
+## Related pages
+
+- [Audio Player API](audio-player/) — for the full `AudioPlayerApi` interface
+- [Media Session API](media-session/) — for the full `MediaSessionApi` interface
+- [Events Reference](events/) — for event-name constants and payload types

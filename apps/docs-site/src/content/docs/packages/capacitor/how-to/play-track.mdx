@@ -1,0 +1,105 @@
+---
+title: Play a Track
+description: How to add tracks to the queue and start playback.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This guide covers the basic flow to add tracks and start playback.
+
+## Basic flow
+
+### 1. Add tracks to the queue
+
+```ts
+import { audioPlayer } from '@ddgutierrezc/legato-capacitor';
+
+const snapshot = await audioPlayer.add({
+  tracks: [
+    {
+      id: 'track-1',
+      url: 'https://example.com/audio/song-1.mp3',
+      title: 'Song One',
+      artist: 'Example Artist',
+    },
+    {
+      id: 'track-2',
+      url: 'https://example.com/audio/song-2.mp3',
+      title: 'Song Two',
+      artist: 'Example Artist',
+    },
+  ],
+  startIndex: 0, // optional: sets the active track
+});
+```
+
+### 2. Start playback
+
+```ts
+await audioPlayer.play();
+```
+
+### 3. Inspect state
+
+```ts
+const state = await audioPlayer.getState();
+console.log('State:', state); // 'playing'
+
+const position = await audioPlayer.getPosition();
+console.log('Position:', position, 'seconds');
+
+const track = await audioPlayer.getCurrentTrack();
+console.log('Now playing:', track?.title);
+```
+
+<Aside type="note">
+The queue is managed by the native runtime. Use `audioPlayer.reset()` to clear it when needed.
+</Aside>
+
+## Full example
+
+```ts
+import { audioPlayer, onPlaybackStateChanged, onPlaybackProgress } from '@ddgutierrezc/legato-capacitor';
+
+async function playTrack(url: string, title: string) {
+  // Subscribe to state changes
+  const unsubState = onPlaybackStateChanged(({ state }) => {
+    console.log('Playback state:', state);
+  });
+
+  // Subscribe to progress updates
+  const unsubProgress = onPlaybackProgress(({ position, duration }) => {
+    console.log(`${position.toFixed(1)}s / ${duration}s`);
+  });
+
+  // Add the track
+  await audioPlayer.add({
+    tracks: [{ id: 'demo', url, title }],
+    startIndex: 0,
+  });
+
+  // Start playback
+  await audioPlayer.play();
+
+  // Cleanup when done
+  await unsubState.remove();
+  await unsubProgress.remove();
+}
+
+playTrack('https://example.com/audio/demo.mp3', 'Demo Track');
+```
+
+## Expected result
+
+| Step | Result |
+|------|--------|
+| `add()` | Queue contains track(s); `snapshot.queue.items` has entries |
+| `play()` | Native playback starts |
+| `getState()` | Returns `playing` |
+| `getPosition()` | Returns current position in seconds |
+| `getCurrentTrack()` | Returns active track object |
+
+## Next steps
+
+- [Listen to Events](./listen-events/) — for more event subscriptions
+- [Use Sync](./use-sync/) — for local snapshot mirroring

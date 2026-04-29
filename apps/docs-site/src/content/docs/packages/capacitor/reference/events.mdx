@@ -1,0 +1,221 @@
+---
+title: Events Reference
+description: Complete reference for event-name constants, payload types, and event listener helpers.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This page documents event-name constants, payload maps, and event listener helpers exported by `@ddgutierrezc/legato-capacitor`.
+
+## Event-name constants
+
+### `AUDIO_PLAYER_EVENTS`
+
+Player lifecycle event names.
+
+```ts
+import { AUDIO_PLAYER_EVENTS } from '@ddgutierrezc/legato-capacitor';
+
+// AUDIO_PLAYER_EVENTS = [
+//   'playback-state-changed',
+//   'playback-active-track-changed',
+//   'playback-queue-changed',
+//   'playback-progress',
+//   'playback-ended',
+//   'playback-error'
+// ];
+```
+
+### `MEDIA_SESSION_EVENTS`
+
+Remote control event names.
+
+```ts
+import { MEDIA_SESSION_EVENTS } from '@ddgutierrezc/legato-capacitor';
+
+// MEDIA_SESSION_EVENTS = [
+//   'remote-play',
+//   'remote-pause',
+//   'remote-next',
+//   'remote-previous',
+//   'remote-seek'
+// ];
+```
+
+### `LEGATO_EVENTS`
+
+All Legato event names (union of player and media session events).
+
+```ts
+import { LEGATO_EVENTS } from '@ddgutierrezc/legato-capacitor';
+
+// LEGATO_EVENTS = [
+//   'playback-state-changed',
+//   'playback-active-track-changed',
+//   'playback-queue-changed',
+//   'playback-progress',
+//   'playback-ended',
+//   'playback-error',
+//   'remote-play',
+//   'remote-pause',
+//   'remote-next',
+//   'remote-previous',
+//   'remote-seek'
+// ];
+```
+
+## Listener helpers
+
+### Direct listeners
+
+#### `addAudioPlayerListener(eventName, listener)`
+
+Registers a listener for player lifecycle events.
+
+```ts
+import { addAudioPlayerListener } from '@ddgutierrezc/legato-capacitor';
+
+const handle = await addAudioPlayerListener('playback-state-changed', (payload) => {
+  console.log('State:', payload.state);
+});
+```
+
+#### `addMediaSessionListener(eventName, listener)`
+
+Registers a listener for media session events.
+
+```ts
+import { addMediaSessionListener } from '@ddgutierrezc/legato-capacitor';
+
+const handle = await addMediaSessionListener('remote-play', () => {
+  console.log('User pressed play');
+});
+```
+
+#### `addLegatoListener(eventName, listener)`
+
+Registers a listener for any Legato event.
+
+```ts
+import { addLegatoListener } from '@ddgutierrezc/legato-capacitor';
+
+const handle = await addLegatoListener('playback-progress', (payload) => {
+  console.log(`Position: ${payload.position}s / ${payload.duration}s`);
+});
+```
+
+### Shortcut helpers
+
+These helpers provide a simpler API for common event subscriptions.
+
+| Helper | Event | Description |
+|--------|-------|-------------|
+| `onPlaybackStateChanged` | `playback-state-changed` | Playback state transitions. |
+| `onPlaybackActiveTrackChanged` | `playback-active-track-changed` | Active track or index changes. |
+| `onPlaybackQueueChanged` | `playback-queue-changed` | Queue structure changes. |
+| `onPlaybackProgress` | `playback-progress` | Position/duration/buffer progress. |
+| `onPlaybackEnded` | `playback-ended` | Terminal playback state. |
+| `onPlaybackError` | `playback-error` | Playback error events. |
+| `onRemotePlay` | `remote-play` | Remote play command. |
+| `onRemotePause` | `remote-pause` | Remote pause command. |
+| `onRemoteNext` | `remote-next` | Remote next command. |
+| `onRemotePrevious` | `remote-previous` | Remote previous command. |
+| `onRemoteSeek` | `remote-seek` | Remote seek command. |
+
+### Example: Using shortcut helpers
+
+```ts
+import {
+  onPlaybackStateChanged,
+  onPlaybackProgress,
+  onPlaybackEnded,
+} from '@ddgutierrezc/legato-capacitor';
+
+// Subscribe to state changes
+const unsubState = onPlaybackStateChanged((payload) => {
+  console.log('State changed:', payload.state);
+});
+
+// Subscribe to progress
+const unsubProgress = onPlaybackProgress((payload) => {
+  console.log(`Position: ${payload.position.toFixed(1)}s`);
+});
+
+// Clean up subscriptions when done
+await unsubState.remove();
+await unsubProgress.remove();
+```
+
+## Payload reference
+
+### Player event payloads
+
+- `playback-state-changed` — ``{ state: PlaybackState }``
+- `playback-active-track-changed` — ``{ track: Track | null; index: number | null }``
+- `playback-queue-changed` — ``{ queue: QueueSnapshot }``
+- `playback-progress` — ``{ position: number; duration: number | null; bufferedPosition: number | null }``
+- `playback-ended` — ``{ snapshot: PlaybackSnapshot }``
+- `playback-error` — ``{ error: LegatoError }``
+
+### Media session payloads
+
+- `remote-play` — ``{}``
+- `remote-pause` — ``{}``
+- `remote-next` — ``{}``
+- `remote-previous` — ``{}``
+- `remote-seek` — ``{ position: number }``
+
+<Aside type="note">
+The `remote-seek` event is only emitted when the runtime supports seek capability. Check `getCapabilities()` to determine if seek is available on the current platform.
+</Aside>
+
+## Type definitions
+
+### `LegatoEventName`
+
+Union of all Legato event name strings.
+
+```ts
+type LegatoEventName =
+  | 'playback-state-changed'
+  | 'playback-active-track-changed'
+  | 'playback-queue-changed'
+  | 'playback-progress'
+  | 'playback-ended'
+  | 'playback-error'
+  | 'remote-play'
+  | 'remote-pause'
+  | 'remote-next'
+  | 'remote-previous'
+  | 'remote-seek';
+```
+
+### `LegatoEventPayloadMap`
+
+Map of event names to their payload types.
+
+```ts
+interface LegatoEventPayloadMap {
+  'playback-state-changed': { state: PlaybackState };
+  'playback-active-track-changed': { track: Track | null; index: number | null };
+  'playback-queue-changed': { queue: QueueSnapshot };
+  'playback-progress': { position: number; duration: number | null; bufferedPosition: number | null };
+  'playback-ended': { snapshot: PlaybackSnapshot };
+  'playback-error': { error: LegatoError };
+  'remote-play': {};
+  'remote-pause': {};
+  'remote-next': {};
+  'remote-previous': {};
+  'remote-seek': { position: number };
+}
+```
+
+### `LegatoListener<E>`
+
+Listener signature for any Legato event.
+
+```ts
+type LegatoListener<E extends LegatoEventName> = (
+  payload: LegatoEventPayloadMap[E]
+) => void;
+```

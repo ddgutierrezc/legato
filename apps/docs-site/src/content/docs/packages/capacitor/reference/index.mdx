@@ -1,0 +1,44 @@
+---
+title: API Reference
+description: Detailed API reference for the legato-capacitor package.
+---
+
+This section provides complete API documentation for all exported members of `@ddgutierrezc/legato-capacitor`.
+
+## Reference pages
+
+| Page | Description |
+|------|-------------|
+| **[Audio Player](audio-player/)** | `AudioPlayerApi` — playback commands, queue operations, state queries, and player event listeners. |
+| **[Media Session](media-session/)** | `MediaSessionApi` — remote control event listeners and subscription helpers. |
+| **[Legato Facade](legato/)** | `Legato` — unified facade combining `audioPlayer` and `mediaSession` surfaces with a single event listener. |
+| **[Snapshots](snapshots/)** | `PlaybackSnapshot`, `QueueSnapshot`, and `BindingCapabilitiesSnapshot` — shapes, sources, and usage. |
+| **[Events](events/)** | Event-name constants, payload types, and shortcut listener helpers. |
+| **[Errors](errors/)** | `LegatoError` interface and error code constants. |
+| **[Sync](sync/)** | Sync controller factories for local snapshot mirroring. |
+
+## Quick reference
+
+### Namespaces
+
+```ts
+// Playback commands and queries
+const player = audioPlayer;
+
+// Remote control listeners
+const remote = mediaSession;
+
+// Unified facade
+const legato = Legato;
+```
+
+### Types re-exported from contract
+
+The following types are re-exported from `@ddgutierrezc/legato-contract`:
+
+- `Track` — queue item shape
+- `PlaybackState` — playback state literals (`idle`, `loading`, `ready`, `playing`, `paused`, `buffering`, `ended`, `error`)
+- `PlaybackSnapshot` — full playback projection (see [Snapshots](snapshots/))
+- `QueueSnapshot` — queue projection (see [Snapshots](snapshots/))
+- `BindingCapabilitiesSnapshot` — runtime capability snapshot (see [Snapshots](snapshots/))
+- `LegatoError` — error payload
