@@ -3,15 +3,19 @@ title: Legato Documentation
 description: Canonical public documentation for Legato package consumers.
 template: splash
 hero:
-  tagline: Build continuous audio playback integrations with clear package guidance, reference entrypoints, and release-safe public documentation.
+  tagline: "Build continuous audio playback with a clear first decision: contract-first modeling, Capacitor runtime integration, or production hardening confidence."
   actions:
-    - text: Start here
+    - text: Choose your path
       link: /getting-started/
       icon: right-arrow
+    - text: Open golden paths
+      link: /getting-started/golden-paths/
+      icon: open-book
+      variant: secondary
     - text: View source on GitHub
       link: https://github.com/ddgutierrezc/legato
       icon: github
-      variant: secondary
+      variant: minimal
 ---
 
 import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
@@ -29,15 +33,40 @@ import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
 This site is the **canonical public surface** for Legato documentation.
 If guidance in a README conflicts with content here, this docs site is authoritative.
 
+Legato gives you two layers with one goal: predictable playback integrations.
+
+- `@ddgutierrezc/legato-contract` defines shared semantics (tracks, snapshots, events, errors, capabilities, invariants).
+- `@ddgutierrezc/legato-capacitor` adds runtime integration (`audioPlayer`, `mediaSession`, listeners, sync helpers).
+- Production confidence comes from capability-gated UI, release-aware upgrades, and explicit compatibility checks.
+
 <Aside type="note">
   Maintainer operations, release evidence, and architecture spikes remain in
   root `docs/` and are intentionally not exposed in this public navigation.
 </Aside>
 
+## Choose your path
+
+<CardGrid stagger>
+  <Card title="Start with the contract" icon="puzzle" href="/packages/contract/">
+    Choose this when your first risk is shared semantics across app layers.
+    Stabilize events, snapshots, and invariants before wiring runtime details.
+  </Card>
+  <Card title="Integrate with Capacitor" icon="play" href="/packages/capacitor/">
+    Choose this when your first risk is native runtime behavior. Set up plugin
+    surfaces, playback commands, and media-session listeners with contract
+    semantics already aligned.
+  </Card>
+  <Card title="Harden for production" icon="lock" href="/how-to/production-quickstart-capacitor/">
+    Choose this when you need rollout confidence: capability-gated controls,
+    upgrade checklists, and compatibility boundaries validated in your CI.
+  </Card>
+</CardGrid>
+
+If you want an opinionated sequence, use [Golden Paths](/getting-started/golden-paths/).
+
 <CardGrid stagger>
   <Card title="Getting Started" icon="rocket" href="/getting-started/">
-    Choose the right package, install quickly, and complete your first
-    integration flow.
+    Use the decision hub to pick your path and plan your first 15 minutes.
   </Card>
   <Card title="Concepts" icon="puzzle" href="/concepts/">
     Learn the public boundary, canonical authority rules, and where maintainer
@@ -56,6 +85,8 @@ If guidance in a README conflicts with content here, this docs site is authorita
 
 ## Need help or want to connect?
 
+- Decision hub: [Getting Started](/getting-started/)
+- Guided flows: [Golden Paths](/getting-started/golden-paths/)
 - Community hub: [Community](./community/)
 - Discord: [https://discord.com/invite/Hhnumyk2N](https://discord.com/invite/Hhnumyk2N)
 - LinkedIn: [https://www.linkedin.com/in/ddgutierrezc](https://www.linkedin.com/in/ddgutierrezc)

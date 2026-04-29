@@ -1,0 +1,124 @@
+---
+title: Golden Paths
+description: Closed onboarding paths by profile for contract-first, Capacitor runtime-first, and production hardening flows.
+---
+
+import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
+
+Use this guide when you want a practical path instead of browsing docs section by section.
+
+## How to use this page
+
+1. Pick one path based on your current risk surface.
+2. Follow the sequence without skipping steps.
+3. Stop when you reach the expected outcome.
+4. Move to the next level only when the "level up" signal is true in your app.
+
+## Path 1: Contract-first
+
+### When to choose it
+
+- Your first problem is semantic consistency across app layers.
+- You need stable shared models for tracks, snapshots, events, errors, and capabilities.
+- Runtime plugin wiring is not your immediate blocker.
+
+### Recommended sequence
+
+<Steps>
+
+1. Read [Why Contract-First](/packages/contract/explanation/why-contract-first/) to align on boundaries.
+2. Read [Snapshot Model](/packages/contract/explanation/snapshot-model/) to avoid nullability mistakes.
+3. Implement one track using [Model a Track](/packages/contract/how-to/model-a-track/).
+4. Add typed event handling with [Consume Events and Payloads](/packages/contract/how-to/consume-events-and-payloads/).
+5. Add defensive checks with [Validate Runtime Invariants](/packages/contract/how-to/validate-runtime-invariants/).
+
+</Steps>
+
+### Expected outcome
+
+You have contract-aligned app logic that can evolve independently from runtime transport details.
+
+### Level up when
+
+- You now need real device playback controls or media-session integration.
+- Your app team is blocked by runtime behavior rather than model semantics.
+
+## Path 2: Capacitor runtime-first
+
+### When to choose it
+
+- You already need runtime playback commands and listener wiring on device.
+- You need `audioPlayer` and `mediaSession` behavior validated in a real host app.
+- Your immediate risk is setup/order, queue lifecycle, and remote event handling.
+
+### Recommended sequence
+
+<Steps>
+
+1. Start with [Set Up Legato Capacitor](/packages/capacitor/how-to/set-up/).
+2. Run [Play a Track](/packages/capacitor/how-to/play-track/) to validate queue + playback flow.
+3. Add listeners with [Listen to Events](/packages/capacitor/how-to/listen-events/).
+4. Add UI gating with [Build Capability-Driven Controls](/packages/capacitor/how-to/capability-driven-controls/).
+5. Align local state with [Use Sync Controllers](/packages/capacitor/how-to/use-sync/).
+
+</Steps>
+
+### Expected outcome
+
+You have a runtime-integrated flow with explicit setup, event handling, and capability-gated controls.
+
+### Level up when
+
+- You are preparing rollout and upgrade safety checks.
+- You need repeatable production confidence across app and CI.
+
+## Path 3: Production hardening
+
+### When to choose it
+
+- You already have an integration and need safer rollout confidence.
+- Your main risk is hidden assumptions during upgrades or capability handling.
+- You need explicit compatibility and migration checks before production promotion.
+
+### Recommended sequence
+
+<Steps>
+
+1. Execute [Production Quickstart (Capacitor)](/how-to/production-quickstart-capacitor/) as a baseline flow.
+2. Review [Compatibility](/reference/compatibility/) and validate your package line assumptions.
+3. Run [Migration and Versioning](/how-to/migration-and-versioning/) checklists for your consumer profile.
+4. Keep [Troubleshooting](/how-to/troubleshooting/) open while validating error and event paths.
+5. Review [Releases](/releases/) before every upgrade rollout.
+
+</Steps>
+
+### Expected outcome
+
+You operate with explicit rollout gates: capability checks, stable literal branching, and release-aware validation.
+
+### Level up when
+
+- Your team can validate upgrades with clear pass/fail criteria on CI and real devices.
+- Regressions are diagnosed via stable `error.code` and documented event/capability surfaces.
+
+## Common onboarding anti-patterns
+
+- Starting with runtime commands before agreeing on shared contract semantics.
+- Treating contract types as runtime execution APIs.
+- Assuming capabilities (for example `seek`) from media metadata instead of `getCapabilities()`.
+- Branching behavior on `error.message` text instead of stable `error.code` literals.
+- Reading release notes after dependency upgrades instead of before rollout planning.
+
+## Choose and continue
+
+<CardGrid>
+  <Card title="Need help choosing?" icon="rocket" href="/getting-started/">
+    Return to the decision hub and use the quick chooser.
+  </Card>
+  <Card title="Contract package guide" icon="puzzle" href="/packages/contract/">
+    Jump to contract documentation sections.
+  </Card>
+  <Card title="Capacitor package guide" icon="play" href="/packages/capacitor/">
+    Jump to Capacitor runtime documentation sections.
+  </Card>
+</CardGrid>
