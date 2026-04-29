@@ -5,6 +5,8 @@ description: Reference for event names and payload maps exported by @ddgutierrez
 
 This page documents event-name tuples and payload maps exported by the contract package.
 
+Events in this package are type-level contract surfaces: they define valid names and payload shapes, but they do not define delivery policy (ordering, retries, buffering, or latency).
+
 ## Player events
 
 ### `PLAYER_EVENT_NAMES`
@@ -29,6 +31,22 @@ const PLAYER_EVENT_NAMES = [
 - `playback-ended` -> `{ snapshot: PlaybackSnapshot }`
 - `playback-error` -> `{ error: LegatoError }`
 
+#### Payload semantics by event
+
+- `playback-state-changed`: state transition signal only (`PlaybackState`), not a full playback projection.
+- `playback-active-track-changed`: active pointer delta (`track` + `index`), useful when only selection changed.
+- `playback-queue-changed`: queue projection update (`QueueSnapshot`), focused on queue topology.
+- `playback-progress`: timeline-focused payload (`position`, `duration`, `bufferedPosition`), intentionally narrower than `PlaybackSnapshot`.
+- `playback-ended`: terminal payload that carries a full `PlaybackSnapshot`.
+- `playback-error`: error-focused payload (`LegatoError`) for failure reporting.
+
+### Partial vs complete payloads
+
+- **Specialized/partial payloads**: `playback-state-changed`, `playback-active-track-changed`, `playback-queue-changed`, `playback-progress`, and `playback-error` each project one concern.
+- **Complete snapshot payload**: `playback-ended` provides `{ snapshot: PlaybackSnapshot }`.
+
+Use event payloads when your reaction depends only on the projected concern. Use a snapshot read (`getSnapshot()` via adapter boundary) when your logic needs a full, coherent playback + queue view.
+
 ## Remote events
 
 ### `MEDIA_SESSION_EVENT_NAMES`
@@ -51,6 +69,10 @@ const MEDIA_SESSION_EVENT_NAMES = [
 - `remote-previous` -> `Record<string, never>`
 - `remote-seek` -> `{ position: number }`
 
+Remote command events represent intent from media-session controls. Empty payload commands (`remote-play`, `remote-pause`, `remote-next`, `remote-previous`) carry no additional data. `remote-seek` adds a target `position`.
+
+`remote-seek` is documented in source as emitted only when runtime-projected capabilities include `seek`.
+
 ## Legacy and canonical unified tuples
 
 The contract also exports:
@@ -63,6 +85,15 @@ Related type aliases:
 - `PlayerEventName`, `MediaSessionEventName`, `LegacyPlayerEventName`, `LegatoEventName`
 - `PlayerEventPayload<E>`, `MediaSessionEventPayload<E>`, `LegacyPlayerEventPayload<E>`, `LegatoEventPayload<E>`
 - `LegacyPlayerEventPayloadMap`, `LegatoEventPayloadMap`
+
+`LEGATO_EVENT_NAMES` is currently an alias of the legacy composite tuple, so canonical and legacy names are identical at this time.
+
+## Interpretation anti-patterns
+
+- Assuming every event payload is a full snapshot. Only `playback-ended` includes `PlaybackSnapshot`.
+- Reconstructing global playback state from a single specialized event payload.
+- Treating tuple membership as a delivery guarantee. Names are allowed values, not transport guarantees.
+- Assuming remote commands are always available or always emitted; capability projection remains runtime-dependent.
 
 ## Minimal usage
 
@@ -86,3 +117,5 @@ LEGATO_EVENT_NAMES;
 
 - [Snapshots](../snapshots/)
 - [Errors](../errors/)
+- [Consume Events and Payloads](../../how-to/consume-events-and-payloads/)
+- [Snapshot Model](../../explanation/snapshot-model/)

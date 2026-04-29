@@ -5,6 +5,8 @@ description: Reference for POSITION_MIN and LEGATO_INVARIANTS in @ddgutierrezc/l
 
 This page documents invariant-related exports used as shared contract expectations.
 
+These exports are source-of-truth constants for defensive validation logic. They describe expected data constraints but do not execute validation by themselves.
+
 ## `POSITION_MIN`
 
 ```ts
@@ -12,6 +14,8 @@ const POSITION_MIN = 0;
 ```
 
 `POSITION_MIN` defines the minimum allowed playback position value.
+
+Use `POSITION_MIN` as the canonical floor when checking position-like numeric fields (`position`, and optional numeric timeline fields when present).
 
 ## `LEGATO_INVARIANTS`
 
@@ -34,9 +38,31 @@ const LEGATO_INVARIANTS = {
 - `snapshot.position` must be greater than or equal to `0`.
 - `snapshot.duration` and `snapshot.bufferedPosition`, when present, must be greater than or equal to `0`.
 
-These exports document shared expectations. They do not introduce additional runtime validation APIs by themselves.
+## Enforcement thinking
+
+Treat these constants as a shared vocabulary between producers and consumers:
+
+- adapter/binding implementations can validate outgoing projections against the invariant set,
+- consuming apps can validate incoming snapshots before state updates,
+- diagnostics can emit invariant message literals directly for consistent observability.
+
+This keeps validation intent aligned across layers without relying on hidden helper logic.
+
+## What this package does not provide
+
+- No exported runtime validator function.
+- No built-in policy for reject vs warn vs recover when a violation appears.
+- No extra inferred invariants beyond the string constants listed in `LEGATO_INVARIANTS`.
+
+## Anti-patterns
+
+- Hardcoding ad-hoc error strings instead of using `LEGATO_INVARIANTS` literals.
+- Replacing `POSITION_MIN` with a local constant that can drift from contract truth.
+- Validating assumptions not stated by the contract (for example, requiring non-null `duration` or requiring `currentTrack` whenever queue has items).
+- Treating invariant strings as implementation detail; they are explicit contract exports.
 
 ## Related pages
 
 - [Track](../track/)
 - [Snapshots](../snapshots/)
+- [Validate Runtime Invariants](../../how-to/validate-runtime-invariants/)

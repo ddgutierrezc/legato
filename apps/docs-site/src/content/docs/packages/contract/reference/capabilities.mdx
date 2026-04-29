@@ -5,6 +5,8 @@ description: Reference for CAPABILITIES and Capability in @ddgutierrezc/legato-c
 
 This page documents runtime capability literals projected through the adapter boundary.
 
+Capabilities are runtime projections, not static feature flags baked into the package.
+
 ## `CAPABILITIES`
 
 `Capability` is derived from `CAPABILITIES`:
@@ -33,7 +35,28 @@ type Capability = (typeof CAPABILITIES)[number];
 
 `CAPABILITIES` are runtime projections at the moment they are reported. They are not permanent guarantees across the full session and can change with queue, track, transport, or platform conditions.
 
+## Design implications for consumers
+
+- Build UI controls from the latest `supported` capability projection, not from assumptions about a platform.
+- Keep capability decisions separate from snapshot rendering concerns: capabilities express allowed operations, snapshots express current playback/queue state.
+- Re-evaluate support over time; projection can change as runtime context changes.
+
+## Contract limits
+
+- The literal list defines valid capability identifiers, not an SLA that every runtime always supports every literal.
+- The contract does not define permanence windows (for example, "once supported, always supported").
+- Capability literals do not by themselves define command success, retries, or timing behavior.
+
+## Common anti-patterns
+
+- Treating `CAPABILITIES` as a startup-only static config.
+- Inferring `seek` support only from timeline fields like `duration` instead of runtime capability projection.
+- Hiding controls forever after one unsupported read, without re-reading current capabilities.
+- Coupling UI state directly to transport assumptions that are not represented in `supported`.
+
 ## Related pages
 
 - [Binding Adapter](../binding-adapter/)
 - [Snapshots](../snapshots/)
+- [Snapshot Model](../../explanation/snapshot-model/)
+- [Capability Projection (capacitor)](../../../capacitor/explanation/capability-projection/)

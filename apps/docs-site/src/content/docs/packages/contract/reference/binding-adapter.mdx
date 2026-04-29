@@ -5,6 +5,8 @@ description: Reference for BindingAdapter and related adapter boundary types in 
 
 `BindingAdapter` defines the runtime-facing contract implemented by host bindings.
 
+It is the boundary where a concrete runtime projects transport operations, snapshots, queue state, capabilities, and event streams into a shared contract surface.
+
 ## Core adapter surface
 
 ```ts
@@ -35,6 +37,41 @@ interface BindingAdapter {
 }
 ```
 
+## Boundary role
+
+`BindingAdapter` is a boundary contract, not an application service API. Its purpose is to normalize runtime behavior into stable types that higher layers can consume without depending on platform-specific SDKs.
+
+In practice, adapter implementations sit between:
+
+- runtime/player integrations that perform real playback work,
+- and consumer code that expects contract-first shapes (`PlaybackSnapshot`, event payload maps, capability literals).
+
+## Operation groups and semantics
+
+### Setup
+
+- `setup()` initializes adapter runtime integration.
+
+### Queue-mutating operations
+
+- `add(options)`, `remove(options)`, `reset()`, and `skipTo(options)` return `PlaybackSnapshot`.
+- These methods are queue/topology-affecting commands where returning a snapshot allows callers to consume an updated projection immediately.
+
+### Playback transport operations
+
+- `play()`, `pause()`, `stop()`, `seekTo(options)`, `skipToNext()`, and `skipToPrevious()` return `Promise<void>`.
+- Void return means the contract does not require these methods to return an updated snapshot directly.
+
+### State query operations
+
+- `getState()`, `getPosition()`, `getDuration()`, `getCurrentTrack()`, `getQueue()`, `getSnapshot()`, and `getCapabilities()` expose current projections as typed reads.
+
+### Listener registration operations
+
+- `addListener(eventName, listener)` registers a typed listener and returns `BindingListenerHandle`.
+- `BindingListenerHandle.remove()` is the per-listener detach path.
+- `removeAllListeners()` clears listener registrations at adapter scope.
+
 ## Related exported types
 
 - `BindingListenerHandle`: listener registration handle with `remove(): Promise<void> | void`.
@@ -45,6 +82,30 @@ interface BindingAdapter {
 - `SeekToOptions`: `{ position: number }`.
 - `SkipToOptions`: `{ index: number }`.
 
+## Contract expectations vs non-guarantees
+
+What is defined by this contract:
+
+- method names, parameter shapes, and return types,
+- event-name and payload coupling through `LegatoEventName` + `LegatoEventPayloadMap`,
+- capability snapshot shape (`{ supported: Capability[] }`).
+
+What is not defined here:
+
+- retry strategy,
+- command/event ordering guarantees,
+- timeout, cancellation, or backpressure policy,
+- listener delivery scheduling details.
+
+Those concerns belong to concrete adapter/runtime implementations and higher-level orchestration policy.
+
+## Common adapter anti-patterns
+
+- Treating `Promise<void>` operations as if they must return immediate snapshot truth.
+- Inferring capability support from queue state alone instead of `getCapabilities()`.
+- Encoding platform-specific behavior into shared contract types.
+- Assuming listener registration implies any particular event sequencing semantics.
+
 ## Contract role
 
 `BindingAdapter` is the transport boundary between runtime implementations and contract consumers. Adapters project state, queue, events, capabilities, and operation results through this interface.
@@ -54,3 +115,4 @@ interface BindingAdapter {
 - [Capabilities](../capabilities/)
 - [Events](../events/)
 - [Snapshots](../snapshots/)
+- [Snapshot Model](../../explanation/snapshot-model/)
