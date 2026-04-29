@@ -39,7 +39,20 @@ This tutorial walks through a first integration of `@ddgutierrezc/legato-contrac
 
 ## 1) Model a Track
 
-Create a strongly typed track object from the contract:
+Start with a minimal track, then enrich it as your integration grows.
+
+### Minimal track
+
+```ts
+import type { Track } from '@ddgutierrezc/legato-contract';
+
+const introTrack: Track = {
+  id: 'ep-001',
+  url: 'https://cdn.example.com/audio/episode-001.mp3',
+};
+```
+
+### Metadata-rich and transport-aware track
 
 ```ts
 import type { Track } from '@ddgutierrezc/legato-contract';
@@ -49,6 +62,9 @@ const introTrack: Track = {
   url: 'https://cdn.example.com/audio/episode-001.mp3',
   title: 'Episode 001',
   artist: 'Legato Team',
+  album: 'Season 1',
+  artwork: 'https://cdn.example.com/artwork/ep-001.jpg',
+  duration: 180,
   type: 'progressive',
   headers: {
     Authorization: 'Bearer static-token-for-demo',
@@ -64,12 +80,29 @@ What this gives you immediately:
 
 ## 2) Model a QueueSnapshot
 
+Start with one item, then move to a realistic multi-item queue.
+
 ```ts
 import type { QueueSnapshot } from '@ddgutierrezc/legato-contract';
 
 const queue: QueueSnapshot = {
   items: [introTrack],
   currentIndex: 0,
+};
+```
+
+```ts
+const queue: QueueSnapshot = {
+  items: [
+    introTrack,
+    {
+      id: 'ep-002',
+      url: 'https://cdn.example.com/audio/episode-002.m3u8',
+      title: 'Episode 002',
+      type: 'hls',
+    },
+  ],
+  currentIndex: 1,
 };
 ```
 
@@ -88,6 +121,22 @@ const playback: PlaybackSnapshot = {
   duration: 180,
   bufferedPosition: 30,
   queue,
+};
+```
+
+Model the no-active-item state too:
+
+```ts
+const idlePlayback: PlaybackSnapshot = {
+  state: 'idle',
+  currentTrack: null,
+  currentIndex: null,
+  position: 0,
+  duration: null,
+  queue: {
+    items: [],
+    currentIndex: null,
+  },
 };
 ```
 
@@ -128,6 +177,13 @@ const allNames = LEGATO_EVENT_NAMES;
 
 This pattern keeps your domain and UI code runtime-neutral while still fully typed.
 
+## Common mistakes to avoid
+
+- Treating `type` as a playback guarantee. It declares media semantics; runtime capability still decides what operations are available.
+- Treating `headers` as dynamic auth orchestration. The contract defines static per-track headers, not token refresh or DRM/license flows.
+- Forgetting nullable branches. `duration`, `currentTrack`, and `currentIndex` are intentionally nullable and must be handled.
+- Mixing runtime behavior into shared contract-only modules. Keep this layer transport-neutral.
+
 ## Verify the result
 
 Your integration is correct when:
@@ -136,8 +192,18 @@ Your integration is correct when:
 - Invalid `type` values (for example `'stream'`) fail at compile time.
 - Event payload access narrows by event name (for example, `remote-seek` exposes `position`).
 
+## When this tutorial is no longer enough
+
+Move to runtime integration when you need:
+
+- Real playback commands (`setup`, `add`, `play`, `seekTo`) against native adapters.
+- Runtime event lifecycle management (listener registration + cleanup).
+- Capability-gated UI decisions (`getCapabilities()` for seek/skip availability).
+- Native setup diagnostics and configuration checks.
+
 ## Next steps
 
 - Read the [Contract reference index](/packages/contract/reference/) for the canonical API surface.
 - Deep dive into [Track fields](/packages/contract/reference/track/).
 - Review [Snapshots](/packages/contract/reference/snapshots/), [Events](/packages/contract/reference/events/), and [Errors](/packages/contract/reference/errors/).
+- Continue with [Set Up Legato Capacitor](/packages/capacitor/how-to/set-up/) for runtime integration.

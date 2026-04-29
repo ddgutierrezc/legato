@@ -5,6 +5,8 @@ description: Reference for Track and TrackType in @ddgutierrezc/legato-contract.
 
 `Track` is the queue item shape shared across adapter and consumer boundaries.
 
+Use this page as the canonical source for track payload semantics used by queue operations, snapshot projections, and event payloads.
+
 ## TrackType
 
 `TrackType` is derived from `TRACK_TYPES`:
@@ -28,6 +30,12 @@ type TrackType = (typeof TRACK_TYPES)[number];
 | `type` | `TrackType` | No | Declared media semantics used by native capability projectors. |
 | `headers` | `Record<string, string>` | No | Static per-track HTTP headers used by native playback transport. |
 
+## What `type` means (and does NOT mean)
+
+- `type` expresses media-kind intent (`file`, `progressive`, `hls`, `dash`) used by runtime capability projection.
+- `type` does NOT guarantee that a specific operation (for example seek) is always available.
+- Runtime decisions should combine track declaration with runtime projections and snapshot signals (for example nullable duration semantics).
+
 ## `headers` scope and guarantees
 
 Based on the contract comments, v1 support scope is intentionally narrow:
@@ -41,7 +49,49 @@ v1 non-goals explicitly documented in the contract:
 - Token refresh or dynamic auth callbacks.
 - Cookie/session renewal orchestration.
 
-## Minimal example
+What this means in practice:
+
+- `headers` is useful for static per-track request headers.
+- `headers` is not an auth lifecycle engine and should not be treated as one.
+
+## Progressive examples
+
+### 1) Minimal track
+
+```ts
+import type { Track } from '@ddgutierrezc/legato-contract';
+
+const track: Track = {
+  id: 'song-42',
+  url: 'https://cdn.example.com/song-42.mp3',
+};
+```
+
+### 2) Metadata-rich track
+
+```ts
+const track: Track = {
+  id: 'podcast-ep-12',
+  url: 'https://cdn.example.com/podcast/ep-12.mp3',
+  title: 'Episode 12',
+  artist: 'Legato Studio',
+  album: 'Season 2',
+  artwork: 'https://cdn.example.com/podcast/ep-12.jpg',
+  duration: 1620,
+};
+```
+
+### 3) Typed track
+
+```ts
+const track: Track = {
+  id: 'live-hour',
+  url: 'https://stream.example.com/live.m3u8',
+  type: 'hls',
+};
+```
+
+### 4) Protected track with headers
 
 ```ts
 import type { Track } from '@ddgutierrezc/legato-contract';
@@ -52,9 +102,17 @@ const track: Track = {
   type: 'progressive',
   headers: {
     Authorization: 'Bearer demo-token',
+    'X-Client': 'mobile-app',
   },
 };
 ```
+
+## Anti-patterns
+
+- Setting `type: 'hls'` or `type: 'dash'` and assuming seek is always available. Seek remains runtime-capability-dependent.
+- Omitting stable `id` values (for example randomizing per render). Queue operations (`remove`, `skip`) depend on stable identifiers and indexes.
+- Treating `headers` as shared global auth state across all queue items. Header scope is per track.
+- Expecting `headers` to solve token refresh, cookie renewal, or DRM license workflows. Those are out of contract v1 scope.
 
 ## Related pages
 
