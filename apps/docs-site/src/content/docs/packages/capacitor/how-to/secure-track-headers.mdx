@@ -1,0 +1,76 @@
+---
+title: Send Secure Track Headers
+description: Use Track.headers for static per-track HTTP headers in protected media integrations.
+---
+
+Use this guide when your media URLs require static request headers (for example, bearer tokens or client identifiers).
+
+## 1) Model each protected track with `headers`
+
+`Track` is re-exported by `@ddgutierrezc/legato-capacitor` from the contract package, including the `headers` field.
+
+```ts
+import type { Track } from '@ddgutierrezc/legato-capacitor';
+
+const tracks: Track[] = [
+  {
+    id: 'episode-42',
+    url: 'https://media.example.com/audio/episode-42.mp3',
+    type: 'progressive',
+    headers: {
+      Authorization: 'Bearer <static-token>',
+      'X-Client-Version': '1.0.0',
+    },
+  },
+];
+```
+
+## 2) Add tracks normally
+
+```ts
+import { audioPlayer } from '@ddgutierrezc/legato-capacitor';
+
+await audioPlayer.add({ tracks, startIndex: 0 });
+await audioPlayer.play();
+```
+
+## 3) Apply headers per track, not globally
+
+In v1 contract scope, headers are isolated per track and are not shared across queue transitions. If different items need different auth context, set `headers` on each item.
+
+```ts
+const queue: Track[] = [
+  {
+    id: 'a',
+    url: 'https://media.example.com/a.mp3',
+    headers: { Authorization: 'Bearer token-a' },
+  },
+  {
+    id: 'b',
+    url: 'https://media.example.com/b.mp3',
+    headers: { Authorization: 'Bearer token-b' },
+  },
+];
+```
+
+## v1 scope and non-goals
+
+Backed by contract comments, v1 guarantees and non-goals are:
+
+- Scope: headers are applied by Android/iOS runtime media requests for that track.
+- Scope: headers are isolated per track.
+- Non-goal: DRM/license request authentication flows.
+- Non-goal: token refresh/rotation or dynamic auth callbacks.
+- Non-goal: cookie/session renewal orchestration.
+
+If your integration requires dynamic auth lifecycle management, implement that outside the current `Track.headers` contract and queue model.
+
+## Expected result
+
+Protected tracks can be queued and played with static per-track HTTP headers, while your integration keeps token refresh, DRM/license flows, and session renewal logic outside the v1 Legato track contract.
+
+## Related pages
+
+- [Contract track reference](../../contract/reference/track/)
+- [Contract how-to: Model a Track](../../contract/how-to/model-a-track/)
+- [How-to: Play a Track](./play-track/)

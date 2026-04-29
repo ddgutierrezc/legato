@@ -1,0 +1,76 @@
+---
+title: Build Capability-Driven Controls
+description: Adapt playback controls at runtime using getCapabilities() instead of static assumptions.
+---
+
+Use this guide to render or disable playback controls based on runtime capabilities.
+
+## 1) Read capabilities after setup
+
+```ts
+import { audioPlayer } from '@ddgutierrezc/legato-capacitor';
+
+await audioPlayer.setup();
+
+const caps = await audioPlayer.getCapabilities();
+const supported = new Set(caps.supported);
+```
+
+## 2) Drive control state from `supported`
+
+```ts
+const controls = {
+  canPlay: supported.has('play'),
+  canPause: supported.has('pause'),
+  canStop: supported.has('stop'),
+  canSeek: supported.has('seek'),
+  canNext: supported.has('skip-next'),
+  canPrevious: supported.has('skip-previous'),
+};
+
+renderControls(controls);
+```
+
+## 3) Refresh capabilities when runtime context changes
+
+Capabilities are runtime projections, so recalculate after queue/track transitions.
+
+```ts
+const handle = await audioPlayer.addListener('playback-active-track-changed', async () => {
+  const next = await audioPlayer.getCapabilities();
+  renderControls({
+    canPlay: next.supported.includes('play'),
+    canPause: next.supported.includes('pause'),
+    canStop: next.supported.includes('stop'),
+    canSeek: next.supported.includes('seek'),
+    canNext: next.supported.includes('skip-next'),
+    canPrevious: next.supported.includes('skip-previous'),
+  });
+});
+
+// later
+await handle.remove();
+```
+
+## 4) Do not infer `seek` from `duration`
+
+A finite `duration` does not guarantee `seek` support. The contract models seekability as a runtime capability projection, not a direct consequence of duration presence.
+
+Use this rule in UI logic:
+
+```ts
+const duration = await audioPlayer.getDuration();
+const capsNow = await audioPlayer.getCapabilities();
+
+const showSeekBar = duration !== null && capsNow.supported.includes('seek');
+```
+
+## Expected result
+
+Your UI enables only controls listed in `getCapabilities().supported`, updates those controls after active-track changes, and treats `duration` as informational rather than automatic seek permission.
+
+## Related pages
+
+- [Reference: Audio Player](../reference/audio-player/)
+- [Reference: Snapshots](../reference/snapshots/)
+- [Contract capabilities reference](../../contract/reference/capabilities/)
