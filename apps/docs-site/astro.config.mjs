@@ -10,7 +10,11 @@ export default defineConfig({
 			title: 'Legato Docs',
 			description:
 				'Canonical public documentation for Legato contract and Capacitor integration packages.',
-			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/ddgutierrezc/legato' }],
+			social: [
+				{ icon: 'github', label: 'GitHub', href: 'https://github.com/ddgutierrezc/legato' },
+				{ icon: 'discord', label: 'Discord', href: 'https://discord.com/invite/Hhnumyk2N' },
+				{ icon: 'linkedin', label: 'LinkedIn', href: 'https://www.linkedin.com/in/ddgutierrezc' },
+			],
 			editLink: {
 				baseUrl: 'https://github.com/ddgutierrezc/legato/edit/main/apps/docs-site/src/content/docs/',
 			},
