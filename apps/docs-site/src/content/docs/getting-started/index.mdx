@@ -7,12 +7,58 @@ import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
 
 Legato provides two public packages for continuous audio playback integrations.
 
+## Start with the problem, not the package
+
+Pick a package based on where your integration risk lives:
+
+- If your main risk is **shared semantics across app layers** (events, snapshots, track model, invariants), start with `@ddgutierrezc/legato-contract`.
+- If your main risk is **runtime integration with native playback surfaces** (commands, media session, listeners), use `@ddgutierrezc/legato-capacitor` and keep `@ddgutierrezc/legato-contract` as the shared model.
+
+Legato is intentionally layered: `legato-contract` gives the vocabulary, `legato-capacitor` gives a concrete runtime integration.
+
 ## Package decision matrix
 
-| If you need... | Install | Canonical guide |
+| If you need... | Install | Why this is the fit |
 |---|---|---|
-| Shared playback events and contract types (no Capacitor runtime) | `@ddgutierrezc/legato-contract` | `packages/contract` (coming in this docs site) |
-| Capacitor runtime plugin APIs (`audioPlayer`, `mediaSession`) | `@ddgutierrezc/legato-capacitor` + `@ddgutierrezc/legato-contract` | `packages/capacitor` (coming in this docs site) |
+| Shared playback events, snapshots, and invariants across multiple runtimes or app layers | `@ddgutierrezc/legato-contract` | You can stabilize app logic first without coupling it to Capacitor runtime APIs. |
+| Hybrid app playback with Capacitor runtime integration (`audioPlayer`, `mediaSession`) | `@ddgutierrezc/legato-capacitor` + `@ddgutierrezc/legato-contract` | You need runtime commands/listeners, while still reusing the same shared contract semantics. |
+
+## Decision aid
+
+Use this quick checklist:
+
+- Are you designing a playback domain model shared by frontend, services, or tests? Start with `@ddgutierrezc/legato-contract`.
+- Do you need native runtime control surfaces today (playback commands, media-session events)? Add `@ddgutierrezc/legato-capacitor`.
+- Do you expect to evolve from app-logic validation into native integration? Start contract-first, then add Capacitor when runtime concerns become real.
+
+## Typical scenarios and tradeoffs
+
+### Scenario A: Shared types first, runtime later
+
+You are aligning state, events, and queue semantics across teams before deciding runtime details.
+
+- **Good fit**: `@ddgutierrezc/legato-contract`
+- **Tradeoff**: you gain portability and testability, but runtime commands are out of scope until you add an adapter/plugin surface.
+
+### Scenario B: Hybrid app with immediate runtime needs
+
+You already need native playback control, media-session events, and runtime capability checks.
+
+- **Good fit**: `@ddgutierrezc/legato-capacitor` + `@ddgutierrezc/legato-contract`
+- **Tradeoff**: faster runtime integration, but you must treat capability support as runtime-projected (not static assumptions).
+
+### Scenario C: Contract-first growth path
+
+You can start by making your app logic consume contract snapshots/events, then plug in Capacitor without rewriting that logic.
+
+- **Benefit**: app policy remains written against stable contract shapes.
+- **Tradeoff**: you need a clear boundary where runtime specifics stay in adapter/plugin-facing code.
+
+## Anti-patterns when choosing
+
+- Picking `@ddgutierrezc/legato-capacitor` only because "we might need native later" while no runtime integration exists yet.
+- Treating `@ddgutierrezc/legato-contract` as a full runtime solution; it does not provide playback execution APIs.
+- Delaying contract modeling until after runtime wiring, then retrofitting app logic to shared types under time pressure.
 
 ## Install
 
@@ -39,6 +85,12 @@ Legato provides two public packages for continuous audio playback integrations.
 ## Next steps
 
 <CardGrid>
-  <Card title="Read core concepts" icon="puzzle">Understand public vs maintainer boundaries before diving deeper.</Card>
+  <Card title="Contract-first rationale" icon="puzzle">Read why Legato separates shared semantics from runtime implementation details.</Card>
+  <Card title="Snapshot mental model" icon="open-book">Understand how to interpret nullable and projected playback state before building UI.</Card>
+  <Card title="Capability projection" icon="lightbulb">Learn why runtime-supported controls must come from capability projections.</Card>
   <Card title="Join community channels" icon="star">Get contribution and support links in the Community section.</Card>
 </CardGrid>
+
+- [Why Contract-First](../packages/contract/explanation/why-contract-first/)
+- [Snapshot Model](../packages/contract/explanation/snapshot-model/)
+- [Capability Projection](../packages/capacitor/explanation/capability-projection/)

@@ -16,6 +16,16 @@ Capabilities in Legato are not static feature flags. They are runtime projection
 
 This distinction matters because support can vary with runtime state and media context.
 
+`Capability` is the vocabulary. `getCapabilities()` is the current projection.
+
+## Capability as projection, not entitlement
+
+A capability name being valid in the contract does not mean it is always available in runtime.
+
+Product implication: UI should represent controls as conditional affordances that follow runtime projection, not as permanently enabled features.
+
+Operational implication: integrations should re-read capability projection when playback context changes, instead of assuming setup-time support remains valid.
+
 ## Why `seek` must be treated as projected
 
 The contract explicitly documents `seek` as projector-owned runtime semantics, not queue-only inference.
@@ -26,6 +36,8 @@ That means:
 
 - finite `duration` does not imply `seek`,
 - and `seek` should be enabled only when `supported.includes('seek')` is true.
+
+In short: timeline metadata and action permissions are related but distinct signals.
 
 ## Relationship with track type and state
 
@@ -38,8 +50,26 @@ What is explicitly guaranteed:
 
 So integrations should consume the projection directly instead of deriving capability support from inferred media traits.
 
+## Conceptual runtime-change scenarios
+
+Without assuming a public deterministic matrix, these are valid projection patterns:
+
+- A control is available for one active context and not available after a track/context transition.
+- A capability appears after runtime setup settles, then changes again when queue selection changes.
+- Two sessions with similar media metadata can still expose different projected support.
+
+Your integration logic should stay correct under all three by treating projection as authoritative each time it is read.
+
+## Anti-patterns
+
+- Enabling controls from `duration`, `state`, or queue shape alone.
+- Caching capabilities once at app boot and never refreshing.
+- Interpreting absence of `remote-seek` emissions as proof that seek is globally unsupported.
+- Using indirect heuristics (track fields, guessed platform rules) instead of `getCapabilities().supported`.
+
 ## Related pages
 
 - [Build Capability-Driven Controls](../how-to/capability-driven-controls/)
 - [Snapshots](../reference/snapshots/)
 - [Events Reference](../reference/events/)
+- [Contract snapshot model](../../contract/explanation/snapshot-model/)

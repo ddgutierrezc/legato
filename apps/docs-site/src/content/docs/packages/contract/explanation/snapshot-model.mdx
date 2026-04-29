@@ -14,12 +14,26 @@ In Legato, the read model is split into:
 - `PlaybackSnapshot` for current playback projection,
 - `QueueSnapshot` for queue projection and active index.
 
+This is not accidental duplication. It is a boundary choice: playback timeline and queue topology evolve together, but they are not the same concern.
+
 ## `PlaybackSnapshot` and `QueueSnapshot` roles
 
 - `PlaybackSnapshot` carries state, active item pointers, timeline values, and the queue projection.
 - `QueueSnapshot` carries ordered `items` and nullable `currentIndex`.
 
 This pairing keeps timeline and queue concerns explicit while still allowing a single playback payload to include queue context.
+
+## Snapshot evolution as a sequence
+
+Think in projections over time, not in imperative commands:
+
+1. **No active item**: `currentTrack: null`, `currentIndex: null`, queue may be empty or preloaded.
+2. **Activation**: `currentTrack` becomes non-null, `currentIndex` points to the active queue item.
+3. **Progress updates**: `position` changes over time; `duration` can stay `null` if timeline is unknown/live-like.
+4. **Queue transition**: `currentIndex` changes, `currentTrack` changes, and queue projection remains the source of ordering truth.
+5. **Reset/clear phase**: runtime can project back to `currentTrack: null` and `currentIndex: null`.
+
+The point is that each snapshot is valid on its own; consumers should react to what is projected now, not to assumptions about what "must" have happened before.
 
 ## Nullability as signal, not error
 
@@ -31,12 +45,27 @@ The contract uses nullability and optionality to represent runtime uncertainty e
 
 These states are intentional parts of the model. Consumers should treat them as valid contract values, not exceptional conditions.
 
+## Anti-patterns to avoid
+
+- Treating `duration !== null` as automatic seek permission. Duration is evidence of media length, not seekability permission.
+- Treating nullable fields as runtime failure signals. `currentTrack: null` and `currentIndex: null` can represent legitimate idle or transition states.
+- Reconstructing queue truth from timeline events alone. Queue ordering and active selection belong to `QueueSnapshot`.
+- Assuming snapshot updates are command acknowledgements. They are read-model projections and can include uncertainty.
+
 ## Practical consequence for consumers
 
-Because snapshots encode uncertainty in the type shape, consumers can apply policy without guessing runtime internals. For example, UI can render unknown duration states directly, and queue views can handle `currentIndex: null` as "no active selection".
+Because snapshots encode uncertainty in the type shape, consumers can apply policy without guessing runtime internals.
+
+Practical UI/state decisions that follow from this model:
+
+- Render timeline UI with an explicit unknown-duration state when `duration === null`.
+- Keep transport-control availability separate from timeline rendering (capabilities decide controls, snapshots decide display state).
+- Model queue selection as nullable in state stores and selectors, not as a forced default index.
+- Write reducers/selectors as pure projection consumers: derive view state from each incoming snapshot rather than incremental guesswork.
 
 ## Related pages
 
 - [Snapshots reference](../../reference/snapshots/)
 - [Invariants reference](../../reference/invariants/)
 - [Model a Track](../../how-to/model-a-track/)
+- [Capability Projection (capacitor)](../../../capacitor/explanation/capability-projection/)
