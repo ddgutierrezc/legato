@@ -1,35 +1,96 @@
 # @ddgutierrezc/legato-capacitor
 
-Modern Capacitor binding MVP for Legato.
+<p align="center">
+  <img src="https://legato-docs.netlify.app/brand.png" alt="Legato brand" width="720" />
+</p>
 
-This package provides Capacitor-native integration and is not a replacement for contract-only consumers.
+Capacitor runtime adapter for Legato playback APIs, media-session events, and typed sync helpers.
 
-## npm quickstart
+## Why this package
+
+`@ddgutierrezc/legato-capacitor` gives you a concrete runtime surface for hybrid iOS/Android apps using Capacitor. It pairs runtime commands (`audioPlayer`), remote-control events (`mediaSession`), and a unified facade (`Legato`) with the shared contract from `@ddgutierrezc/legato-contract`.
+
+## When to use / when not to use
+
+Use this package when you need:
+
+- Capacitor-native playback commands in production app flows.
+- Media-session event handling (play/pause/next/previous/seek).
+- Runtime capability-driven UI behavior sourced from `getCapabilities()` and snapshots.
+
+Do not use this package when you only need shared playback semantics (types, events, invariants) without runtime integration. In that case, start with `@ddgutierrezc/legato-contract`.
+
+## Install
 
 ```bash
 npm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract
 ```
 
-## Canonical docs
+## Quickstart
 
-For installation flow, API surface, and migration guidance, use the canonical docs-site guide:
+```ts
+import {
+  Legato,
+  audioPlayer,
+  mediaSession,
+  onPlaybackStateChanged,
+  onRemotePlay,
+} from '@ddgutierrezc/legato-capacitor';
 
-- [`apps/docs-site/src/content/docs/packages/capacitor/index.mdx`](../../apps/docs-site/src/content/docs/packages/capacitor/index.mdx)
+await audioPlayer.setup();
+await mediaSession.setup();
 
-This README is an orientation entrypoint only.
+await audioPlayer.add({
+  tracks: [
+    {
+      id: 'intro-001',
+      url: 'https://cdn.example.com/audio/intro.mp3',
+      title: 'Welcome',
+      artist: 'Legato Demo',
+      type: 'progressive',
+    },
+  ],
+  startIndex: 0,
+});
 
-## Contractual scope notes
+await audioPlayer.play();
 
-- Streaming semantics claims follow a **conservative policy**: capability signals are inferred only from source-backed native/runtime evidence and must not be expanded into unsupported guarantees.
-- Inference and scope constraints for streaming behavior remain bounded to the documented v1 guardrails; out-of-scope claims (for example DRM/process-death coverage in this milestone) are intentionally excluded.
-- `@ddgutierrezc/legato-capacitor` is the **first concrete adapter** and currently the **only implemented binding** for the contract's transport-neutral surface.
-- Release decision traceability for v1 is anchored in [`../../docs/releases/v1-release-go-no-go-record-v1.md`](../../docs/releases/v1-release-go-no-go-record-v1.md).
+onPlaybackStateChanged(({ state }) => {
+  console.log('Playback state:', state);
+});
 
-## CLI scope note
+onRemotePlay(() => {
+  void Legato.play();
+});
 
-This package is the only public package that ships the `legato` command.
-The `legato native` CLI remains a repo-owned maintainer helper for native setup and diagnostics, not a contract-only consumer surface.
+const snapshot = await Legato.getSnapshot();
+console.log('Current snapshot:', snapshot);
+```
 
-## Maintainer operations
+## Public entrypoints
 
-Maintainer-heavy CLI/release/SPM operational details are documented in [`../../docs/maintainers/legato-capacitor-operator-guide.md`](../../docs/maintainers/legato-capacitor-operator-guide.md).
+- `audioPlayer`: playback commands, queue operations, snapshot/state queries, capability projection.
+- `mediaSession`: remote-command listener surface.
+- `Legato`: unified facade over `audioPlayer` + `mediaSession`.
+- Event helpers/constants: `AUDIO_PLAYER_EVENTS`, `MEDIA_SESSION_EVENTS`, `LEGATO_EVENTS`, `onPlayback*`, `onRemote*`.
+- Sync helpers: `createLegatoSync`, `createAudioPlayerSync`.
+- Types: exported from package root via `export type * from './definitions'`.
+
+## Docs map
+
+- Overview: https://legato-docs.netlify.app/packages/capacitor/
+- Capability model: https://legato-docs.netlify.app/packages/capacitor/explanation/capability-projection/
+- Snapshot semantics: https://legato-docs.netlify.app/packages/capacitor/explanation/snapshot-semantics/
+- API reference: https://legato-docs.netlify.app/packages/capacitor/reference/
+- Getting started: https://legato-docs.netlify.app/getting-started/
+
+## Community and support
+
+- Docs: https://legato-docs.netlify.app/
+- Discord: https://discord.com/invite/Hhnumyk2N
+- LinkedIn: https://www.linkedin.com/in/ddgutierrezc
+- GitHub: https://github.com/ddgutierrezc/legato
+
+## License
+
+MIT
