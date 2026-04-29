@@ -76,6 +76,20 @@ console.log('Current snapshot:', snapshot);
 - Sync helpers: `createLegatoSync`, `createAudioPlayerSync`.
 - Types: exported from package root via `export type * from './definitions'`.
 
+## `legato native` CLI scope
+
+This package also ships the public `legato native` command group through its package `bin` entry.
+
+Documented commands include:
+
+- `legato native doctor`
+- `legato native configure --dry-run`
+- `legato native configure --apply`
+
+Use this CLI for the repository-scoped native setup checks and safe patch workflows documented here:
+
+- https://legato-docs.netlify.app/packages/capacitor/reference/cli-native/
+
 ## Docs map
 
 - Overview: https://legato-docs.netlify.app/packages/capacitor/
