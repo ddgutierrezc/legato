@@ -7,11 +7,19 @@ This page summarizes public release highlights from [`CHANGELOG.md`](https://git
 
 Use it to decide whether a release affects your runtime behavior, dependency alignment, or migration work.
 
+This page is consumer-facing guidance, not a second changelog. If there is any doubt, `CHANGELOG.md` is authoritative.
+
 ## Start here before any upgrade
 
 1. Open the target entry in `CHANGELOG.md` and confirm the exact package line you plan to adopt.
 2. Check whether your integration is contract-only, Capacitor runtime, or both.
 3. Validate version pairings in a branch before production rollout.
+
+Minimum release-read discipline for production teams:
+
+- Do not upgrade from tag/version name alone; read `Changed`, `Fixed`, and `Security` first.
+- Do not assume platform parity unless the entry explicitly states it.
+- Do not skip device-level validation for Capacitor integrations.
 
 If you are new to package selection, use the [Packages hub](/packages/) first.
 
@@ -26,6 +34,12 @@ When you evaluate a release entry, check in this order:
 5. **Durable evidence**: links to npm/Maven/iOS release records.
 
 If a release includes only partial evidence for your stack, treat it as informative and validate behavior in your own CI before production rollout.
+
+Fast triage path:
+
+1. Confirm whether your current version and target version are in the same major line.
+2. Read user-impact and upgrade-notes bullets before implementation details.
+3. Decide rollout type: safe patch, controlled minor, or migration-required.
 
 ## What to evaluate by consumer profile
 
@@ -44,6 +58,23 @@ If a release includes only partial evidence for your stack, treat it as informat
 - Prioritize evidence links and distribution parity claims across npm, Maven, and iOS release records.
 - Keep release communications aligned with factual `CHANGELOG.md` claims only.
 
+## Upgrade checks by risk profile
+
+### Low-risk consumers (contract compile-time only)
+
+- Verify no contract semantic shift affects your event/error/capability assumptions.
+- Run type-check and contract-focused tests before merging.
+
+### Runtime-critical consumers (playback in production)
+
+- Verify release notes for runtime parity and authenticated media behavior changes.
+- Run real-device smoke tests across queue, lifecycle, remote controls, and capability-gated actions.
+
+### Regulated/enterprise consumers
+
+- Require durable evidence links for the artifacts you must audit (npm/Maven/iOS as applicable).
+- Record changelog section references used for approval in your internal release ticket.
+
 ## Who should care about which changes
 
 | Change type in notes | Most affected consumers | Typical action |
@@ -61,6 +92,7 @@ If a release includes only partial evidence for your stack, treat it as informat
 - Stable package line:
   - `@ddgutierrezc/legato-contract@1.0.0`
   - `@ddgutierrezc/legato-capacitor@1.0.0`
+- Stable native distribution line called out in changelog: `dev.dgutierrez:legato-android-core:1.0.0` and `legato-ios-core v1.0.0`.
 - Runtime parity and authenticated media request scope called out as supported baseline.
 
 Consumer action baseline for this line:
@@ -71,7 +103,7 @@ Consumer action baseline for this line:
 
 ## Previous release notes
 
-For older entries (including `0.1.x` lines), read the root `CHANGELOG.md` history.
+For older entries (including `0.1.x` lines and release-specific tags such as `contract-publish-*` and `capacitor-publish-*`), read the root `CHANGELOG.md` history.
 
 - Changelog source of truth: [`CHANGELOG.md`](https://github.com/ddgutierrezc/legato/blob/main/CHANGELOG.md)
 
@@ -81,6 +113,7 @@ For older entries (including `0.1.x` lines), read the root `CHANGELOG.md` histor
 2. Read `Changed`, `Fixed`, and `Security` sections for behavior-impacting changes.
 3. Apply update in a branch and run your app-level playback regression checklist.
 4. If capabilities/semantics changed, re-check UI gating logic built on `getCapabilities()` and `error.code`.
+5. For enterprise rollouts, attach durable evidence links from the changelog to your approval/change record.
 
 For a step-by-step upgrade checklist, continue with [Migration and Versioning](/how-to/migration-and-versioning/).
 
