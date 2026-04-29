@@ -1,0 +1,96 @@
+---
+title: Native CLI
+description: Reference for the public `legato native` commands shipped by @ddgutierrezc/legato-capacitor.
+---
+
+This page documents the public `legato native` command group exposed by `@ddgutierrezc/legato-capacitor` through its package `bin` entry.
+
+## Command surface
+
+```bash
+legato native doctor [--json]
+legato native configure --dry-run [--json]
+legato native configure --apply [--json]
+```
+
+`native` is the only command group implemented by this CLI surface.
+
+## Repository scope
+
+This CLI resolves the repository root by walking up from the current working directory until both of these paths exist:
+
+- `packages/capacitor`
+- `apps/capacitor-demo`
+
+If that layout is not found, commands fail with exit code `1`.
+
+## `legato native doctor`
+
+Runs repository checks and reports findings for:
+
+- `apps/capacitor-demo/ios/App/App/Info.plist` (`UIBackgroundModes` includes `audio`)
+- `packages/capacitor/android/src/main/AndroidManifest.xml` (required foreground-service permissions and Legato playback service declaration)
+
+### Exit behavior
+
+- `0`: all findings are `ok`
+- `1`: at least one finding is `missing` or `misconfigured`
+
+### Output
+
+- Default output: human-readable report
+- `--json`: prints a JSON object with `command`, `repoRoot`, `findings`, and `exitCode`
+
+## `legato native configure --dry-run`
+
+Builds a change plan from the same checks used by `doctor`, but does not write files.
+
+### Exit behavior
+
+- `0`: always returns success when mode is valid
+- `1`: only for CLI misuse (for example, invalid mode selection)
+
+### Output
+
+- Default output: planned changes marked as `SAFE` or `SKIP`
+- `--json`: prints `command`, `repoRoot`, `findings`, `plannedChanges`, `exitCode`
+
+## `legato native configure --apply`
+
+Applies safe planned changes only.
+
+### What it can mutate
+
+Safe writes are restricted to this patch set:
+
+- `apps/capacitor-demo/ios/App/App/Info.plist`
+- `packages/capacitor/android/src/main/AndroidManifest.xml`
+
+### What it does not mutate
+
+- Paths outside the supported patch set
+- Paths marked as Capacitor-generated artifacts (for example, `ios/App/CapApp-SPM/**`)
+- Unsafe changes that require manual intervention
+
+### Exit behavior
+
+- `0`: no unsafe pending changes remain (including idempotent no-op skips)
+- `1`: one or more planned changes were skipped for safety/manual reasons
+
+### Output
+
+- Default output: plan plus applied/skipped counters
+- `--json`: prints `command`, `repoRoot`, `findings`, `applied`, `skipped`, `exitCode`
+
+## Flags and argument rules
+
+- `--json`: supported by `doctor`, `configure --dry-run`, and `configure --apply`
+- `configure` requires exactly one mode: `--dry-run` or `--apply`
+- Passing both mode flags, or neither, returns exit code `1`
+
+`legato` with no args, `--help`, unknown command groups, or unknown `native` subcommands prints usage and exits with `1`.
+
+## Related pages
+
+- [How-to: Set Up Legato Capacitor](../how-to/set-up/)
+- [Reference: Audio Player](./audio-player/)

@@ -15,6 +15,7 @@ A Capacitor plugin that exposes Legato playback APIs to web and hybrid JavaScrip
 - **Media session integration** — remote control from lock screen, notification center, and Bluetooth controls.
 - **Event subscriptions** — typed listeners for playback lifecycle and remote commands.
 - **Sync controllers** — local snapshot mirroring for offline or UI-only display contexts.
+- **Native maintainer CLI** — `legato native` doctor/configure commands for repo-owned Capacitor groundwork checks.
 
 ## Exposed namespaces
 
@@ -59,6 +60,10 @@ This package is documented in three sections following Diátaxis methodology:
     **[`index.mdx`](./)**
     What the package provides and how to get started.
   </Card>
+  <Card title="Explanation" icon="lightbulb">
+    **[`explanation/`](./explanation/)**
+    Conceptual guidance for capabilities, snapshots, and runtime interpretation.
+  </Card>
   <Card title="Reference" icon="seti:api">
     **[`reference/`](./reference/)**
     Detailed API reference for every exported method, type, and event.
@@ -72,3 +77,5 @@ This package is documented in three sections following Diátaxis methodology:
 <Aside type="note">
 See the [Contract Package](../contract/) for shared types and event constants that both the Capacitor plugin and other Legato runtimes consume.
 </Aside>
+
+Start with [Capability Projection](explanation/capability-projection/) and [Snapshot Semantics](explanation/snapshot-semantics/) for the mental model, then apply it in [Build Capability-Driven Controls](how-to/capability-driven-controls/) and [Send Secure Track Headers](how-to/secure-track-headers/). Use [Native CLI](reference/cli-native/) when working on repository-native setup checks.

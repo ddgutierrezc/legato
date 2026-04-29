@@ -1,0 +1,45 @@
+---
+title: Capability Projection
+description: Why capability availability is dynamic and projected at runtime in legato-capacitor.
+---
+
+Capabilities in Legato are not static feature flags. They are runtime projections of what operations are currently supported.
+
+## Contract literal vs runtime availability
+
+`Capability` is a shared contract union (`'play'`, `'pause'`, `'stop'`, `'seek'`, `'skip-next'`, `'skip-previous'`). It defines the allowed vocabulary.
+
+`getCapabilities()` returns the current runtime projection:
+
+- `Capability` answers: "Which capability names exist in the model?"
+- `getCapabilities().supported` answers: "Which of those are supported now?"
+
+This distinction matters because support can vary with runtime state and media context.
+
+## Why `seek` must be treated as projected
+
+The contract explicitly documents `seek` as projector-owned runtime semantics, not queue-only inference.
+
+Also, `PlaybackSnapshot.duration` explicitly says that a finite duration is evidence of media length, not a seekability guarantee by itself.
+
+That means:
+
+- finite `duration` does not imply `seek`,
+- and `seek` should be enabled only when `supported.includes('seek')` is true.
+
+## Relationship with track type and state
+
+The Capacitor and contract docs do not expose a deterministic mapping from track fields or playback states to capability outcomes.
+
+What is explicitly guaranteed:
+
+- capabilities are read from `getCapabilities()` at runtime,
+- `remote-seek` is emitted only when projected seek capability is enabled.
+
+So integrations should consume the projection directly instead of deriving capability support from inferred media traits.
+
+## Related pages
+
+- [Build Capability-Driven Controls](../how-to/capability-driven-controls/)
+- [Snapshots](../reference/snapshots/)
+- [Events Reference](../reference/events/)
