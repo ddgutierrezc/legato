@@ -7,6 +7,13 @@ import { Aside } from '@astrojs/starlight/components';
 
 Snapshots are immutable read-model projections returned by query methods and events. They represent a point-in-time view of the playback runtime state.
 
+## Interpretation notes
+
+- `duration` communicates timeline information, not operation permissions.
+- `bufferedPosition` may be absent (`undefined`) or present as `null`; both are valid runtime outcomes.
+- `currentTrack: null` and `currentIndex: null` are valid states when no active item exists.
+- Capability decisions (for example seek UI enablement) should come from `getCapabilities().supported`.
+
 ## PlaybackSnapshot
 
 Returned by `getSnapshot()`, and by mutating methods that change playback state (`add()`, `remove()`, `reset()`, `skipTo()`). Also appears in the `playback-ended` event payload.
@@ -124,6 +131,15 @@ type Capability = (typeof CAPABILITIES)[number];
 Capability projection is runtime-dependent. For example, `seek` may only be reported when the current track type and playback state allow it. Always check `getCapabilities()` at runtime rather than hardcoding assumptions.
 </Aside>
 
+## Common anti-patterns
+
+| Anti-pattern | Why it is wrong | Contract-aligned interpretation |
+|-------------|------------------|---------------------------------|
+| "Finite `duration` means seek is always available" | `duration` only encodes timeline length evidence. | Gate seek controls by `supported.includes('seek')`. |
+| "Missing `bufferedPosition` means broken runtime" | `bufferedPosition` is optional and may be `null`. | Treat missing/`null` as "not currently reported". |
+| "`currentIndex` is always a number" | `currentIndex` is nullable in both `PlaybackSnapshot` and `QueueSnapshot`. | Handle `null` as "no active queue item". |
+| "Every playback event contains a full snapshot" | Event payloads are intentionally specialized by event name. | Use each event payload as defined (`playback-progress` is timeline-only, `playback-ended` includes `snapshot`). |
+
 ### Practical usage
 
 ```ts
@@ -167,3 +183,5 @@ PlaybackSnapshot
 - [Events Reference](events/) — events that carry snapshot payloads
 - [Legato Facade](legato/) — unified API surface that includes snapshot methods
 - [Sync Controllers](sync/) — local snapshot mirroring using these types
+- [Capability Projection](../explanation/capability-projection/) — conceptual model for runtime capability availability
+- [Snapshot Semantics](../explanation/snapshot-semantics/) — conceptual guidance for reading nullable snapshot fields

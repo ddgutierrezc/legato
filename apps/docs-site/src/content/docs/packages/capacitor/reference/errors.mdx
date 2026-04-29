@@ -5,7 +5,7 @@ description: Complete reference for LegatoError interface and error codes.
 
 import { Aside } from '@astrojs/starlight/components';
 
-This page documents the `LegatoError` interface and error codes emitted by the Legato runtime.
+This page documents the `LegatoError` interface and the stable error-code literals used by the Legato boundary.
 
 ## LegatoError interface
 
@@ -45,20 +45,39 @@ import { LEGATO_ERROR_CODES } from '@ddgutierrezc/legato-contract';
 // ];
 ```
 
-### Error code reference
+### Error code matrix
 
-| Code | Description |
-|------|-------------|
-| `player_not_setup` | Playback APIs called before `audioPlayer.setup()`. |
-| `invalid_index` | Queue index out of bounds or invalid for current queue length. |
-| `empty_queue` | Playback attempted on empty queue. |
-| `no_active_track` | No active track selected in the queue. |
-| `invalid_url` | Track URL is malformed or unsupported. |
-| `load_failed` | Media failed to load (network error, unsupported format, etc.). |
-| `playback_failed` | Playback interrupted or failed during active playback. |
-| `seek_failed` | Seek operation failed (unsupported by track type or runtime). |
-| `unsupported_operation` | Operation not supported by current platform capabilities. |
-| `platform_error` | Platform-specific error (native layer failure). |
+| Code | Observable meaning | Notes / source |
+|------|---------------------|----------------|
+| `player_not_setup` | A player operation was rejected because setup preconditions were not met. | Stable literal in `LEGATO_ERROR_CODES` (`packages/contract/src/errors.ts`). |
+| `invalid_index` | An index-based operation was rejected. | Stable literal in `LEGATO_ERROR_CODES` (`packages/contract/src/errors.ts`). |
+| `empty_queue` | An operation required queue items, but queue preconditions were not met. | Stable literal in `LEGATO_ERROR_CODES` (`packages/contract/src/errors.ts`). |
+| `no_active_track` | An operation required an active track, but none was active. | Stable literal in `LEGATO_ERROR_CODES` (`packages/contract/src/errors.ts`). |
+| `invalid_url` | A media URL input was rejected. | Stable literal in `LEGATO_ERROR_CODES` (`packages/contract/src/errors.ts`). |
+| `load_failed` | A media load phase failed. | Stable literal in `LEGATO_ERROR_CODES` (`packages/contract/src/errors.ts`). |
+| `playback_failed` | Playback execution failed after or during start. | Stable literal in `LEGATO_ERROR_CODES` (`packages/contract/src/errors.ts`). |
+| `seek_failed` | A seek request failed. | Stable literal in `LEGATO_ERROR_CODES` (`packages/contract/src/errors.ts`). |
+| `unsupported_operation` | The requested operation is not supported by the runtime in current conditions. | Stable literal in `LEGATO_ERROR_CODES` (`packages/contract/src/errors.ts`). |
+| `platform_error` | A platform/native-layer error was surfaced through the boundary. | Stable literal in `LEGATO_ERROR_CODES` (`packages/contract/src/errors.ts`). |
+
+## Stability model
+
+- Treat `error.code` as the machine-stable discriminator.
+- Treat `error.message` as human-readable runtime text that may vary by adapter, platform, or native source.
+- Treat `error.details` as optional transport-specific payload (`unknown` by contract).
+
+```ts
+function classify(error: LegatoError) {
+  switch (error.code) {
+    case 'unsupported_operation':
+      return 'capability-gated';
+    case 'invalid_index':
+      return 'input-shape';
+    default:
+      return 'other';
+  }
+}
+```
 
 ## Handling errors
 
@@ -90,11 +109,11 @@ try {
 ```
 
 <Aside type="note">
-Not all methods throw `LegatoError`. Check individual method documentation for error behavior.
+Do not couple control flow to exact `message` strings. Prefer `code` for branching and use `message` for logs/diagnostics.
 </Aside>
 
 ## Related types
 
-- `PlaybackState` — can be `'error'` when a playback error occurs
-- `PlaybackSnapshot` — may contain error state information
-- `LEGATO_EVENTS` — includes `playback-error` for event-driven error handling
+- [Events Reference](../events/) — `playback-error` payload shape and listener helpers
+- [Audio Player API](../audio-player/) — operations that can surface boundary errors
+- [Contract error codes](../../contract/reference/errors/) — shared source for `LEGATO_ERROR_CODES`

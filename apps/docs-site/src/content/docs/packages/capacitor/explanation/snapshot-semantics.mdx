@@ -1,0 +1,42 @@
+---
+title: Snapshot Semantics
+description: How to interpret PlaybackSnapshot and QueueSnapshot values in Capacitor integrations.
+---
+
+Snapshots are a read model, not a promise about what operations are currently allowed.
+
+## Read snapshots as observable state
+
+`PlaybackSnapshot` and `QueueSnapshot` encode what the runtime is reporting at a point in time. They are intentionally typed to include uncertainty.
+
+Key signals in the model:
+
+- `currentTrack: null` and `currentIndex: null` are valid "no active item" states,
+- `duration: null` is valid for unknown or live-like timelines,
+- `bufferedPosition` is optional and can be `null` when runtime data is unavailable.
+
+These values are part of normal semantics, not exceptional conditions.
+
+## `duration` is timeline evidence, not seek permission
+
+A finite `duration` means the runtime reported a finite media length. It does not grant seek behavior by itself.
+
+Seek should still be decided from projected capabilities (`getCapabilities().supported`), not from timeline values alone.
+
+## Snapshot and event relationship
+
+Events and snapshots are complementary read channels:
+
+- snapshot-returning APIs (`getSnapshot()`, `add()`, `remove()`, `reset()`, `skipTo()`) give explicit point-in-time projections,
+- `playback-ended` carries a terminal `PlaybackSnapshot`,
+- `playback-queue-changed` carries a `QueueSnapshot`,
+- `playback-progress` carries timeline fields (`position`, `duration`, `bufferedPosition`) without the full snapshot object.
+
+Use each payload according to its shape instead of assuming every event has full snapshot context.
+
+## Related pages
+
+- [Snapshots](../reference/snapshots/)
+- [Events Reference](../reference/events/)
+- [Listen to Events](../how-to/listen-events/)
+- [Build Capability-Driven Controls](../how-to/capability-driven-controls/)
