@@ -11,10 +11,10 @@ At a high level, the consumer app reads and reacts to shared semantics, while ru
 
 ```mermaid
 flowchart TD
-  A[Consumer App\nUI + product policy] --> B[@ddgutierrezc/legato-contract\nshared semantics]
-  A --> C[@ddgutierrezc/legato-capacitor\nruntime facade]
-  C --> D[Capacitor plugin boundary\nLegato registerPlugin]
-  D --> E[Native runtime layer\nplatform media stack]
+  A["Consumer App<br/>UI + product policy"] --> B["@ddgutierrezc/legato-contract<br/>shared semantics"]
+  A --> C["@ddgutierrezc/legato-capacitor<br/>runtime facade"]
+  C --> D["Capacitor plugin boundary<br/>Legato registerPlugin"]
+  D --> E["Native runtime layer<br/>platform media stack"]
   E --> D
   D --> C
   C --> A

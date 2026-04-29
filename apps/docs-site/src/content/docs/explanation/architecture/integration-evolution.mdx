@@ -1,0 +1,78 @@
+---
+title: Integration Evolution
+description: How Legato integrations mature from contract alignment to runtime confidence and release-aware operation.
+---
+
+Legato integrations usually do not fail because a single API is wrong. They fail because teams apply the wrong maturity model to the current risk surface.
+
+This page explains a typical evolution path from semantics-first alignment to release-aware production operation.
+
+## Stage 1: Contract-first alignment
+
+Early maturity is about semantic stability:
+
+- aligning on shared literals (events, states, capabilities, error codes),
+- treating snapshot and queue types as compatibility anchors,
+- and preventing app-layer semantic drift before runtime complexity is introduced.
+
+At this stage, the integration question is "Do we agree on meaning?", not "Can we play audio yet?"
+
+## Stage 2: Runtime integration
+
+Once semantics are stable, maturity shifts to runtime behavior:
+
+- explicit setup ordering,
+- queue and playback command flow,
+- listener handling across playback and media-session events,
+- sync controller usage to keep local projection aligned with runtime state.
+
+Here the key architectural move is preserving contract meaning while accepting runtime-dependent outcomes.
+
+## Stage 3: Production hardening
+
+After runtime viability, the focus becomes operational confidence:
+
+- capability-gated UI and command paths,
+- explicit error handling on `error.code`,
+- validation of lifecycle paths on real device/runtime contexts,
+- reduction of hidden assumptions not guaranteed by the public model.
+
+This stage is less about adding features and more about controlling behavioral risk.
+
+## Stage 4: Release-aware upgrades
+
+Mature integrations treat upgrades as architecture events, not package chores:
+
+- check release notes before rollout planning,
+- validate compatibility and boundary assumptions,
+- re-check capability and event-driven flows after version changes,
+- preserve rollback and observability posture as part of the integration contract with your product.
+
+The core principle is continuity: public contract anchors remain stable references while runtime behavior is re-validated per release.
+
+## Evolution is non-linear in real teams
+
+Teams often move back and forth between stages:
+
+- a release may force new runtime checks,
+- a new product surface may reveal weak contract assumptions,
+- an incident may require renewed hardening on specific lifecycle edges.
+
+That is expected. Maturity is a capability to revisit boundaries deliberately, not a one-time sequence completion.
+
+## How this connects to existing guidance
+
+The architecture view here explains the "why" behind operational pages:
+
+- [Golden Paths](/getting-started/golden-paths/) describe profile-based entry points,
+- [Production Quickstart (Capacitor)](/how-to/production-quickstart-capacitor/) demonstrates baseline runtime hardening flow,
+- [Migration and Versioning](/how-to/migration-and-versioning/) covers upgrade execution checks,
+- [Releases](/releases/) provides release-level evidence and upgrade context.
+
+Use those pages for execution details; use this model to keep the long-term integration strategy coherent.
+
+## Related pages
+
+- [System Overview](./system-overview/)
+- [Contract and Runtime Boundaries](./contract-and-runtime-boundaries/)
+- [Playback Lifecycle](./playback-lifecycle/)
