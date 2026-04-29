@@ -1,0 +1,79 @@
+---
+title: Migration and Versioning
+description: How to evaluate and execute Legato upgrades with explicit risk checks.
+---
+
+Use this guide when you are upgrading dependencies and need to reduce production risk.
+
+## Choose your consumer profile first
+
+### Contract-only consumer
+
+You depend on `@ddgutierrezc/legato-contract` types, events, error codes, and capabilities, but you do not consume the Capacitor runtime package directly.
+
+Primary risk surface:
+
+- Semantic assumptions in your adapters and state machines
+- Event payload handling and type narrowing
+- Branches keyed by capability/error literals
+
+### Capacitor runtime consumer
+
+You depend on `@ddgutierrezc/legato-capacitor` (and transitively align with contract semantics).
+
+Primary risk surface:
+
+- Runtime behavior under real device conditions
+- Setup/order lifecycle integration
+- Capability-gated controls and remote event handling
+
+## Upgrade flow
+
+1. Read the target release entry in [Releases](/releases/) and the root changelog.
+2. Confirm version alignment expectations from [Compatibility](/reference/compatibility/).
+3. Update dependencies in a branch.
+4. Run consumer-specific validation (contract-only or runtime).
+5. Roll forward only after passing your app-level checks.
+
+## Contract-only upgrade checklist
+
+- Verify `LEGATO_ERROR_CODES` handling still branches on `error.code`, never on `message` text.
+- Verify capability checks still use literal names from the contract (`play`, `pause`, `stop`, `seek`, `skip-next`, `skip-previous`).
+- Verify event-name assumptions match documented public names.
+- Re-run TypeScript checks in your integration package(s).
+
+## Capacitor runtime upgrade checklist
+
+- Verify initialization order is explicit and awaited (`audioPlayer.setup()`, `mediaSession.setup()` where used).
+- Verify queue lifecycle: `add(...)`, `startIndex`, `play()`, `skipTo...()`, `reset()`.
+- Verify capability-gated UI logic (`getCapabilities()` before showing seek/skip affordances).
+- Verify event listeners are attached/removed correctly across component lifecycles.
+- Verify error handling uses `error.code` and logs `details` for diagnostics.
+
+## Breaking-change review checklist
+
+For each release, answer these questions before production rollout:
+
+1. Were any public literals (event names, error codes, capability names) added/removed/renamed?
+2. Did setup, queue, or snapshot semantics change in a way your UI assumes implicitly?
+3. Did release notes mention native/runtime parity or behavior fixes that could alter edge-case flows?
+4. Do you rely on behavior not guaranteed by the documented public surface?
+5. Is your rollback path defined (previous package versions + deployment procedure)?
+
+If any answer is uncertain, run additional device-level validation before promoting.
+
+## Minimal rollout strategy
+
+1. Update dependencies on a feature branch.
+2. Run smoke tests on representative Android and iOS targets.
+3. Validate one real queue/playback scenario and one error-path scenario.
+4. Roll out gradually and monitor playback error-code distribution.
+
+This guide does not assume automated migration tooling. Treat each upgrade as an explicit engineering change with observable checks.
+
+## Related pages
+
+- [Releases](/releases/)
+- [Compatibility](/reference/compatibility/)
+- [Troubleshooting](/how-to/troubleshooting/)
+- [Set Up Legato Capacitor](/packages/capacitor/how-to/set-up/)

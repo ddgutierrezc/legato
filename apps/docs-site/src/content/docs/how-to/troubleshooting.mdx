@@ -1,0 +1,98 @@
+---
+title: Troubleshooting
+description: Symptom-first troubleshooting for Legato contract and Capacitor consumers.
+---
+
+Use this guide when playback behavior is failing in a real app and you need the next correct check, not a full API explanation.
+
+## Triage order
+
+1. Capture the exact `error.code` from `playback-error` when available.
+2. Verify initialization order (`audioPlayer.setup()` and `mediaSession.setup()` as needed).
+3. Verify queue and active-track preconditions (`add(...)`, `startIndex`, `getSnapshot()`).
+4. Verify runtime capabilities before sending optional commands (`getCapabilities()`).
+5. If symptoms look native-environment-specific, run `legato native doctor`.
+
+## Error-code lookup
+
+Use `error.code` as the machine-stable branch key.
+
+| `error.code` | Most likely category | Next action |
+|---|---|---|
+| `player_not_setup` | Initialization order | Ensure `await audioPlayer.setup()` ran before playback commands. See [Set Up Legato Capacitor](/packages/capacitor/how-to/set-up/). |
+| `empty_queue` | Queue preconditions | Verify `add({ tracks: [...] })` succeeds before `play()`. Then inspect `getSnapshot().queue`. |
+| `invalid_index` | Queue addressing | Validate `skipTo({ index })`, `remove({ index })`, or `startIndex` against current queue length. |
+| `no_active_track` | Active-track selection | Re-check `startIndex` and `currentIndex` in snapshot after queue insertion. |
+| `unsupported_operation` | Capability projection | Gate UI/action on `getCapabilities().supported`. See [Capabilities](/packages/contract/reference/capabilities/). |
+| `seek_failed` | Seek runtime path | Confirm seek capability is currently supported before calling `seekTo`. |
+| `invalid_url` | Track input validity | Re-check `Track.url` value and transport-level accessibility in your environment. |
+| `load_failed` | Media loading | Re-check media URL reachability and track metadata assumptions; inspect `error.details` for adapter context. |
+| `playback_failed` | Runtime playback | Observe state transitions and error payload together (`playback-state-changed` + `playback-error`). |
+| `platform_error` | Native/platform layer | Collect `error.details`, then run `legato native doctor` for supported native checks. |
+
+## Symptom: `play()` does nothing or fails immediately
+
+1. Run `await audioPlayer.getSnapshot()` and confirm queue is not empty.
+2. Confirm setup already completed in this app lifecycle (`await audioPlayer.setup()`).
+3. Confirm an active track exists (`currentIndex !== null`, `currentTrack !== null`).
+4. Register `onPlaybackError` and branch by `error.code`.
+
+## Symptom: seek controls are visible but seek fails
+
+1. Read capabilities right before rendering/handling seek:
+
+```ts
+const caps = await audioPlayer.getCapabilities();
+const canSeek = caps.supported.includes('seek');
+```
+
+2. Hide or disable seek controls when `canSeek` is false.
+3. If `canSeek` is true but `seek_failed` occurs, log `error.details` and runtime state snapshot for diagnosis.
+
+## Symptom: remote controls do not trigger app actions
+
+1. Confirm `await mediaSession.setup()` is called (separate from `audioPlayer.setup()`).
+2. Confirm listeners are registered and retained (not garbage-collected by component teardown).
+3. Confirm you are testing on a device/context that emits media-session controls.
+4. For seek-specific remote controls, confirm `seek` capability is currently projected.
+
+## Symptom: local UI state drifts from actual playback state
+
+1. Prefer a sync controller (`createLegatoSync` or `createAudioPlayerSync`) for local projection.
+2. Ensure `sync.start()` is called once and `sync.stop()` runs on teardown.
+3. On foreground resume, run `await sync.resync()` before trusting stale UI state.
+
+## Symptom: native integration behaves differently than expected
+
+1. Run `legato native doctor` from repository context supported by the CLI.
+2. If you need a preview of safe changes, run `legato native configure --dry-run`.
+3. Apply changes intentionally with `legato native configure --apply` and re-run doctor.
+
+## Diagnostic snippet (minimal)
+
+```ts
+import {
+  audioPlayer,
+  mediaSession,
+  onPlaybackError,
+  onPlaybackStateChanged,
+} from '@ddgutierrezc/legato-capacitor';
+
+await audioPlayer.setup();
+await mediaSession.setup();
+
+onPlaybackStateChanged(({ state }) => console.log('[state]', state));
+onPlaybackError(({ error }) => {
+  console.error('[legato:error]', error.code, error.message, error.details);
+});
+
+console.log('[snapshot]', await audioPlayer.getSnapshot());
+console.log('[capabilities]', await audioPlayer.getCapabilities());
+```
+
+## Related pages
+
+- [Errors Reference](/packages/capacitor/reference/errors/)
+- [Native CLI](/packages/capacitor/reference/cli-native/)
+- [Use Sync](/packages/capacitor/how-to/use-sync/)
+- [Migration and Versioning](/how-to/migration-and-versioning/)

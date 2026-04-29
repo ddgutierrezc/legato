@@ -1,0 +1,150 @@
+---
+title: Production Quickstart (Capacitor)
+description: Minimal production-oriented Legato Capacitor integration with setup, queue, listeners, and validation.
+---
+
+Use this guide to bootstrap a realistic first production integration for `@ddgutierrezc/legato-capacitor`.
+
+## Prerequisites
+
+- Capacitor app with native targets configured (`ios` and/or `android`)
+- `@ddgutierrezc/legato-capacitor` and `@ddgutierrezc/legato-contract` installed
+- Successful native sync (`npx cap sync`)
+
+## Step 1: Install and align versions
+
+```bash
+npm install @ddgutierrezc/legato-capacitor @ddgutierrezc/legato-contract
+npx cap sync
+```
+
+Then confirm dependency alignment with [Compatibility](/reference/compatibility/).
+
+## Step 2: Initialize playback and media session early
+
+```ts
+import { audioPlayer, mediaSession } from '@ddgutierrezc/legato-capacitor';
+
+export async function initializeLegato() {
+  await audioPlayer.setup();
+  await mediaSession.setup();
+}
+```
+
+Call initialization from your app bootstrap before exposing playback UI interactions.
+
+## Step 3: Register essential listeners
+
+```ts
+import {
+  audioPlayer,
+  onPlaybackStateChanged,
+  onPlaybackProgress,
+  onPlaybackError,
+  onRemotePlay,
+  onRemotePause,
+} from '@ddgutierrezc/legato-capacitor';
+
+export async function registerLegatoListeners() {
+  const handles = await Promise.all([
+    onPlaybackStateChanged(({ state }) => {
+      console.log('[playback-state]', state);
+    }),
+    onPlaybackProgress(({ position, duration }) => {
+      console.log('[playback-progress]', { position, duration });
+    }),
+    onPlaybackError(({ error }) => {
+      console.error('[playback-error]', error.code, error.message, error.details);
+    }),
+    onRemotePlay(async () => {
+      await audioPlayer.play();
+    }),
+    onRemotePause(async () => {
+      await audioPlayer.pause();
+    }),
+  ]);
+
+  return async () => {
+    await Promise.all(handles.map((h) => h.remove()));
+  };
+}
+```
+
+## Step 4: Add a realistic queue and start playback
+
+```ts
+import { audioPlayer } from '@ddgutierrezc/legato-capacitor';
+
+export async function startDemoPlayback() {
+  const snapshotAfterAdd = await audioPlayer.add({
+    tracks: [
+      {
+        id: 'episode-001',
+        url: 'https://cdn.example.com/audio/episode-001.mp3',
+        title: 'Episode 1',
+        artist: 'Legato Demo',
+      },
+      {
+        id: 'episode-002',
+        url: 'https://cdn.example.com/audio/episode-002.mp3',
+        title: 'Episode 2',
+        artist: 'Legato Demo',
+      },
+    ],
+    startIndex: 0,
+  });
+
+  console.log('Queue after add:', snapshotAfterAdd.queue);
+  await audioPlayer.play();
+}
+```
+
+## Step 5: Capability checks before optional controls
+
+```ts
+const caps = await audioPlayer.getCapabilities();
+
+const canSeek = caps.supported.includes('seek');
+const canSkipNext = caps.supported.includes('skip-next');
+const canSkipPrevious = caps.supported.includes('skip-previous');
+```
+
+Render or enable seek/skip controls based on these flags instead of static assumptions.
+
+## Step 6: Final validation checklist
+
+1. `setup()` for both namespaces resolves without errors.
+2. `add(...)` returns a snapshot with expected queue items.
+3. `play()` transitions state through expected playback lifecycle events.
+4. `playback-progress` events are observed while playing.
+5. At least one remote event path (`remote-play`/`remote-pause`) is validated on target device.
+6. Error logs include `error.code` and `error.details` when failures occur.
+
+## Common mistakes
+
+- Calling `play()` before `setup()` or before adding tracks.
+- Assuming `audioPlayer.setup()` initializes media-session listeners.
+- Branching logic on `error.message` instead of stable `error.code`.
+- Showing seek controls unconditionally without checking runtime capabilities.
+- Registering listeners without removing them on teardown (duplicate handlers).
+
+## Optional native check
+
+If behavior is inconsistent at the native integration layer:
+
+```bash
+legato native doctor
+```
+
+For safe patch planning before file mutation:
+
+```bash
+legato native configure --dry-run
+```
+
+## Related pages
+
+- [Set Up Legato Capacitor](/packages/capacitor/how-to/set-up/)
+- [Listen to Events](/packages/capacitor/how-to/listen-events/)
+- [Use Sync](/packages/capacitor/how-to/use-sync/)
+- [Troubleshooting](/how-to/troubleshooting/)
