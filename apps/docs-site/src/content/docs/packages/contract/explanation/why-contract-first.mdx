@@ -3,25 +3,46 @@ title: Why Contract-First
 description: Why Legato keeps shared playback semantics separate from runtime implementations.
 ---
 
-Legato uses a contract-first model so every integration speaks the same playback language before choosing a runtime.
+Legato uses a contract-first model because playback systems fail first at semantic boundaries, not at command wiring.
 
-## Why separate contract from runtime
+## The core tension
+
+Runtime integrations move fast: APIs change, platform behaviors differ, and adapter implementations evolve.
+
+Application policy moves slower: product behavior depends on stable meaning for snapshots, events, queue state, and errors.
+
+Contract-first resolves this tension by fixing the shared meaning first, then letting runtime implementations project into that meaning.
+
+## Problems this avoids
 
 `@ddgutierrezc/legato-contract` defines stable shared semantics (tracks, snapshots, events, errors, capabilities, invariants) without embedding transport behavior.
 
-This separation allows:
+That separation avoids common failure modes:
 
-- runtime implementations to evolve independently,
-- consumers to compile against typed guarantees without importing Capacitor-facing code,
-- and adapters/bindings to enforce a boundary where runtime specifics stay local.
+- **Semantic drift across layers**: different parts of the app interpreting "current track" or "active queue index" differently.
+- **Runtime leakage into app logic**: domain code coupled to plugin surfaces instead of contract snapshots and event payloads.
+- **Brittle refactors**: runtime changes forcing unrelated UI/business-policy rewrites.
+- **Hard-to-test policy code**: needing plugin/runtime setup just to test event and state decisions.
 
-## How the boundary works
+## How the boundary stays clear
 
 - **Contract package**: portable types and constants (`Track`, `PlaybackSnapshot`, `LEGATO_EVENT_NAMES`, `LEGATO_INVARIANTS`, and related exports).
 - **Adapters/bindings**: runtime-facing implementations that satisfy contract expectations.
 - **Consumers**: app logic that reads snapshots, handles typed events, and applies policy decisions.
 
-The result is a shared vocabulary across all integration points, with runtime behavior plugged in behind that vocabulary.
+The result is a shared vocabulary across integration points, with runtime behavior plugged in behind that vocabulary.
+
+## Runtime-first contrast (and why Legato does not default to it)
+
+A runtime-first approach usually starts from plugin methods/events and only later extracts shared semantics.
+
+That can ship quickly for one integration, but it tends to accumulate translation debt:
+
+- event payload meaning differs between call sites,
+- UI rules are inferred from runtime quirks,
+- and portability to another runtime becomes a rewrite instead of a projection.
+
+Legato's contract-first posture pays that semantic cost up front so runtime-specific complexity stays local.
 
 ## What this improves
 
@@ -29,9 +50,18 @@ The result is a shared vocabulary across all integration points, with runtime be
 - Safer refactors: consumer code depends on a stable public contract, not runtime internals.
 - Cleaner testing boundaries: you can test contract-level consumers with plain TypeScript objects.
 
+## What contract-first does not solve
+
+- It does not provide runtime playback execution by itself; runtime adapters/plugins still own that responsibility.
+- It does not remove platform constraints (for example, capability support remains runtime-projected).
+- It does not guarantee product UX quality automatically; teams still need explicit policy decisions on top of snapshots and events.
+
+Contract-first gives you a stable language. It does not replace runtime engineering or product decision-making.
+
 ## Related pages
 
 - [How-To Guides](../../how-to/)
 - [API Reference](../../reference/)
 - [Binding Adapter reference](../../reference/binding-adapter/)
 - [Consume Events and Payloads](../../how-to/consume-events-and-payloads/)
+- [Snapshot Model](../snapshot-model/)
