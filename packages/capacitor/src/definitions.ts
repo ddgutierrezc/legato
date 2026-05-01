@@ -1,5 +1,6 @@
 import type {
   Capability,
+  HeaderGroup as ContractHeaderGroup,
   LegatoEventName as ContractLegatoEventName,
   LegatoEventPayloadMap as ContractLegatoEventPayloadMap,
   LegatoError as ContractLegatoError,
@@ -33,6 +34,23 @@ export type QueueSnapshot = ContractQueueSnapshot;
  * Track type re-exported from the contract package.
  */
 export type Track = ContractTrack;
+/**
+ * HeaderGroup type re-exported from the contract package.
+ */
+export type HeaderGroup = ContractHeaderGroup;
+
+/**
+ * Setup options for initializing the adapter with shared resources.
+ */
+export interface SetupOptions {
+  /**
+   * Optional shared header groups available for reference by tracks.
+   *
+   * Each group is immutable after setup; tracks reference groups by `headerGroupId`.
+   * Unknown group IDs fail fast at `add()` time.
+   */
+  headerGroups?: HeaderGroup[];
+}
 
 /**
  * Player lifecycle event-name union exposed by the Capacitor package.
@@ -137,7 +155,12 @@ export interface SkipToOptions {
  * Full adapter boundary mirrored by the Capacitor plugin API.
  */
 export interface BindingAdapter {
-  setup(): Promise<void>;
+  /**
+   * Initializes the adapter and optionally registers shared header groups.
+   *
+   * @param options Optional setup configuration including shared header groups.
+   */
+  setup(options?: SetupOptions): Promise<void>;
   add(options: AddOptions): Promise<PlaybackSnapshot>;
   remove(options: RemoveOptions): Promise<PlaybackSnapshot>;
   reset(): Promise<PlaybackSnapshot>;

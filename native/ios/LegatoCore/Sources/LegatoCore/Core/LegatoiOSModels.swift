@@ -27,6 +27,7 @@ public struct LegatoiOSTrack {
     public let artwork: String?
     public let durationMs: Int64?
     public let headers: [String: String]
+    public let headerGroupId: String?
     public let type: LegatoiOSTrackType?
 
     public init(
@@ -38,6 +39,7 @@ public struct LegatoiOSTrack {
         artwork: String? = nil,
         durationMs: Int64? = nil,
         headers: [String: String] = [:],
+        headerGroupId: String? = nil,
         type: LegatoiOSTrackType? = nil
     ) {
         self.id = id
@@ -48,7 +50,26 @@ public struct LegatoiOSTrack {
         self.artwork = artwork
         self.durationMs = durationMs
         self.headers = headers
+        self.headerGroupId = headerGroupId
         self.type = type
+    }
+}
+
+public struct LegatoiOSHeaderGroup {
+    public let id: String
+    public let headers: [String: String]
+
+    public init(id: String, headers: [String: String]) {
+        self.id = id
+        self.headers = headers
+    }
+}
+
+public struct LegatoiOSSetupOptions {
+    public let headerGroups: [LegatoiOSHeaderGroup]
+
+    public init(headerGroups: [LegatoiOSHeaderGroup] = []) {
+        self.headerGroups = headerGroups
     }
 }
 

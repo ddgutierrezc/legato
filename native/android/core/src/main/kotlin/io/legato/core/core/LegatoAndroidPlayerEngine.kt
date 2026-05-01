@@ -32,11 +32,14 @@ class LegatoAndroidPlayerEngine(
 
     private var isSetup: Boolean = false
     private var pauseOrigin: LegatoAndroidPauseOrigin = LegatoAndroidPauseOrigin.USER
+    private var headerGroupRegistry: Map<String, Map<String, String>> = emptyMap()
 
-    suspend fun setup() {
+    suspend fun setup(options: LegatoAndroidSetupOptions = LegatoAndroidSetupOptions()) {
         if (isSetup) {
             return
         }
+
+        headerGroupRegistry = buildHeaderGroupRegistry(options.headerGroups)
 
         sessionManager.configureSession()
         sessionManager.setInterruptionListener(::onInterruption)
@@ -54,8 +57,9 @@ class LegatoAndroidPlayerEngine(
 
         runCatching {
             val mappedTracks = trackMapper.mapContractTracks(tracks)
+            val runtimeSources = mappedTracks.map(::toRuntimeTrackSource)
             val queueSnapshot = queueManager.replaceQueue(mappedTracks, startIndex)
-            playbackRuntime.replaceQueue(mappedTracks.map(::toRuntimeTrackSource), startIndex)
+            playbackRuntime.replaceQueue(runtimeSources, startIndex)
             val runtimeSnapshot = playbackRuntime.snapshot()
             val currentTrack = queueManager.getCurrentTrack()
             val currentState = snapshotStore.getPlaybackSnapshot().state
@@ -78,7 +82,10 @@ class LegatoAndroidPlayerEngine(
             publishState(snapshot.state)
             publishMetadata(snapshot.currentTrack)
             publishProgress(snapshot)
-        }.onFailure(::publishPlatformFailure)
+        }.getOrElse {
+            publishPlatformFailure(it)
+            throw it
+        }
     }
 
     suspend fun add(tracks: List<LegatoAndroidTrack>, startIndex: Int? = null) {
@@ -93,9 +100,10 @@ class LegatoAndroidPlayerEngine(
             val previousSnapshot = snapshotStore.getPlaybackSnapshot()
             val existingQueue = queueManager.getQueueSnapshot()
             val mergedItems = existingQueue.items + mappedTracks
+            val runtimeSources = mergedItems.map(::toRuntimeTrackSource)
             val targetIndex = startIndex?.let { existingQueue.items.size + it } ?: previousSnapshot.currentIndex
             val queueSnapshot = queueManager.replaceQueue(mergedItems, targetIndex)
-            playbackRuntime.replaceQueue(mergedItems.map(::toRuntimeTrackSource), targetIndex)
+            playbackRuntime.replaceQueue(runtimeSources, targetIndex)
 
             val runtimeSnapshot = playbackRuntime.snapshot()
             val currentTrack = queueManager.getCurrentTrack()
@@ -128,7 +136,10 @@ class LegatoAndroidPlayerEngine(
             if (snapshot.state != previousSnapshot.state) {
                 publishState(snapshot.state)
             }
-        }.onFailure(::publishPlatformFailure)
+        }.getOrElse {
+            publishPlatformFailure(it)
+            throw it
+        }
     }
 
     suspend fun play() {
@@ -565,9 +576,31 @@ class LegatoAndroidPlayerEngine(
         LegatoAndroidRuntimeTrackSource(
             id = track.id,
             url = track.url,
-            headers = track.headers,
+            headers = resolveEffectiveHeaders(track),
             type = track.type,
         )
+
+    private fun resolveEffectiveHeaders(track: LegatoAndroidTrack): Map<String, String> {
+        val groupId = track.headerGroupId?.trim().orEmpty()
+        if (groupId.isEmpty()) {
+            return track.headers
+        }
+
+        val groupHeaders = headerGroupRegistry[groupId]
+            ?: throw IllegalArgumentException("Unknown headerGroupId '$groupId' for track '${track.id}'")
+        return groupHeaders + track.headers
+    }
+
+    private fun buildHeaderGroupRegistry(groups: List<LegatoAndroidHeaderGroup>): Map<String, Map<String, String>> {
+        val registry = linkedMapOf<String, Map<String, String>>()
+        groups.forEach { group ->
+            val normalizedId = group.id.trim()
+            require(normalizedId.isNotEmpty()) { "headerGroups.id must be non-empty" }
+            require(!registry.containsKey(normalizedId)) { "Duplicate headerGroups.id '$normalizedId'" }
+            registry[normalizedId] = group.headers.toMap()
+        }
+        return registry.toMap()
+    }
 
     private inline fun runRuntimeOperation(block: () -> Unit): Boolean =
         runCatching(block).onFailure(::publishPlatformFailure).isSuccess

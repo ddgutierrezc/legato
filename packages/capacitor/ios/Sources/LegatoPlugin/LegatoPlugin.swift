@@ -55,7 +55,8 @@ public final class LegatoPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func setup(_ call: CAPPluginCall) {
         do {
-            try core.playerEngine.setup()
+            let options = LegatoCapacitorMapper.setupOptions(from: call.options)
+            try core.playerEngine.setup(options: options)
             call.resolve(["ok": true])
         } catch {
             reject(call, error)

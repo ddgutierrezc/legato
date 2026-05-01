@@ -38,7 +38,17 @@ data class LegatoAndroidTrack(
     val artwork: String? = null,
     val durationMs: Long? = null,
     val headers: Map<String, String> = emptyMap(),
+    val headerGroupId: String? = null,
     val type: LegatoAndroidTrackType? = null,
+)
+
+data class LegatoAndroidHeaderGroup(
+    val id: String,
+    val headers: Map<String, String> = emptyMap(),
+)
+
+data class LegatoAndroidSetupOptions(
+    val headerGroups: List<LegatoAndroidHeaderGroup> = emptyList(),
 )
 
 enum class LegatoAndroidErrorCode(val wireValue: String) {

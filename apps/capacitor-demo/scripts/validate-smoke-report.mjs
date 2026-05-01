@@ -6,6 +6,14 @@ import { validateSmokeReportV1 } from './report-schema.mjs';
 const PASS = 'PASS';
 const FAIL = 'FAIL';
 
+const SHARED_HEADERS_REQUIRED_ASSERTIONS = [
+  'shared group A',
+  'shared group B',
+  'per-track override precedence',
+  'public track without leaked Authorization',
+  'mixed-token playlist behavior',
+];
+
 const inferPlatform = (artifactPath, report) => {
   const metadataPlatform = report?.metadata?.platform;
   if (metadataPlatform === 'android' || metadataPlatform === 'ios') {
@@ -87,6 +95,20 @@ const evaluateArtifact = ({ path, report }) => {
     if (!hasRequestEvidence) {
       failures.push(`[${platform}] ${path}: PASS reports must include requestEvidence payload with runtime/track request records and assertions.`);
     } else {
+      const assertionLabels = requestEvidence.assertions
+        .filter((assertion) => assertion && typeof assertion.label === 'string')
+        .map((assertion) => assertion.label);
+
+      const missingRequiredAssertions = SHARED_HEADERS_REQUIRED_ASSERTIONS.filter(
+        (requiredLabel) => !assertionLabels.some((label) => label.includes(requiredLabel)),
+      );
+
+      if (missingRequiredAssertions.length > 0) {
+        failures.push(
+          `[${platform}] ${path}: requestEvidence assertions missing shared-playback-headers coverage: ${missingRequiredAssertions.join(', ')}`,
+        );
+      }
+
       const failingAssertions = requestEvidence.assertions
         .filter((assertion) => assertion?.ok === false)
         .map((assertion) => `${assertion.label}: ${assertion.detail}`);
