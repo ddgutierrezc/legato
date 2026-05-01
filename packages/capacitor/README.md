@@ -22,6 +22,7 @@ Streaming behavior follows a conservative policy. Platform/runtime details, non-
 ## Maintainer operator guidance
 
 - Operator guide: [`docs/maintainers/legato-capacitor-operator-guide.md`](../../docs/maintainers/legato-capacitor-operator-guide.md)
+- Maintainer CLI scope: run `legato native doctor` from the repository workspace when following operator workflows.
 
 ## Scope
 
