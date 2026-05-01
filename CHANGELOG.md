@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - GitHub Release communications contract (facts + required human narrative) wired to release-control evidence.
 - Canonical `1.0.0` decision artifacts published under `docs/releases/`: criteria (`v1-release-criteria-v1.md`), gap matrix (`v1-release-gap-matrix-v1.md`), deferrals (`v1-release-deferral-register-v1.md`), and final verdict record (`v1-release-go-no-go-record-v1.md`).
 
+## [contract-publish-1-1-0-001] - 2026-05-01
+
+### Added
+- This release publishes the shared playback header contract so consumers can declare immutable header groups once and reuse them across mixed-auth playlists without duplicating static secrets on every track.
+- Version matrix: npm `@ddgutierrezc/legato-capacitor@1.1.0`, npm `@ddgutierrezc/legato-contract@1.1.0`, Android `dev.dgutierrez:legato-android-core:1.1.0`, iOS `LegatoCore@1.1.0`.
+- Introduces public `HeaderGroup` and `Track.headerGroupId` contract support.
+- Preserves `Track.headers` compatibility and explicit per-key override semantics.
+- Locks shared-header behavior into the published contract surface before downstream runtime adoption.
+- Durable evidence: https://www.npmjs.com/package/@ddgutierrezc%2Flegato-capacitor/v/1.1.0, https://www.npmjs.com/package/@ddgutierrezc%2Flegato-contract/v/1.1.0, https://repo1.maven.org/maven2/dev/dgutierrez/legato-android-core/1.1.0/, https://github.com/ddgutierrezc/legato-ios-core/releases/tag/v1.1.0.
+
+### Changed
+- User impact: Consumers can now model `HeaderGroup` values, call `setup({ headerGroups })`, and reference them from `Track.headerGroupId` while keeping per-track `headers` as the override path.
+- Upgrade notes: Upgrade to @ddgutierrezc/legato-contract@1.1.0. Downstream adapters and applications that want shared playback headers should align to the 1.1.0 line before adopting `headerGroupId`.
+- Breaking changes: None.
+
 ## [1.0.0] - 2026-04-28
 
 ### Added
