@@ -2,6 +2,7 @@ package io.legato.capacitor
 
 import io.legato.core.core.LegatoAndroidTransportCapabilities
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.json.JSONObject
@@ -56,5 +57,39 @@ class LegatoCapacitorMapperTest {
         )
 
         assertEquals(listOf("play", "pause", "stop"), supported)
+    }
+
+    @Test
+    fun `track mapping preserves declarative headerGroupId`() {
+        val mappedTrack = trackFromMap(
+            mapOf(
+                "id" to "track-1",
+                "url" to "https://example.com/track.mp3",
+                "headerGroupId" to "premium",
+            ),
+        )
+        val mappedPublic = trackToPublicMap(mappedTrack)
+
+        assertEquals("premium", mappedTrack.headerGroupId)
+        assertEquals("premium", mappedPublic["headerGroupId"])
+    }
+
+    @Test
+    fun `setup options mapping parses headerGroups payload`() {
+        val options = setupOptionsFromMap(
+            mapOf(
+                "headerGroups" to listOf(
+                    mapOf(
+                        "id" to "premium",
+                        "headers" to mapOf("Authorization" to "Bearer group"),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(1, options.headerGroups.size)
+        assertEquals("premium", options.headerGroups.first().id)
+        assertEquals("Bearer group", options.headerGroups.first().headers["Authorization"])
+        assertTrue(options.headerGroups.first().headers.containsKey("Authorization"))
     }
 }

@@ -198,6 +198,10 @@ type RequestEvidencePayload = {
   }>;
 };
 
+type DemoTrack = Track & {
+  headerGroupId?: string;
+};
+
 let syncController: LegatoSyncController | null = null;
 let latestSnapshot: PlaybackSnapshot | null = null;
 let recentEvents: string[] = [];
@@ -217,7 +221,7 @@ const resolvePlaybackApi = (surface: PlaybackSurface): AudioPlayerApi => (
   surface === 'audioPlayer' ? audioPlayer : Legato
 );
 
-const demoTracks: Track[] = [
+const demoTracks: DemoTrack[] = [
   {
     id: 'track-demo-1',
     url: 'https://samplelib.com/mp3/sample-12s.mp3',
@@ -226,9 +230,7 @@ const demoTracks: Track[] = [
     album: 'Legato Artwork Fixture A',
     artwork: 'https://i.pravatar.cc/300',
     duration: 12000,
-    headers: {
-      Authorization: 'Bearer demo-auth-a',
-    },
+    headerGroupId: 'group-auth-a',
     type: 'progressive',
   },
   {
@@ -239,7 +241,7 @@ const demoTracks: Track[] = [
     album: 'Legato Artwork Fixture B',
     artwork: 'https://i.pravatar.cc/300',
     duration: 19200,
-    headers: {},
+    headerGroupId: 'group-auth-b',
     type: 'progressive',
   },
   {
@@ -250,17 +252,56 @@ const demoTracks: Track[] = [
     album: 'Legato Artwork Fallback Fixture',
     artwork: 'https://i.pravatar.cc/300',
     duration: 9613,
+    headerGroupId: 'group-auth-a',
+    headers: {
+      Authorization: 'Bearer demo-auth-override',
+    },
+    type: 'progressive',
+  },
+  {
+    id: 'track-demo-4',
+    url: 'https://samplelib.com/mp3/sample-6s.mp3',
+    title: 'Demo Track 4 (6s public control)',
+    artist: 'Samplelib',
+    album: 'Legato Public Fixture',
+    artwork: 'https://i.pravatar.cc/300',
+    duration: 6000,
+    type: 'progressive',
+  },
+  {
+    id: 'track-demo-5',
+    url: 'https://samplelib.com/mp3/sample-3s.mp3',
+    title: 'Demo Track 5 (3s mixed token check)',
+    artist: 'Samplelib',
+    album: 'Legato Mixed Token Fixture',
+    artwork: 'https://i.pravatar.cc/300',
+    duration: 3000,
+    headerGroupId: 'group-auth-b',
+    type: 'progressive',
+  },
+];
+
+const demoHeaderGroups: Array<{ id: string; headers: Record<string, string> }> = [
+  {
+    id: 'group-auth-a',
+    headers: {
+      Authorization: 'Bearer demo-auth-a',
+    },
+  },
+  {
+    id: 'group-auth-b',
     headers: {
       Authorization: 'Bearer demo-auth-b',
     },
-    type: 'progressive',
   },
 ];
 
 const expectedAuthHeaderByTrackId: Record<string, string | null> = {
   'track-demo-1': 'Bearer demo-auth-a',
-  'track-demo-2': null,
-  'track-demo-3': 'Bearer demo-auth-b',
+  'track-demo-2': 'Bearer demo-auth-b',
+  'track-demo-3': 'Bearer demo-auth-override',
+  'track-demo-4': null,
+  'track-demo-5': 'Bearer demo-auth-b',
 };
 
 const expectedArtworkByTrackId: Record<string, string | null> = {
@@ -852,9 +893,18 @@ const deriveRequestEvidencePayload = (): RequestEvidencePayload => {
       .filter((value): value is string => typeof value === 'string');
 
     if (expectedAuthorization) {
+      const scenarioLabel = track.id === 'track-demo-1'
+        ? 'shared group A'
+        : track.id === 'track-demo-2'
+          ? 'shared group B'
+          : track.id === 'track-demo-3'
+            ? 'per-track override precedence'
+            : track.id === 'track-demo-5'
+              ? 'mixed-token playlist behavior'
+              : track.id;
       const ok = observedAuthValues.includes(expectedAuthorization);
       return {
-        label: `request evidence ${track.id} includes expected Authorization header`,
+        label: `${scenarioLabel} includes expected Authorization header`,
         ok,
         detail: ok
           ? `Observed ${observedAuthValues.length} request(s) for ${track.id} with expected Authorization value.`
@@ -864,7 +914,7 @@ const deriveRequestEvidencePayload = (): RequestEvidencePayload => {
 
     const leaked = observedAuthValues.length > 0;
     return {
-      label: `request evidence ${track.id} does not leak Authorization header`,
+      label: 'public track without leaked Authorization',
       ok: requests.length > 0 && !leaked,
       detail: requests.length === 0
         ? `No captured requests for ${track.id}; runtime request evidence unavailable.`
@@ -1050,7 +1100,10 @@ const copyText = async (text: string, emptyMessage: string, successMessage: stri
 };
 
 const setupAction = async (surface: PlaybackSurface = activePlaybackSurface): Promise<void> => {
-  await resolvePlaybackApi(surface).setup();
+  const setupWithOptions = resolvePlaybackApi(surface).setup as (options?: unknown) => Promise<void>;
+  await setupWithOptions({
+    headerGroups: demoHeaderGroups,
+  });
   log(`[${surface}] setup() ok`);
 };
 
@@ -1058,7 +1111,10 @@ const addAction = async (
   surface: PlaybackSurface = activePlaybackSurface,
   startIndex = 0,
 ): Promise<void> => {
-  const afterAdd = await resolvePlaybackApi(surface).add({ tracks: demoTracks, startIndex });
+  const afterAdd = await resolvePlaybackApi(surface).add({
+    tracks: demoTracks as unknown as Track[],
+    startIndex,
+  });
   updateSnapshotViews(afterAdd);
   log(`[${surface}] add(startIndex=${startIndex}) snapshot`, afterAdd);
 };

@@ -8,9 +8,11 @@ import io.legato.core.core.LegatoAndroidPlaybackState
 import io.legato.core.core.LegatoAndroidProgressUpdate
 import io.legato.core.core.LegatoAndroidRemoteCommand
 import io.legato.core.core.LegatoAndroidServiceMode
+import io.legato.core.core.LegatoAndroidSetupOptions
 import io.legato.core.core.LegatoAndroidTransportCapabilities
 import io.legato.core.core.LegatoAndroidTrack
 import io.legato.core.core.LegatoAndroidNowPlayingMetadata
+import io.legato.core.core.LegatoAndroidHeaderGroup
 import io.legato.core.queue.LegatoAndroidQueueManager
 import io.legato.core.remote.LegatoAndroidRemoteCommandRuntime
 import io.legato.core.runtime.LegatoAndroidPlaybackRuntime
@@ -287,6 +289,41 @@ class LegatoAndroidPlaybackCoordinatorTest {
         assertEquals(2, runtime.replaceQueueCalls)
         assertEquals(listOf("track-1", "track-2"), runtime.lastReplacedQueueIds)
         assertEquals(2, coordinator.core.playerEngine.getSnapshot().queue.items.size)
+    }
+
+    @Test
+    fun `coordinator setup forwards header groups to engine for headerGroupId admission`() = runBlocking {
+        val runtime = RecordingPlaybackRuntime()
+        val sessionRuntime = RecordingSessionRuntime()
+        val coordinator = LegatoAndroidPlaybackCoordinator(
+            core = buildCore(runtime, sessionRuntime),
+            serviceRuntime = RecordingCoordinatorServiceRuntime(),
+        )
+
+        coordinator.setup(
+            LegatoAndroidSetupOptions(
+                headerGroups = listOf(
+                    LegatoAndroidHeaderGroup(
+                        id = "premium",
+                        headers = mapOf("Authorization" to "Bearer shared"),
+                    ),
+                ),
+            ),
+        )
+
+        coordinator.add(
+            tracks = listOf(
+                LegatoAndroidTrack(
+                    id = "track-2",
+                    url = "https://example.com/2.mp3",
+                    headerGroupId = "premium",
+                ),
+            ),
+        )
+
+        val queuedTrack = coordinator.core.playerEngine.getSnapshot().queue.items.single()
+        assertEquals("premium", queuedTrack.headerGroupId)
+        assertEquals(1, runtime.replaceQueueCalls)
     }
 
     @Test

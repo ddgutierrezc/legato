@@ -134,6 +134,97 @@ class LegatoAndroidPlayerEngineQueueOwnershipTest {
         assertEquals("new-2", snapshot.currentTrack?.id)
     }
 
+    @Test
+    fun `shared header group resolution merges track headers with track precedence`() = runBlocking {
+        val runtime = RecordingQueuePlaybackRuntime()
+        val engine = buildEngine(runtime)
+
+        engine.setup(
+            options = LegatoAndroidSetupOptions(
+                headerGroups = listOf(
+                    LegatoAndroidHeaderGroup(
+                        id = "group-a",
+                        headers = mapOf("Authorization" to "Bearer A", "X-Tenant" to "tenant-a"),
+                    ),
+                ),
+            ),
+        )
+
+        engine.add(
+            tracks = listOf(
+                LegatoAndroidTrack(
+                    id = "track-1",
+                    url = "https://example.com/1.mp3",
+                    headerGroupId = "group-a",
+                    headers = mapOf("Authorization" to "Bearer override", "X-Track" to "yes"),
+                ),
+            ),
+        )
+
+        val runtimeTrack = runtime.lastQueueSources.first()
+        assertEquals("Bearer override", runtimeTrack.headers["Authorization"])
+        assertEquals("tenant-a", runtimeTrack.headers["X-Tenant"])
+        assertEquals("yes", runtimeTrack.headers["X-Track"])
+    }
+
+    @Test
+    fun `unknown header group fails fast and does not mutate queue`() = runBlocking {
+        val runtime = RecordingQueuePlaybackRuntime()
+        val engine = buildEngine(runtime)
+
+        engine.setup(options = LegatoAndroidSetupOptions(headerGroups = emptyList()))
+
+        val result = runCatching {
+            engine.add(
+                tracks = listOf(
+                    LegatoAndroidTrack(
+                        id = "track-1",
+                        url = "https://example.com/1.mp3",
+                        headerGroupId = "missing-group",
+                    ),
+                ),
+            )
+        }
+        assertTrue(result.isFailure)
+
+        assertTrue(engine.getSnapshot().queue.items.isEmpty())
+    }
+
+    @Test
+    fun `setup header groups are immutable after initial setup`() = runBlocking {
+        val runtime = RecordingQueuePlaybackRuntime()
+        val engine = buildEngine(runtime)
+
+        engine.setup(
+            options = LegatoAndroidSetupOptions(
+                headerGroups = listOf(
+                    LegatoAndroidHeaderGroup(id = "group-a", headers = mapOf("Authorization" to "Bearer A")),
+                ),
+            ),
+        )
+
+        engine.setup(
+            options = LegatoAndroidSetupOptions(
+                headerGroups = listOf(
+                    LegatoAndroidHeaderGroup(id = "group-b", headers = mapOf("Authorization" to "Bearer B")),
+                ),
+            ),
+        )
+
+        val result = runCatching {
+            engine.add(
+                tracks = listOf(
+                    LegatoAndroidTrack(
+                        id = "track-1",
+                        url = "https://example.com/1.mp3",
+                        headerGroupId = "group-b",
+                    ),
+                ),
+            )
+        }
+        assertTrue(result.isFailure)
+    }
+
     private fun buildEngine(playbackRuntime: RecordingQueuePlaybackRuntime): LegatoAndroidPlayerEngine {
         val sessionRuntime = object : LegatoAndroidSessionRuntime {
             override fun configureSession() = Unit
@@ -185,6 +276,9 @@ private class RecordingQueuePlaybackRuntime : LegatoAndroidPlaybackRuntime {
     var lastQueueIds: List<String> = emptyList()
         private set
 
+    var lastQueueSources: List<LegatoAndroidRuntimeTrackSource> = emptyList()
+        private set
+
     var lastStartIndex: Int? = null
         private set
 
@@ -195,6 +289,7 @@ private class RecordingQueuePlaybackRuntime : LegatoAndroidPlaybackRuntime {
     }
 
     override fun replaceQueue(items: List<LegatoAndroidRuntimeTrackSource>, startIndex: Int?) {
+        lastQueueSources = items
         lastQueueIds = items.map { it.id }
         lastStartIndex = startIndex
         snapshot = snapshot.copy(

@@ -80,14 +80,29 @@ const createPassReport = (platform) => ({
     },
     assertions: [
       {
-        label: 'auth track includes authorization header',
+        label: 'shared group A includes expected Authorization header',
         ok: true,
-        detail: 'track-auth-a request carried Authorization header',
+        detail: 'track-auth-a request carried Authorization=Bearer auth-a',
       },
       {
-        label: 'public track has no leaked authorization header',
+        label: 'shared group B includes expected Authorization header',
+        ok: true,
+        detail: 'track-auth-b request carried Authorization=Bearer auth-b',
+      },
+      {
+        label: 'per-track override precedence uses track Authorization over shared group',
+        ok: true,
+        detail: 'track-override used Authorization=Bearer override-token while groupA remained Bearer auth-a',
+      },
+      {
+        label: 'public track without leaked Authorization',
         ok: true,
         detail: 'track-public request headers were empty',
+      },
+      {
+        label: 'mixed-token playlist behavior keeps group tokens isolated per track',
+        ok: true,
+        detail: 'observed auth values were scoped to their track IDs with no cross-track bleed',
       },
     ],
   },
@@ -331,4 +346,24 @@ test('shared validator fails PASS artifacts when request evidence assertions fla
   assert.equal(result.platforms.ios.status, 'FAIL');
   assert.match(result.failures[0], /request.?evidence/i);
   assert.match(result.failures[0], /leaked Authorization/i);
+});
+
+test('shared validator fails PASS artifacts missing shared-playback-headers assertion coverage', () => {
+  const report = createPassReport('android');
+  report.requestEvidence.assertions = [
+    {
+      label: 'auth track includes authorization header',
+      ok: true,
+      detail: 'legacy assertion only',
+    },
+  ];
+
+  const result = validateSmokeReports([
+    { path: 'android.json', report },
+  ]);
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.platforms.android.status, 'FAIL');
+  assert.match(result.failures[0], /missing shared-playback-headers coverage/i);
+  assert.match(result.failures[0], /shared group A/i);
 });

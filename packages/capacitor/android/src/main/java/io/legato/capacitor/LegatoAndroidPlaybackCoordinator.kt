@@ -14,6 +14,7 @@ import io.legato.core.core.LegatoAndroidPauseOrigin
 import io.legato.core.core.LegatoAndroidPlaybackSnapshot
 import io.legato.core.core.LegatoAndroidPlaybackState
 import io.legato.core.core.LegatoAndroidQueueSnapshot
+import io.legato.core.core.LegatoAndroidSetupOptions
 import io.legato.core.core.LegatoAndroidServiceMode
 import io.legato.core.core.LegatoAndroidTrack
 import io.legato.core.runtime.LegatoAndroidMedia3PlaybackRuntime
@@ -75,8 +76,8 @@ internal class LegatoAndroidPlaybackCoordinator(
         projectServiceMode()
     }
 
-    fun setup() {
-        kotlinx.coroutines.runBlocking { core.playerEngine.setup() }
+    fun setup(options: LegatoAndroidSetupOptions = LegatoAndroidSetupOptions()) {
+        kotlinx.coroutines.runBlocking { core.playerEngine.setup(options) }
         projectServiceMode()
         projectPlaybackState()
         projectNowPlayingMetadata()

@@ -36,7 +36,8 @@ class LegatoPlugin : Plugin() {
     @PluginMethod
     fun setup(call: PluginCall) {
         runCatching {
-            coordinator.setup()
+            val options = mapper.setupOptionsFromJs(call.data)
+            coordinator.setup(options)
             call.resolve(ok())
         }.onFailure { reject(call, it) }
     }
