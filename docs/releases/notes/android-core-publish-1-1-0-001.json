@@ -1,0 +1,16 @@
+{
+  "why_it_matters": "Android needs a published runtime artifact that can resolve shared playback header groups at admission time instead of forcing repeated per-track auth headers.",
+  "user_impact": "Android hosts consuming the new native core can register immutable shared header groups, support mixed-token playlists, and keep per-track overrides without cross-track leakage.",
+  "upgrade_notes": "Upgrade Android native distribution to dev.dgutierrez:legato-android-core:1.1.0 and pair it with the Legato 1.1.0 package line when consuming shared playback headers.",
+  "breaking_changes": "None.",
+  "affected_platforms": "android",
+  "highlights": [
+    "Admission-time header-group resolution with fail-fast validation.",
+    "Per-track headers override shared group headers on Android.",
+    "Runtime/request paths keep effective headers internal only."
+  ],
+  "known_limitations": [
+    "Static shared headers do not cover dynamic token refresh or DRM workflows.",
+    "Process-death restore and broader lifecycle hardening remain separate follow-up work."
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "why_it_matters": "This release publishes end-to-end shared playback header support to the public Capacitor package so host apps can declare reusable auth header groups once and apply them safely across Android and iOS playback flows.",
+  "user_impact": "Capacitor consumers can call `setup({ headerGroups })`, reference them from `Track.headerGroupId`, rely on per-track override precedence, and validate mixed-token/no-leakage behavior with the demo smoke harness.",
+  "upgrade_notes": "Upgrade to @ddgutierrezc/legato-capacitor@1.1.0 and @ddgutierrezc/legato-contract@1.1.0, then resync native hosts so Android resolves legato-android-core:1.1.0 and iOS resolves LegatoCore v1.1.0.",
+  "breaking_changes": "None.",
+  "affected_platforms": "android, ios, npm",
+  "highlights": [
+    "Shared playback headers now work across contract, Capacitor bridge, Android, and iOS runtime paths.",
+    "Mixed-token playlists, public-track non-leakage, and per-track override precedence are covered by smoke validation.",
+    "Strict end-to-end verification completed before publication."
+  ],
+  "known_limitations": [
+    "Shared header groups are immutable setup-time declarations; token refresh and DRM remain outside this release scope.",
+    "Effective merged headers stay internal and are not exposed through public snapshots or events."
+  ]
+}

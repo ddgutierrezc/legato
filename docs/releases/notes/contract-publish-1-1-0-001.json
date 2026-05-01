@@ -1,0 +1,16 @@
+{
+  "why_it_matters": "This release publishes the shared playback header contract so consumers can declare immutable header groups once and reuse them across mixed-auth playlists without duplicating static secrets on every track.",
+  "user_impact": "Consumers can now model `HeaderGroup` values, call `setup({ headerGroups })`, and reference them from `Track.headerGroupId` while keeping per-track `headers` as the override path.",
+  "upgrade_notes": "Upgrade to @ddgutierrezc/legato-contract@1.1.0. Downstream adapters and applications that want shared playback headers should align to the 1.1.0 line before adopting `headerGroupId`.",
+  "breaking_changes": "None.",
+  "affected_platforms": "npm, contract",
+  "highlights": [
+    "Introduces public `HeaderGroup` and `Track.headerGroupId` contract support.",
+    "Preserves `Track.headers` compatibility and explicit per-key override semantics.",
+    "Locks shared-header behavior into the published contract surface before downstream runtime adoption."
+  ],
+  "known_limitations": [
+    "Shared header groups are static setup-time declarations; token refresh and DRM flows remain out of scope.",
+    "Public snapshots/events still intentionally avoid exposing merged effective headers or secrets."
+  ]
+}

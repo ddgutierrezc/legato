@@ -1,0 +1,16 @@
+{
+  "why_it_matters": "The iOS distribution needs a published 1.1.0 runtime so SwiftPM consumers can adopt shared playback headers with the same semantics already verified in LegatoCore tests.",
+  "user_impact": "iOS hosts can reuse immutable shared header groups, preserve track-level override precedence, and keep effective headers internal while supporting mixed-token playlists.",
+  "upgrade_notes": "Upgrade the iOS distribution to LegatoCore v1.1.0 and align the Legato package line to 1.1.0 before using shared playback headers in host apps.",
+  "breaking_changes": "None.",
+  "affected_platforms": "ios",
+  "highlights": [
+    "LegatoCore 1.1.0 publishes shared playback header-group resolution for iOS.",
+    "Unknown `headerGroupId` values fail fast before queue mutation.",
+    "Public snapshots/events keep declarative track shape without leaking secrets."
+  ],
+  "known_limitations": [
+    "Shared header groups are static setup-time declarations; token refresh and DRM remain out of scope.",
+    "This release does not claim full lifecycle/background production hardening beyond the already documented scope."
+  ]
+}

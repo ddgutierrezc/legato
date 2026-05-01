@@ -1,0 +1,16 @@
+{
+  "why_it_matters": "Legato 1.1.0 adds verified cross-platform shared playback headers so applications can reuse static auth contexts across playlists without duplicating secrets on every track or leaking merged headers into public state.",
+  "user_impact": "Consumers now have a coordinated 1.1.0 package/native line with `HeaderGroup`, `Track.headerGroupId`, Android+iOS runtime support, and smoke-validated mixed-token behavior.",
+  "upgrade_notes": "Use @ddgutierrezc/legato-contract@1.1.0, @ddgutierrezc/legato-capacitor@1.1.0, dev.dgutierrez:legato-android-core:1.1.0, and LegatoCore v1.1.0. Resync Android/iOS hosts after upgrading the npm packages.",
+  "breaking_changes": "None.",
+  "affected_platforms": "android, ios, npm, github-release",
+  "highlights": [
+    "Shared playback headers are now part of the public contract and runtime package line.",
+    "Android and iOS resolve shared header groups with per-track override precedence and fail-fast validation.",
+    "Smoke/report validation now enforces shared group A/B, override, public-track non-leakage, and mixed-token playlist coverage."
+  ],
+  "known_limitations": [
+    "Shared header groups remain static setup-time declarations; token refresh and DRM are still out of scope.",
+    "Advanced lifecycle/process-death hardening remains tracked independently from this feature release."
+  ]
+}
