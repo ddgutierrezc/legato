@@ -11,7 +11,7 @@ The `audioPlayer` namespace provides playback commands, queue operations, state 
 
 ```ts
 interface AudioPlayerApi {
-  setup(): Promise<void>;
+  setup(options?: SetupOptions): Promise<void>;
   add(options: AddOptions): Promise<PlaybackSnapshot>;
   remove(options: RemoveOptions): Promise<PlaybackSnapshot>;
   reset(): Promise<PlaybackSnapshot>;
@@ -39,13 +39,28 @@ interface AudioPlayerApi {
 
 ## Methods
 
-### `setup()`
+### `setup(options?)`
 
 Initializes the native plugin. MUST be called before any other playback operations.
 
 ```ts
-await audioPlayer.setup();
+await audioPlayer.setup({
+  headerGroups: [
+    {
+      id: 'premium-us',
+      headers: { Authorization: 'Bearer shared-token' },
+    },
+  ],
+});
 ```
+
+`options` is optional. If omitted, setup runs without shared header-group registration.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `headerGroups` | `HeaderGroup[]` | No | Setup-scoped shared static headers referenced later by `Track.headerGroupId`. |
 
 **Returns:** `Promise<void>`
 
@@ -352,6 +367,23 @@ await audioPlayer.removeAllListeners();
 interface AddOptions {
   tracks: Track[];
   startIndex?: number;
+}
+```
+
+### `SetupOptions`
+
+```ts
+interface SetupOptions {
+  headerGroups?: HeaderGroup[];
+}
+```
+
+### `HeaderGroup`
+
+```ts
+interface HeaderGroup {
+  id: string;
+  headers: Record<string, string>;
 }
 ```
 

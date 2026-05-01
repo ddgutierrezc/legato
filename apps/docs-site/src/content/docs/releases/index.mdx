@@ -86,20 +86,27 @@ Fast triage path:
 
 ## Latest stable highlight
 
-### [1.0.0]
+### [1.1.0]
 
-- First stable **Capacitor-first** Legato release line.
+- Shared playback headers are now part of the stable public package line.
 - Stable package line:
-  - `@ddgutierrezc/legato-contract@1.0.0`
-  - `@ddgutierrezc/legato-capacitor@1.0.0`
-- Stable native distribution line called out in changelog: `dev.dgutierrez:legato-android-core:1.0.0` and `legato-ios-core v1.0.0`.
-- Runtime parity and authenticated media request scope called out as supported baseline.
+  - `@ddgutierrezc/legato-contract@1.1.0`
+  - `@ddgutierrezc/legato-capacitor@1.1.0`
+- Stable native distribution line called out in changelog: `dev.dgutierrez:legato-android-core:1.1.0` and `legato-ios-core v1.1.0`.
+- Public contract additions: `HeaderGroup` and `Track.headerGroupId`.
+- Compatibility preserved: `Track.headers` remains supported as the per-track override path.
 
 Consumer action baseline for this line:
 
-- Keep `@ddgutierrezc/legato-contract` and `@ddgutierrezc/legato-capacitor` aligned in the `1.x` line.
-- For Capacitor apps, validate queue/playback/capabilities/remote controls on real target devices.
-- For contract-only users, validate event/error/capability assumptions against your adapters.
+- Keep `@ddgutierrezc/legato-contract` and `@ddgutierrezc/legato-capacitor` aligned to `1.1.0` when adopting shared groups.
+- For Capacitor apps, validate `setup({ headerGroups })`, unknown-group fail-fast behavior, and mixed-token playlists on real devices.
+- For contract-only users, update your track modeling rules to include `headerGroupId` semantics and precedence expectations.
+
+For implementation guidance, use:
+
+- [Send Secure Track Headers](/packages/capacitor/how-to/secure-track-headers/)
+- [Track reference](/packages/contract/reference/track/)
+- [Migration and Versioning](/how-to/migration-and-versioning/)
 
 ## Previous release notes
 

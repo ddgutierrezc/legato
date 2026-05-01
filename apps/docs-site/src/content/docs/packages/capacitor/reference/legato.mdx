@@ -63,7 +63,7 @@ await Legato.addListener('remote-play', () => { ... });
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `setup()` | `Promise<void>` | Initializes the native plugin. |
+| `setup(options?)` | `Promise<void>` | Initializes the native plugin and optionally registers shared header groups. |
 | `add(options)` | `Promise<PlaybackSnapshot>` | Appends tracks to the queue. |
 | `remove(options)` | `Promise<PlaybackSnapshot>` | Removes queue entries by ID or index. |
 | `reset()` | `Promise<PlaybackSnapshot>` | Clears the queue and stops playback. |
@@ -108,7 +108,14 @@ await Legato.removeAllListeners();
 import { Legato } from '@ddgutierrezc/legato-capacitor';
 
 // Initialize (setup is idempotent via the shared native plugin)
-await Legato.setup();
+await Legato.setup({
+  headerGroups: [
+    {
+      id: 'premium-us',
+      headers: { Authorization: 'Bearer shared-token' },
+    },
+  ],
+});
 
 // Add tracks and start playback
 await Legato.add({
