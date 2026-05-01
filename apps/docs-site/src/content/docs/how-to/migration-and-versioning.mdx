@@ -50,6 +50,20 @@ Primary risk surface:
 - Verify event listeners are attached/removed correctly across component lifecycles.
 - Verify error handling uses `error.code` and logs `details` for diagnostics.
 
+## Additional checklist for 1.1.0 shared playback headers
+
+Apply this checklist when adopting `HeaderGroup` / `headerGroupId` in the 1.1.0 line:
+
+- Align both packages to `1.1.0` (`@ddgutierrezc/legato-contract` and `@ddgutierrezc/legato-capacitor`).
+- Confirm setup registration path exists and is awaited before queue admission:
+  - `audioPlayer.setup({ headerGroups })` or
+  - `Legato.setup({ headerGroups })`
+- Keep existing `Track.headers` entries where one-off overrides are still required.
+- Add an explicit validation case for unknown `headerGroupId` (must fail fast at `add()`).
+- Add an explicit validation case for precedence (`track.headers` overrides shared-group keys).
+- Add one mixed-token queue scenario (some tracks use `headerGroupId`, others use per-track `headers`).
+- Verify your diagnostics/logging pipeline does not rely on internal merged effective header state.
+
 ## Breaking-change review checklist
 
 For each release, answer these questions before production rollout:
@@ -77,3 +91,5 @@ This guide does not assume automated migration tooling. Treat each upgrade as an
 - [Compatibility](../../reference/compatibility/)
 - [Troubleshooting](../troubleshooting/)
 - [Set Up Legato Capacitor](../../packages/capacitor/how-to/set-up/)
+- [Send Secure Track Headers](../../packages/capacitor/how-to/secure-track-headers/)
+- [Track reference](../../packages/contract/reference/track/)

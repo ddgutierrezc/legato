@@ -1,13 +1,53 @@
 ---
 title: Send Secure Track Headers
-description: Use Track.headers for static per-track HTTP headers in protected media integrations.
+description: Configure per-track and shared playback headers with setup-scoped HeaderGroup values in Legato 1.1.0.
 ---
 
-Use this guide when your media URLs require static request headers (for example, bearer tokens or client identifiers).
+Use this guide when your media URLs require static request headers (for example bearer tokens or tenant keys) and you need to reduce header duplication across a queue.
 
-## 1) Model each protected track with `headers`
+In `1.1.0`, you can keep using `Track.headers` and optionally introduce `Track.headerGroupId` + `setup({ headerGroups })` for shared declarations.
 
-`Track` is re-exported by `@ddgutierrezc/legato-capacitor` from the contract package, including the `headers` field.
+## Before you start
+
+- `@ddgutierrezc/legato-contract@1.1.0`
+- `@ddgutierrezc/legato-capacitor@1.1.0`
+
+If you are upgrading from `1.0.0`, keep reading this page and then check [Migration and Versioning](../../../../how-to/migration-and-versioning/).
+
+## 1) Choose the right modeling strategy
+
+Use this decision table:
+
+| Situation | Recommended field(s) |
+|---|---|
+| One-off token for a single track | `Track.headers` only |
+| Many tracks share the same static headers | `headerGroupId` + `setup({ headerGroups })` |
+| Mostly shared headers, with one track-specific override | both (`headerGroupId` + `headers`) |
+| Dynamic token refresh/DRM/cookie lifecycle | Outside current Legato header contract |
+
+## 2) Declare shared groups at setup time
+
+`HeaderGroup` is immutable after setup. Declare your reusable static headers once:
+
+```ts
+import { audioPlayer, type HeaderGroup } from '@ddgutierrezc/legato-capacitor';
+
+const headerGroups: HeaderGroup[] = [
+  {
+    id: 'premium-us',
+    headers: {
+      Authorization: 'Bearer <shared-premium-token>',
+      'X-Tenant': 'us',
+    },
+  },
+];
+
+await audioPlayer.setup({ headerGroups });
+```
+
+## 3) Reference groups from tracks
+
+Tracks can reference a shared group using `headerGroupId`.
 
 ```ts
 import type { Track } from '@ddgutierrezc/legato-capacitor';
@@ -17,33 +57,49 @@ const tracks: Track[] = [
     id: 'episode-42',
     url: 'https://media.example.com/audio/episode-42.mp3',
     type: 'progressive',
+    headerGroupId: 'premium-us',
+  },
+];
+```
+
+Unknown group IDs are rejected at `add()` time, so treat group IDs as contract data and keep them stable.
+
+## 4) Override group keys per track when needed
+
+Per-track `headers` still works and takes precedence per key:
+
+```ts
+const tracks: Track[] = [
+  {
+    id: 'episode-42',
+    url: 'https://media.example.com/audio/episode-42.mp3',
+    type: 'progressive',
+    headerGroupId: 'premium-us',
     headers: {
-      Authorization: 'Bearer <static-token>',
-      'X-Client-Version': '1.0.0',
+      Authorization: 'Bearer <episode-specific-token>', // overrides group Authorization
+      'X-Experiment': 'A',
     },
   },
 ];
 ```
 
-## 2) Add tracks normally
+Precedence summary:
 
-```ts
-import { audioPlayer } from '@ddgutierrezc/legato-capacitor';
+- group only → group headers are applied
+- track only → track headers are applied
+- both → `{ ...group, ...track }` (track wins per key)
+- neither → no auth headers
 
-await audioPlayer.add({ tracks, startIndex: 0 });
-await audioPlayer.play();
-```
+## 5) Queue mixed-token playlists
 
-## 3) Apply headers per track, not globally
-
-In v1 contract scope, headers are isolated per track and are not shared across queue transitions. If different items need different auth context, set `headers` on each item.
+You can mix shared-group and per-track-only entries in one queue:
 
 ```ts
 const queue: Track[] = [
   {
     id: 'a',
     url: 'https://media.example.com/a.mp3',
-    headers: { Authorization: 'Bearer token-a' },
+    headerGroupId: 'premium-us',
   },
   {
     id: 'b',
@@ -51,11 +107,22 @@ const queue: Track[] = [
     headers: { Authorization: 'Bearer token-b' },
   },
 ];
+
+await audioPlayer.add({ tracks: queue, startIndex: 0 });
+await audioPlayer.play();
 ```
 
-## v1 scope and non-goals
+## 6) Security boundaries and what does NOT leak
 
-Backed by contract comments, v1 guarantees and non-goals are:
+Legato resolves effective request headers internally at queue admission/runtime boundaries.
+
+- Public snapshots/events remain public projections.
+- Do not assume internal merged request headers are exposed for inspection.
+- Keep secrets out of application logging pipelines, especially when logging track objects.
+
+## 7) Scope and non-goals
+
+Backed by contract comments and release notes, current guarantees and non-goals are:
 
 - Scope: headers are applied by Android/iOS runtime media requests for that track.
 - Scope: headers are isolated per track.
@@ -63,14 +130,29 @@ Backed by contract comments, v1 guarantees and non-goals are:
 - Non-goal: token refresh/rotation or dynamic auth callbacks.
 - Non-goal: cookie/session renewal orchestration.
 
-If your integration requires dynamic auth lifecycle management, implement that outside the current `Track.headers` contract and queue model.
+If your integration requires dynamic auth lifecycle management, implement that outside the current Legato track-header model.
+
+## 8) Upgrade guidance for 1.1.0
+
+1. Upgrade contract + capacitor packages to `1.1.0`.
+2. Keep existing `Track.headers` usage unchanged (fully supported).
+3. Introduce `headerGroups` only where you have repeated static headers.
+4. Add tests for:
+   - unknown `headerGroupId` fail-fast behavior
+   - track-level key override precedence
+   - mixed-token playlists
+5. Re-run device-level playback smoke tests on Android and iOS.
 
 ## Expected result
 
-Protected tracks can be queued and played with static per-track HTTP headers, while your integration keeps token refresh, DRM/license flows, and session renewal logic outside the v1 Legato track contract.
+Protected tracks can be queued and played with either per-track headers, shared setup-scoped header groups, or both, while keeping advanced auth lifecycle concerns outside the current Legato contract scope.
 
 ## Related pages
 
 - [Contract track reference](../../contract/reference/track/)
 - [Contract how-to: Model a Track](../../contract/how-to/model-a-track/)
+- [Audio Player API (`setup(options?)`)](../reference/audio-player/)
+- [Legato Facade API (`setup(options?)`)](../reference/legato/)
+- [Migration and Versioning](../../../../how-to/migration-and-versioning/)
+- [Releases](../../../../releases/)
 - [How-to: Play a Track](./play-track/)

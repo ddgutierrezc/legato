@@ -1,6 +1,6 @@
 ---
 title: Track
-description: Reference for Track and TrackType in @ddgutierrezc/legato-contract.
+description: Reference for Track, HeaderGroup, and TrackType in @ddgutierrezc/legato-contract.
 ---
 
 `Track` is the queue item shape shared across adapter and consumer boundaries.
@@ -16,6 +16,22 @@ const TRACK_TYPES = ['file', 'progressive', 'hls', 'dash'] as const;
 type TrackType = (typeof TRACK_TYPES)[number];
 ```
 
+## HeaderGroup
+
+`HeaderGroup` defines setup-scoped shared HTTP headers that tracks can reference through `headerGroupId`.
+
+```ts
+interface HeaderGroup {
+  id: string;
+  headers: Record<string, string>;
+}
+```
+
+| Field | Type | Required | Notes |
+|------|------|----------|-------|
+| `id` | `string` | Yes | Stable identifier referenced by `Track.headerGroupId`. |
+| `headers` | `Record<string, string>` | Yes | Static headers reused by tracks that reference this group. |
+
 ## Track fields
 
 | Field | Type | Required | Notes |
@@ -28,7 +44,19 @@ type TrackType = (typeof TRACK_TYPES)[number];
 | `artwork` | `string` | No | Optional artwork URL for lockscreen/notification surfaces. |
 | `duration` | `number` | No | Optional duration in seconds when known. |
 | `type` | `TrackType` | No | Declared media semantics used by native capability projectors. |
+| `headerGroupId` | `string` | No | Optional reference to a setup-scoped `HeaderGroup`. Unknown IDs fail fast at `add()` time. |
 | `headers` | `Record<string, string>` | No | Static per-track HTTP headers used by native playback transport. |
+
+## Header resolution precedence
+
+When `headerGroupId` and `headers` are both present, resolution happens at queue admission time:
+
+- group only → effective headers = group headers
+- track only → effective headers = track headers
+- both → effective headers = `{ ...group, ...track }` (track wins per key)
+- neither → no auth headers
+
+Important boundary: merged effective headers are runtime-internal. Consumers should treat snapshots/events as public projections and avoid relying on internal merged-request state.
 
 ## What `type` means (and does NOT mean)
 
@@ -42,6 +70,8 @@ Based on the contract comments, v1 support scope is intentionally narrow:
 
 - Applied by Android/iOS runtime media requests for that specific track.
 - Isolated per track, not shared across queue transitions.
+
+Shared groups do not replace per-track support. `headers` remains fully supported and is the per-track override path when both are present.
 
 v1 non-goals explicitly documented in the contract:
 
@@ -107,14 +137,42 @@ const track: Track = {
 };
 ```
 
+### 5) Shared header group reference
+
+```ts
+const track: Track = {
+  id: 'song-43',
+  url: 'https://cdn.example.com/song-43.mp3',
+  type: 'progressive',
+  headerGroupId: 'premium-us',
+};
+```
+
+### 6) Group + per-track override
+
+```ts
+const track: Track = {
+  id: 'song-44',
+  url: 'https://cdn.example.com/song-44.mp3',
+  type: 'progressive',
+  headerGroupId: 'premium-us',
+  headers: {
+    Authorization: 'Bearer one-off-override',
+  },
+};
+```
+
 ## Anti-patterns
 
 - Setting `type: 'hls'` or `type: 'dash'` and assuming seek is always available. Seek remains runtime-capability-dependent.
 - Omitting stable `id` values (for example randomizing per render). Queue operations (`remove`, `skip`) depend on stable identifiers and indexes.
 - Treating `headers` as shared global auth state across all queue items. Header scope is per track.
+- Assuming `headerGroupId` replaces per-track `headers`. It does not; both can coexist, with per-track keys taking precedence.
+- Expecting unknown `headerGroupId` values to be ignored. Admission fails fast at `add()` time.
 - Expecting `headers` to solve token refresh, cookie renewal, or DRM license workflows. Those are out of contract v1 scope.
 
 ## Related pages
 
 - [Snapshots](../snapshots/)
 - [Events](../events/)
+- [Capacitor setup + secure headers guide](../../../capacitor/how-to/secure-track-headers/)

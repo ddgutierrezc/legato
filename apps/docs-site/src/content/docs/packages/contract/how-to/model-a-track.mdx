@@ -1,6 +1,6 @@
 ---
 title: Model a Track
-description: Build a valid Track payload with required fields, optional metadata, type, and headers.
+description: Build a valid Track payload with required fields, optional metadata, type, headers, and shared header-group references.
 ---
 
 This guide shows how to model a `Track` object that matches the shared contract.
@@ -62,11 +62,27 @@ const protectedTrack: Track = {
 };
 ```
 
+## 5) Reference setup-scoped shared headers when reuse is needed
+
+Use `headerGroupId` when many tracks share static headers registered during setup.
+
+```ts
+const groupedTrack: Track = {
+  id: 'episode-002',
+  url: 'https://cdn.example.com/audio/episode-002.mp3',
+  type: 'progressive',
+  headerGroupId: 'premium-us',
+};
+```
+
+If you include both fields, `headers` overrides group keys per header name.
+
 ## Expected result
 
-You can now construct `Track` values that satisfy the contract using required fields first, then optional metadata, `type`, and `headers` as consumer needs evolve.
+You can now construct `Track` values that satisfy the contract using required fields first, then optional metadata, `type`, and either per-track headers, shared group references, or both.
 
 ## Related pages
 
 - [Track reference](../../reference/track/)
+- [Send Secure Track Headers (Capacitor)](../../../capacitor/how-to/secure-track-headers/)
 - [Validate Runtime Invariants](../validate-runtime-invariants/)
