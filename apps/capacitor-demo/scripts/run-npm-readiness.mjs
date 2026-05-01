@@ -201,6 +201,12 @@ export const runNpmReadiness = async ({ packageTarget = 'capacitor', commandRunn
 
   await commandRunner({
     command: 'npm',
+    args: ['install', '--no-save', '--no-package-lock', contractResult.tarballPath],
+    cwd: resolve(repoRoot, 'packages/capacitor'),
+  });
+
+  await commandRunner({
+    command: 'npm',
     args: ['run', 'build'],
     cwd: resolve(repoRoot, 'packages/capacitor'),
   });

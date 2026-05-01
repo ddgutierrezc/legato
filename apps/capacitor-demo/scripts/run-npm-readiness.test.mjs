@@ -50,6 +50,7 @@ test('npm readiness runs ergonomics validation before each package tarball inspe
 
   const externalValidationCall = calls.find((call) => /run-external-consumer-validation\.mjs/i.test(call));
   assert.match(externalValidationCall ?? '', /--proof-mode npm-readiness/i);
+  assert.equal(calls.some((call) => /npm install --no-save --no-package-lock \/tmp\/contract\.tgz/i.test(call)), true);
 });
 
 test('npm readiness propagates ergonomics validator failures', async () => {
