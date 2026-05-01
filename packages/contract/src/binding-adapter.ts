@@ -1,10 +1,24 @@
 import type { Capability } from './capability.js';
+import type { HeaderGroup } from './track.js';
 import type { LegatoError } from './errors.js';
 import type { LegatoEventName, LegatoEventPayloadMap } from './events.js';
 import type { QueueSnapshot } from './queue.js';
 import type { PlaybackSnapshot } from './snapshot.js';
 import type { PlaybackState } from './state.js';
 import type { Track } from './track.js';
+
+/**
+ * Options passed to adapter setup for initializing shared resources.
+ */
+export interface SetupOptions {
+  /**
+   * Shared header groups available for reference by tracks.
+   *
+   * Each group is immutable after setup; tracks reference groups by `headerGroupId`.
+   * Unknown group IDs fail fast at `add()` time.
+   */
+  headerGroups?: HeaderGroup[];
+}
 
 /**
  * Listener registration handle returned by adapter listener APIs.
@@ -70,7 +84,12 @@ export interface SkipToOptions {
  * Runtime-agnostic adapter contract implemented by host bindings.
  */
 export interface BindingAdapter {
-  setup(): Promise<void>;
+  /**
+   * Initializes the adapter and optionally registers shared header groups.
+   *
+   * @param options Optional setup configuration including shared header groups.
+   */
+  setup(options?: SetupOptions): Promise<void>;
   add(options: AddOptions): Promise<PlaybackSnapshot>;
   remove(options: RemoveOptions): Promise<PlaybackSnapshot>;
   reset(): Promise<PlaybackSnapshot>;

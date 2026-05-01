@@ -17,8 +17,14 @@ internal enum LegatoCapacitorMapper {
             artwork: dictionary["artwork"] as? String,
             durationMs: int64(from: dictionary["duration"]),
             headers: headers,
+            headerGroupId: dictionary["headerGroupId"] as? String,
             type: type
         )
+    }
+
+    static func setupOptions(from dictionary: [String: Any]) -> LegatoiOSSetupOptions {
+        let groups = (dictionary["headerGroups"] as? [[String: Any]] ?? []).compactMap(headerGroup(from:))
+        return LegatoiOSSetupOptions(headerGroups: groups)
     }
 
     static func snapshotToDictionary(_ snapshot: LegatoiOSPlaybackSnapshot) -> [String: Any] {
@@ -50,8 +56,17 @@ internal enum LegatoCapacitorMapper {
             "artwork": orNull(track.artwork),
             "duration": orNull(track.durationMs),
             "headers": track.headers,
+            "headerGroupId": orNull(track.headerGroupId),
             "type": orNull(track.type?.rawValue)
         ]
+    }
+
+    private static func headerGroup(from dictionary: [String: Any]) -> LegatoiOSHeaderGroup? {
+        guard let id = dictionary["id"] as? String else {
+            return nil
+        }
+
+        return LegatoiOSHeaderGroup(id: id, headers: dictionary["headers"] as? [String: String] ?? [:])
     }
 
     static func errorToDictionary(_ error: LegatoiOSError) -> [String: Any] {

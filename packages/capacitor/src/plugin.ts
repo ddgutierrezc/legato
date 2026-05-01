@@ -18,6 +18,7 @@ import type {
   QueueSnapshot,
   RemoveOptions,
   SeekToOptions,
+  SetupOptions,
   SkipToOptions,
   Track,
 } from './definitions';
@@ -55,7 +56,7 @@ interface CapabilitiesResult {
 }
 
 interface LegatoCapacitorPlugin extends Plugin {
-  setup(): Promise<OkResult>;
+  setup(options?: SetupOptions): Promise<OkResult>;
   add(options: AddOptions): Promise<SnapshotResult>;
   remove(options: RemoveOptions): Promise<SnapshotResult>;
   reset(): Promise<SnapshotResult>;
@@ -81,8 +82,8 @@ interface LegatoCapacitorPlugin extends Plugin {
 export const LegatoCapacitor = registerPlugin<LegatoCapacitorPlugin>('Legato');
 
 const sharedDelegate = {
-  async setup() {
-    await LegatoCapacitor.setup();
+  async setup(options?: SetupOptions) {
+    await LegatoCapacitor.setup(options);
   },
   async add(options: AddOptions) {
     const result = await LegatoCapacitor.add(options);

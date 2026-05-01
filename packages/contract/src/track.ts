@@ -9,6 +9,23 @@ export const TRACK_TYPES = ['file', 'progressive', 'hls', 'dash'] as const;
 export type TrackType = (typeof TRACK_TYPES)[number];
 
 /**
+ * Shared header group registered at setup time.
+ *
+ * Allows multiple tracks to reference the same auth token without duplicating
+ * the value across per-track `headers`. Groups are immutable after setup;
+ * resolution happens at queue admission time.
+ */
+export interface HeaderGroup {
+  /** Stable identifier referenced by `Track.headerGroupId`. */
+  id: string;
+  /**
+   * Static HTTP headers applied to native playback transport requests
+   * for any track that references this group.
+   */
+  headers: Record<string, string>;
+}
+
+/**
  * Queue item shape shared across adapter and consumer boundaries.
  */
 export interface Track {
@@ -36,6 +53,22 @@ export interface Track {
    * capabilities plus nullable duration signals at runtime.
    */
   type?: TrackType;
+
+  /**
+   * Optional reference to a setup-scoped shared header group.
+   *
+   * When present, the group's headers are merged with any per-track `headers`
+   * at queue admission time. Per-track values win per key.
+   *
+   * Precedence (at admission-time resolution):
+   * - group only ⇒ effective = group headers
+   * - track only ⇒ effective = track headers
+   * - both ⇒ effective = { ...group, ...track }  (track wins per key)
+   * - neither ⇒ no auth headers
+   *
+   * Unknown `headerGroupId` fails fast at `add()` time.
+   */
+  headerGroupId?: string;
 
   /**
    * Static per-track HTTP headers used by native playback transport.

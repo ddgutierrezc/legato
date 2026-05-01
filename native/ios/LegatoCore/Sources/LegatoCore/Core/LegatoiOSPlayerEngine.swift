@@ -23,6 +23,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
     }
 
     private var isSetup = false
+    private var headerGroupRegistry: [String: [String: String]] = [:]
     private var lastProgressEmission: ProgressEmissionToken?
     private var sessionSignalListenerID: UUID?
     private var isInterruptionActive = false
@@ -52,10 +53,12 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
         self.playbackRuntime = playbackRuntime
     }
 
-    public func setup() throws {
+    public func setup(options: LegatoiOSSetupOptions = LegatoiOSSetupOptions()) throws {
         if isSetup {
             return
         }
+
+        headerGroupRegistry = try buildHeaderGroupRegistry(from: options.headerGroups)
 
         registerSessionSignalListenerIfNeeded()
         sessionManager.configureSession()
@@ -74,7 +77,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
         do {
             let mappedTracks = try trackMapper.mapContractTracks(tracks)
             let queueSnapshot = try queueManager.replaceQueue(mappedTracks, startIndex: startIndex)
-            try playbackRuntime.replaceQueue(items: mappedTracks.map(toRuntimeTrackSource), startIndex: startIndex)
+            try playbackRuntime.replaceQueue(items: try mappedTracks.map(toRuntimeTrackSource), startIndex: startIndex)
             let runtimeSnapshot = playbackRuntime.snapshot()
             let currentTrack = queueManager.getCurrentTrack()
             let currentState = snapshotStore.getPlaybackSnapshot().state
@@ -153,7 +156,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
 
         let nextQueue = try queueManager.replaceQueue(mergedItems, startIndex: startIndex)
         try performRuntimeOperation {
-            try playbackRuntime.replaceQueue(items: mergedItems.map(toRuntimeTrackSource), startIndex: startIndex)
+            try playbackRuntime.replaceQueue(items: try mergedItems.map(toRuntimeTrackSource), startIndex: startIndex)
         }
 
         let runtimeSnapshot = playbackRuntime.snapshot()
@@ -190,7 +193,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
         let resolvedStartIndex = previousQueue.items.count + (startIndex ?? 0)
         let nextQueue = try queueManager.replaceQueue(mergedItems, startIndex: resolvedStartIndex)
         try performRuntimeOperation {
-            try playbackRuntime.replaceQueue(items: mergedItems.map(toRuntimeTrackSource), startIndex: resolvedStartIndex)
+            try playbackRuntime.replaceQueue(items: try mergedItems.map(toRuntimeTrackSource), startIndex: resolvedStartIndex)
         }
 
         let runtimeSnapshot = playbackRuntime.snapshot()
@@ -254,7 +257,7 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
             currentTrack = queueManager.getCurrentTrack()
             currentIndexFallback = nextIndex
             try performRuntimeOperation {
-                try playbackRuntime.replaceQueue(items: items.map(toRuntimeTrackSource), startIndex: nextIndex)
+                try playbackRuntime.replaceQueue(items: try items.map(toRuntimeTrackSource), startIndex: nextIndex)
             }
         }
 
@@ -490,8 +493,47 @@ public final class LegatoiOSPlayerEngine: LegatoiOSPlaybackRuntimeObserver {
         eventEmitter.emit(name: .playbackEnded, payload: .playbackEnded(snapshot: endedSnapshot))
     }
 
-    private func toRuntimeTrackSource(_ track: LegatoiOSTrack) -> LegatoiOSRuntimeTrackSource {
-        LegatoiOSRuntimeTrackSource(id: track.id, url: track.url, headers: track.headers, type: track.type)
+    private func toRuntimeTrackSource(_ track: LegatoiOSTrack) throws -> LegatoiOSRuntimeTrackSource {
+        LegatoiOSRuntimeTrackSource(
+            id: track.id,
+            url: track.url,
+            headers: try resolveEffectiveHeaders(for: track),
+            type: track.type
+        )
+    }
+
+    private func resolveEffectiveHeaders(for track: LegatoiOSTrack) throws -> [String: String] {
+        guard let headerGroupId = track.headerGroupId?.trimmingCharacters(in: .whitespacesAndNewlines), !headerGroupId.isEmpty else {
+            return track.headers
+        }
+
+        guard let groupHeaders = headerGroupRegistry[headerGroupId] else {
+            throw LegatoiOSError(
+                code: .loadFailed,
+                message: "Unknown headerGroupId '\(headerGroupId)' for track '\(track.id)'"
+            )
+        }
+
+        return groupHeaders.merging(track.headers) { _, trackValue in trackValue }
+    }
+
+    private func buildHeaderGroupRegistry(from groups: [LegatoiOSHeaderGroup]) throws -> [String: [String: String]] {
+        var registry: [String: [String: String]] = [:]
+
+        for group in groups {
+            let normalizedId = group.id.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !normalizedId.isEmpty else {
+                throw LegatoiOSError(code: .loadFailed, message: "headerGroups.id must be non-empty")
+            }
+
+            guard registry[normalizedId] == nil else {
+                throw LegatoiOSError(code: .loadFailed, message: "Duplicate headerGroups.id '\(normalizedId)'")
+            }
+
+            registry[normalizedId] = group.headers
+        }
+
+        return registry
     }
 
     private func guardSetup() throws {

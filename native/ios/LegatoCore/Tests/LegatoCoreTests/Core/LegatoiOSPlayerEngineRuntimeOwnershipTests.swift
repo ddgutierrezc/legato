@@ -116,6 +116,130 @@ final class LegatoiOSPlayerEngineRuntimeOwnershipTests: XCTestCase {
         XCTAssertEqual(runtime.selectIndexHistory.last, 2)
     }
 
+    func testSharedHeaderGroupResolutionMergesTrackHeadersWithTrackPrecedence() throws {
+        let runtime = OwnershipFakePlaybackRuntime()
+        let emitter = LegatoiOSEventEmitter()
+        let engine = makeEngine(runtime: runtime, emitter: emitter)
+
+        try engine.setup(
+            options: LegatoiOSSetupOptions(
+                headerGroups: [
+                    LegatoiOSHeaderGroup(id: "group-a", headers: ["Authorization": "Bearer A", "X-Tenant": "tenant-a"])
+                ]
+            )
+        )
+
+        _ = try engine.add(
+            tracks: [
+                makeTrack(
+                    id: "track-1",
+                    headerGroupId: "group-a",
+                    headers: ["Authorization": "Bearer override", "X-Track": "yes"]
+                )
+            ]
+        )
+
+        let runtimeTrack = try XCTUnwrap(runtime.replaceQueueItemsHistory.last?.first)
+        XCTAssertEqual(runtimeTrack.headers["Authorization"], "Bearer override")
+        XCTAssertEqual(runtimeTrack.headers["X-Tenant"], "tenant-a")
+        XCTAssertEqual(runtimeTrack.headers["X-Track"], "yes")
+    }
+
+    func testUnknownHeaderGroupFailsFastAndDoesNotMutateQueue() throws {
+        let runtime = OwnershipFakePlaybackRuntime()
+        let emitter = LegatoiOSEventEmitter()
+        let engine = makeEngine(runtime: runtime, emitter: emitter)
+
+        try engine.setup(options: LegatoiOSSetupOptions(headerGroups: []))
+
+        XCTAssertThrowsError(
+            try engine.add(tracks: [makeTrack(id: "track-1", headerGroupId: "missing-group")])
+        ) { error in
+            guard let mapped = error as? LegatoiOSError else {
+                return XCTFail("Expected LegatoiOSError")
+            }
+
+            XCTAssertEqual(mapped.code, .loadFailed)
+            XCTAssertTrue(mapped.message.contains("headerGroupId"))
+        }
+
+        XCTAssertEqual(engine.snapshot().queue.items.count, 0)
+    }
+
+    func testMixedTokenPlaylistIsolationKeepsDistinctAuthorizationPerTrack() throws {
+        let runtime = OwnershipFakePlaybackRuntime()
+        let emitter = LegatoiOSEventEmitter()
+        let engine = makeEngine(runtime: runtime, emitter: emitter)
+
+        try engine.setup(
+            options: LegatoiOSSetupOptions(
+                headerGroups: [
+                    LegatoiOSHeaderGroup(id: "group-a", headers: ["Authorization": "Bearer A"]),
+                    LegatoiOSHeaderGroup(id: "group-b", headers: ["Authorization": "Bearer B"])
+                ]
+            )
+        )
+
+        _ = try engine.add(
+            tracks: [
+                makeTrack(id: "track-a", headerGroupId: "group-a"),
+                makeTrack(id: "track-b", headerGroupId: "group-b"),
+                makeTrack(id: "track-public")
+            ]
+        )
+
+        let runtimeTracks = try XCTUnwrap(runtime.replaceQueueItemsHistory.last)
+        XCTAssertEqual(runtimeTracks[0].headers["Authorization"], "Bearer A")
+        XCTAssertEqual(runtimeTracks[1].headers["Authorization"], "Bearer B")
+        XCTAssertNil(runtimeTracks[2].headers["Authorization"])
+    }
+
+    func testBackwardCompatibilityTrackOnlyHeadersStillAppliedWithoutHeaderGroup() throws {
+        let runtime = OwnershipFakePlaybackRuntime()
+        let emitter = LegatoiOSEventEmitter()
+        let engine = makeEngine(runtime: runtime, emitter: emitter)
+
+        try engine.setup(options: LegatoiOSSetupOptions(headerGroups: []))
+
+        _ = try engine.add(
+            tracks: [
+                makeTrack(id: "track-1", headers: ["Authorization": "Bearer track-only"])
+            ]
+        )
+
+        let runtimeTrack = try XCTUnwrap(runtime.replaceQueueItemsHistory.last?.first)
+        XCTAssertEqual(runtimeTrack.headers["Authorization"], "Bearer track-only")
+    }
+
+    func testSetupHeaderGroupsAreImmutableAfterInitialSetup() throws {
+        let runtime = OwnershipFakePlaybackRuntime()
+        let emitter = LegatoiOSEventEmitter()
+        let engine = makeEngine(runtime: runtime, emitter: emitter)
+
+        try engine.setup(
+            options: LegatoiOSSetupOptions(
+                headerGroups: [LegatoiOSHeaderGroup(id: "group-a", headers: ["Authorization": "Bearer A"])]
+            )
+        )
+
+        try engine.setup(
+            options: LegatoiOSSetupOptions(
+                headerGroups: [LegatoiOSHeaderGroup(id: "group-b", headers: ["Authorization": "Bearer B"])]
+            )
+        )
+
+        XCTAssertThrowsError(
+            try engine.add(tracks: [makeTrack(id: "track-1", headerGroupId: "group-b")])
+        ) { error in
+            guard let mapped = error as? LegatoiOSError else {
+                return XCTFail("Expected LegatoiOSError")
+            }
+
+            XCTAssertEqual(mapped.code, .loadFailed)
+            XCTAssertTrue(mapped.message.contains("Unknown headerGroupId"))
+        }
+    }
+
     private func makeEngine(runtime: OwnershipFakePlaybackRuntime, emitter: LegatoiOSEventEmitter) -> LegatoiOSPlayerEngine {
         LegatoiOSPlayerEngine(
             queueManager: LegatoiOSQueueManager(),
@@ -131,13 +255,19 @@ final class LegatoiOSPlayerEngineRuntimeOwnershipTests: XCTestCase {
         )
     }
 
-    private func makeTrack(id: String) -> LegatoiOSTrack {
+    private func makeTrack(
+        id: String,
+        headerGroupId: String? = nil,
+        headers: [String: String] = [:]
+    ) -> LegatoiOSTrack {
         LegatoiOSTrack(
             id: id,
             url: "https://example.com/\(id).mp3",
             title: id,
             artist: "Legato",
-            durationMs: 1_000
+            durationMs: 1_000,
+            headers: headers,
+            headerGroupId: headerGroupId
         )
     }
 }
