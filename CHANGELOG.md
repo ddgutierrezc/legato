@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - GitHub Release communications contract (facts + required human narrative) wired to release-control evidence.
 - Canonical `1.0.0` decision artifacts published under `docs/releases/`: criteria (`v1-release-criteria-v1.md`), gap matrix (`v1-release-gap-matrix-v1.md`), deferrals (`v1-release-deferral-register-v1.md`), and final verdict record (`v1-release-go-no-go-record-v1.md`).
 
+## [1.1.0] - 2026-05-01
+
+### Added
+- Shared playback headers are now part of the public Legato contract and runtime package line.
+- Stable public package line:
+  - `@ddgutierrezc/legato-contract@1.1.0`
+  - `@ddgutierrezc/legato-capacitor@1.1.0`
+- Stable native distribution line:
+  - `dev.dgutierrez:legato-android-core:1.1.0`
+  - `legato-ios-core v1.1.0`
+- Smoke/report validation now enforces shared group A/B coverage, override precedence, public-track non-leakage, and mixed-token playlist behavior.
+
+### Changed
+- Consumers can now declare immutable `HeaderGroup` values once in setup and reference them from `Track.headerGroupId` across Android and iOS runtime flows.
+- Android and iOS now resolve shared playback headers at admission time with fail-fast unknown-group validation and per-track override precedence.
+
+### Fixed
+- Removed repeated per-track static auth duplication for mixed-token playlists by introducing verified shared header-group support.
+- Preserved secret boundaries by keeping merged effective headers internal while maintaining public snapshot/event shapes.
+
+### Security
+- Shared header groups remain static setup-time declarations; advanced DRM, token refresh, and other dynamic auth flows remain explicitly out of scope.
+
 ## [contract-publish-1-1-0-001] - 2026-05-01
 
 ### Added
