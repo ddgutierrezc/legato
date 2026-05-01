@@ -40,8 +40,8 @@ jobs:
           FRESH_HEAD_CLOSEOUT_OK: ${{ inputs.fresh_head_closeout_ok }}
         run: |
           set -euo pipefail
-          if [[ "$RELEASE_PACKET_SCHEMA" != "release-execution-packet/v1" ]]; then
-            echo "MISSING_RELEASE_PACKET: expected release-execution-packet/v1, got '$RELEASE_PACKET_SCHEMA'" >&2
+          if [[ "$RELEASE_PACKET_SCHEMA" != "release-execution-packet/v1" && "$RELEASE_PACKET_SCHEMA" != "release-execution-packet/v2" ]]; then
+            echo "MISSING_RELEASE_PACKET: expected release-execution-packet/v1 or v2, got '$RELEASE_PACKET_SCHEMA'" >&2
             exit 1
           fi
           if [[ "$RECONCILIATION_OK" != "true" ]]; then
