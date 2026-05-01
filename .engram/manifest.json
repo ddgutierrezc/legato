@@ -160,6 +160,14 @@
       "sessions": 2,
       "memories": 3,
       "prompts": 9
+    },
+    {
+      "id": "7aded372",
+      "created_by": "screi",
+      "created_at": "2026-05-01T17:58:44Z",
+      "sessions": 6,
+      "memories": 21,
+      "prompts": 10
     }
   ]
 }
