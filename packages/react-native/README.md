@@ -2,6 +2,40 @@
 
 Expo Modules binding package for Legato host apps.
 
+## Expo config plugin (milestone 1 baseline)
+
+Add `"@ddgutierrezc/legato-react-native"` to your Expo plugins list to enable baseline native wiring during prebuild.
+
+```json
+{
+  "expo": {
+    "plugins": ["@ddgutierrezc/legato-react-native"]
+  }
+}
+```
+
+### What this plugin automates
+
+- Automates native baseline wiring for Expo prebuild/dev-build hosts.
+- iOS: ensures `UIBackgroundModes` includes `audio` exactly once.
+- Android: ensures foreground-service permissions and a valid `expo.modules.legato.LegatoPlaybackService` manifest declaration.
+
+### Milestone-1 option surface
+
+- Use the plugin as a plain string entry: `"@ddgutierrezc/legato-react-native"`.
+- Milestone 1 does not expose advanced option knobs (no custom channels, no service class overrides, no arbitrary plist/manifest patch options).
+
+### What this plugin does NOT automate
+
+- Does not automate runtime playback orchestration (you still call runtime APIs in app code).
+- Does not automate lifecycle handling policy (you still register lifecycle listeners and validate behavior in your app).
+- Does not guarantee OEM-specific background reliability beyond baseline native wiring.
+
+### Host boundary
+
+- Expo Go is not supported for native playback validation.
+- Supported host for this claim is Expo dev build generated via `expo prebuild` and run with `expo run:ios` / `expo run:android`.
+
 # API documentation
 
 - [Documentation for the latest stable release](https://docs.expo.dev/versions/latest/sdk/@ddgutierrezc/legato-react-native/)

@@ -11,12 +11,32 @@
 - FAIL if `package.json` does not expose `readiness:phase4.3` script for release gating.
 - FAIL if status normalization does not mark runtime proof as `proven` for both iOS and Android when dual-platform evidence exists.
 - Config plugin decision record: currently **not required in Batch 2** (autolinking + prebuild defaults are sufficient for this batch).
+- FAIL if prebuild native diff checklist is missing or incomplete at `apps/expo-demo/docs/evidence/plugin-prebuild-diff-checklist.md`.
 
 ## Required Host Validation Commands
 
 - `expo prebuild`
 - `expo run:ios`
 - `expo run:android`
+
+## Required Config Plugin Integration Evidence
+
+- Record `expo prebuild --clean` output context and timestamp.
+- Info.plist diff expected: `UIBackgroundModes` includes `audio` exactly once.
+- AndroidManifest.xml diff expected: permissions `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `WAKE_LOCK` present.
+- AndroidManifest.xml diff expected: one `expo.modules.legato.LegatoPlaybackService` service node with `android:exported="false"` and `android:foregroundServiceType="mediaPlayback"`.
+- Evidence path: `apps/expo-demo/docs/evidence/plugin-prebuild-diff-checklist.md`.
+
+## Manual Android conflict resolution
+
+If your app previously added manual manifest edits for `expo.modules.legato.LegatoPlaybackService`, align them to the plugin contract before re-running prebuild:
+
+1. Open `android/app/src/main/AndroidManifest.xml`.
+2. Remove duplicate or incompatible `expo.modules.legato.LegatoPlaybackService` entries.
+3. Keep exactly one service node for `expo.modules.legato.LegatoPlaybackService`.
+4. Ensure the remaining node includes `android:exported="false"`.
+5. Ensure the remaining node includes `android:foregroundServiceType="mediaPlayback"`.
+6. Re-run `expo prebuild --clean` and confirm the native diff still matches the checklist above.
 
 ## Required Smoke Evidence
 

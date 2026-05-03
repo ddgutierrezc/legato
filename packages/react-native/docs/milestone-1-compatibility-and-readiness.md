@@ -7,6 +7,20 @@ This document defines what can be claimed today with validated dual-platform run
 - Expo Go is NOT valid runtime evidence for custom native binding behavior.
 - Native claims require `expo prebuild` plus both dev-build runs: `expo run:ios` and `expo run:android`.
 
+## Responsibility split
+
+### Plugin-owned automation
+
+- Inject iOS `UIBackgroundModes: ["audio"]` idempotently during prebuild.
+- Inject Android baseline permissions for foreground media playback.
+- Normalize one valid `expo.modules.legato.LegatoPlaybackService` manifest declaration.
+
+### Developer-owned runtime responsibilities
+
+- Integrate runtime API calls (setup/play/pause/seek/queue operations) in app code.
+- Register lifecycle listeners and validate foreground/background/interruption behavior.
+- Execute release validation with real host runs and retain evidence links for both platforms.
+
 ## Support matrix
 
 | Platform | Host mode | Runtime proof status | Evidence link |
@@ -27,6 +41,8 @@ This document defines what can be claimed today with validated dual-platform run
    - `expo run:android`
 4. Attach logs/screenshots/video and replace placeholders with durable links.
 5. Keep `runtime proof status: proven` only when both platforms contain real artifacts and reviewer sign-off.
+6. Capture prebuild native diff evidence using:
+   - `apps/expo-demo/docs/evidence/plugin-prebuild-diff-checklist.md`
 
 ## Current status
 
