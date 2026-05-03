@@ -41,17 +41,24 @@
   "exports": {
     ".": "./build/index.js"
   },
+  "expo": {
+    "plugin": "./app.plugin.js"
+  },
   "files": [
     "build",
-    "src",
-    "android",
-    "ios",
-    "mocks",
+    "app.plugin.js",
+    "plugin",
+    "ios/LegatoModule.swift",
+    "legato-react-native.podspec",
+    "android/src",
+    "android/build.gradle",
+    "android/gradle.properties",
+    "android/settings.gradle",
     "expo-module.config.json",
     "README.md"
   ],
   "dependencies": {
-    "@ddgutierrezc/legato-contract": "^0.1.0"
+    "@ddgutierrezc/legato-contract": "^1.1.0"
   },
   "devDependencies": {
     "@types/react": "~19.1.1",
@@ -61,7 +68,7 @@
     "react-native": "0.82.1"
   },
   "peerDependencies": {
-    "@ddgutierrezc/legato-contract": "^0.1.0",
+    "@ddgutierrezc/legato-contract": "^1.1.0",
     "expo": "*",
     "react": "*",
     "react-native": "*"
