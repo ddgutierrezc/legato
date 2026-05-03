@@ -1,0 +1,10 @@
+{
+  "name": "Legato",
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["LegatoModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.legato.LegatoModule"]
+  }
+}
