@@ -2,6 +2,12 @@
 
 Expo Modules binding package for Legato host apps.
 
+## Status
+
+- Milestone 1 verified on iOS and Android Expo dev-build hosts.
+- Intended for Expo prebuild / development builds.
+- Expo Go is not supported for native playback validation.
+
 ## Expo config plugin (milestone 1 baseline)
 
 Add `"@ddgutierrezc/legato-react-native"` to your Expo plugins list to enable baseline native wiring during prebuild.
@@ -36,34 +42,52 @@ Add `"@ddgutierrezc/legato-react-native"` to your Expo plugins list to enable ba
 - Expo Go is not supported for native playback validation.
 - Supported host for this claim is Expo dev build generated via `expo prebuild` and run with `expo run:ios` / `expo run:android`.
 
-# API documentation
+## Installation
 
-- [Documentation for the latest stable release](https://docs.expo.dev/versions/latest/sdk/@ddgutierrezc/legato-react-native/)
-- [Documentation for the main branch](https://docs.expo.dev/versions/unversioned/sdk/@ddgutierrezc/legato-react-native/)
+Install the package together with the published contract package:
 
-# Installation in managed Expo projects
-
-For [managed](https://docs.expo.dev/archive/managed-vs-bare/) Expo projects, please follow the installation instructions in the [API documentation for the latest stable release](#api-documentation). If you follow the link and there is no documentation available then this library is not yet usable within managed projects &mdash; it is likely to be included in an upcoming Expo SDK release.
-
-# Installation in bare React Native projects
-
-For bare React Native projects, you must ensure that you have [installed and configured the `expo` package](https://docs.expo.dev/bare/installing-expo-modules/) before continuing.
-
-### Add the package to your npm dependencies
-
-```
-npm install @ddgutierrezc/legato-react-native
+```bash
+npm install @ddgutierrezc/legato-react-native @ddgutierrezc/legato-contract
 ```
 
-### Configure for Android
+Add the Expo plugin to your app config:
 
+```json
+{
+  "expo": {
+    "plugins": ["@ddgutierrezc/legato-react-native"]
+  }
+}
+```
 
+Then regenerate native projects and run the host app:
 
+```bash
+npx expo prebuild --clean
+npx expo run:ios
+npx expo run:android
+```
 
-### Configure for iOS
+## What remains app-owned
 
-Run `npx pod-install` after installing the npm package.
+- runtime playback orchestration in app code
+- lifecycle policy and listener integration
+- app-specific UX around playback notifications and interruptions
+- validation on your target devices and OEMs
 
-# Contributing
+## Package contents
+
+- Expo config plugin export via `app.plugin.js`
+- JavaScript binding surface under `build/**`
+- iOS native module file `ios/LegatoModule.swift`
+- CocoaPods spec `legato-react-native.podspec`
+- Android native module and playback service scaffolding under `android/src/**`
+
+## Repository
+
+- Source: https://github.com/ddgutierrezc/legato/tree/main/packages/react-native
+- Issues: https://github.com/ddgutierrezc/legato/issues
+
+## Contributing
 
 Contributions are very welcome! Please refer to guidelines described in the [contributing guide]( https://github.com/expo/expo#contributing).

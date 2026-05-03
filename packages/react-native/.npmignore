@@ -6,6 +6,7 @@
 
 # Keep publish payload limited to runtime module artifacts
 /android/app/
+/plugin/
 /src/
 /example/
 /docs/
@@ -22,3 +23,5 @@ __tests__
 /android/src/androidTest/
 /android/src/test/
 /android/build/
+/build/**/*.map
+/build/tsconfig.tsbuildinfo

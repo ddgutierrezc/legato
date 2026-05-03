@@ -45,9 +45,9 @@
     "plugin": "./app.plugin.js"
   },
   "files": [
-    "build",
+    "build/**/*.js",
+    "build/**/*.d.ts",
     "app.plugin.js",
-    "plugin",
     "ios/LegatoModule.swift",
     "legato-react-native.podspec",
     "android/src",
