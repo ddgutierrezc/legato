@@ -1,5 +1,5 @@
 import configPlugins from 'expo/config-plugins.js';
-import type { AndroidConfig, ConfigPlugin } from 'expo/config-plugins';
+import type { AndroidConfig as ExpoAndroidConfig, ConfigPlugin } from 'expo/config-plugins';
 
 const { AndroidConfig, withAndroidManifest } = configPlugins;
 
@@ -11,7 +11,7 @@ const REQUIRED_PERMISSIONS = [
 
 const SERVICE_CLASS = 'expo.modules.legato.LegatoPlaybackService';
 
-type AndroidManifest = AndroidConfig.Manifest.AndroidManifest;
+type AndroidManifest = ExpoAndroidConfig.Manifest.AndroidManifest;
 
 function ensurePermission(manifest: AndroidManifest, permission: string): void {
   const permissions = manifest.manifest['uses-permission'] ?? [];
