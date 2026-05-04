@@ -38,6 +38,7 @@ on:
         options:
           - capacitor
           - contract
+          - react-native
 
 permissions:
   contents: write
@@ -292,17 +293,10 @@ jobs:
       package_target: ${{ inputs.npm_package_target }}
     secrets: inherit
 
-  aggregate-release-summary:
+  release-communications:
     if: ${{ always() }}
     needs: [validate-dispatch, preflight-completeness, android-lane, ios-lane, npm-lane]
     runs-on: ubuntu-latest
-    outputs:
-      release_notes_markdown: ${{ steps.release-communications.outputs.release_notes_markdown }}
-      release_tag: ${{ steps.release-communications.outputs.release_tag }}
-      release_title: ${{ steps.release-communications.outputs.release_title }}
-      release_packet_schema: ${{ steps.release-communications.outputs.release_packet_schema }}
-      reconciliation_ok: ${{ steps.release-communications.outputs.reconciliation_ok }}
-      fresh_head_closeout_ok: ${{ steps.release-communications.outputs.fresh_head_closeout_ok }}
     defaults:
       run:
         working-directory: apps/capacitor-demo
@@ -326,7 +320,7 @@ jobs:
           name: release-packet-${{ inputs.release_id }}
           path: apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}
 
-      - name: Build aggregated summary
+      - name: Build release summary artifacts
         env:
           SELECTED_TARGETS_JSON: ${{ needs.validate-dispatch.outputs.targets_json }}
           ANDROID_MODE: ${{ needs.validate-dispatch.outputs.android_mode }}
@@ -506,14 +500,6 @@ jobs:
           echo "reconciliation_ok=$reconciliation_ok" >> "$GITHUB_OUTPUT"
           echo "fresh_head_closeout_ok=$closeout_ok" >> "$GITHUB_OUTPUT"
 
-          {
-            echo 'release_notes_markdown<<EOF'
-            cat "./artifacts/release-control/${RELEASE_ID}/github-release.md"
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-          echo "release_tag=release/${RELEASE_ID}" >> "$GITHUB_OUTPUT"
-          echo "release_title=Release ${RELEASE_ID}" >> "$GITHUB_OUTPUT"
-
       - name: Upload release notes reconciliation artifact
         uses: actions/upload-artifact@v7
         with:
@@ -541,15 +527,9 @@ jobs:
           name: release-derivative-notes-${{ inputs.release_id }}
           path: docs/releases/notes/${{ inputs.release_id }}-ios-derivative.md
 
-  publish-github-release-notes:
-    needs: aggregate-release-summary
-    if: ${{ needs.aggregate-release-summary.result == 'success' }}
-    uses: ./.github/workflows/release-github-notes.yml
-    with:
-      release_id: ${{ inputs.release_id }}
-      release_tag: ${{ needs.aggregate-release-summary.outputs.release_tag }}
-      release_title: ${{ needs.aggregate-release-summary.outputs.release_title }}
-      release_notes_markdown: ${{ needs.aggregate-release-summary.outputs.release_notes_markdown }}
-      release_packet_schema: ${{ needs.aggregate-release-summary.outputs.release_packet_schema }}
-      reconciliation_ok: ${{ needs.aggregate-release-summary.outputs.reconciliation_ok }}
-      fresh_head_closeout_ok: ${{ needs.aggregate-release-summary.outputs.fresh_head_closeout_ok }}
+      - name: Manual canonical GitHub release reminder
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Canonical GitHub release publication is intentionally manual."
+          echo "Use gh release create/edit with apps/capacitor-demo/artifacts/release-control/${{ inputs.release_id }}/github-release.md after this workflow passes."

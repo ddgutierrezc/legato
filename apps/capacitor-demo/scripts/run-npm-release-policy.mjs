@@ -6,7 +6,7 @@ import { runNpmReleaseExecution } from './release-npm-execution.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ARTIFACTS_DIR = resolve(scriptDir, '../artifacts/npm-release-v1');
-const VALID_PACKAGE_TARGETS = new Set(['capacitor', 'contract']);
+const VALID_PACKAGE_TARGETS = new Set(['capacitor', 'contract', 'react-native']);
 
 const toIsoTimestamp = () => new Date().toISOString();
 
@@ -38,7 +38,7 @@ export const runNpmReleasePolicy = async ({
     failures.push('mode must be one of readiness, release-candidate, protected-publish.');
   }
   if (!VALID_PACKAGE_TARGETS.has(normalizedPackageTarget)) {
-    failures.push('package_target must be one of capacitor, contract.');
+    failures.push('package_target must be one of capacitor, contract, react-native.');
   }
 
   if (normalizedMode === 'protected-publish' && !String(publishIntentEvidence).trim()) {

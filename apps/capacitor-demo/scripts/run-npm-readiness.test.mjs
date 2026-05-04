@@ -6,8 +6,41 @@ import { runNpmReadiness } from './run-npm-readiness.mjs';
 test('npm readiness rejects unsupported package target values before running commands', async () => {
   await assert.rejects(
     runNpmReadiness({ packageTarget: 'not-real' }),
-    /package_target must be one of capacitor, contract/i,
+    /package_target must be one of capacitor, contract, react-native/i,
   );
+});
+
+test('npm readiness react-native target validates react-native tarball without cross-package fixture', async () => {
+  const calls = [];
+  const commandRunner = async ({ command, args }) => {
+    const call = [command, ...args].join(' ');
+    calls.push(call);
+
+    if (command === 'node' && args.some((arg) => /inspect-tarball\.mjs$/i.test(arg))) {
+      const profile = args[args.indexOf('--profile') + 1];
+      return {
+        stdout: JSON.stringify({ status: 'PASS', profile, tarballPath: `/tmp/${profile}.tgz` }),
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+
+    if (command === 'node' && args.some((arg) => /assert-package-entries\.mjs$/i.test(arg))) {
+      return { stdout: JSON.stringify({ status: 'PASS' }), stderr: '', exitCode: 0 };
+    }
+
+    return { stdout: '', stderr: '', exitCode: 0 };
+  };
+
+  const result = await runNpmReadiness({ packageTarget: 'react-native', commandRunner });
+
+  assert.equal(result.package_target, 'react-native');
+  assert.equal(result.readiness_profile, 'react-native-only');
+  assert.equal(result.capacitorResult, null);
+  assert.equal(calls.some((call) => /packages\/react-native/i.test(call)), true);
+  assert.equal(calls.some((call) => /inspect-tarball\.mjs.*--profile react-native/i.test(call)), true);
+  assert.equal(calls.some((call) => /assert-package-entries\.mjs.*--profile react-native/i.test(call)), true);
+  assert.equal(calls.some((call) => /run-external-consumer-validation\.mjs/i.test(call)), false);
 });
 
 test('npm readiness runs ergonomics validation before each package tarball inspection', async () => {
