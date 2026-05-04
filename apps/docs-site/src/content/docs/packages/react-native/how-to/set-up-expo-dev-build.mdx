@@ -1,0 +1,59 @@
+---
+title: How to set up Expo dev build hosts
+description: Install and configure @ddgutierrezc/legato-react-native for supported host validation.
+---
+
+## Prerequisites
+
+- Expo app project where you can run `expo prebuild`, `expo run:ios`, and `expo run:android`.
+- iOS and/or Android local build tooling already working for your Expo app.
+
+## Steps
+
+1. Install package dependencies.
+
+```bash
+npm install @ddgutierrezc/legato-react-native @ddgutierrezc/legato-contract
+```
+
+2. Register the plugin in Expo config.
+
+```json
+{
+  "expo": {
+    "plugins": ["@ddgutierrezc/legato-react-native"]
+  }
+}
+```
+
+3. Regenerate native projects.
+
+```bash
+npx expo prebuild --clean
+```
+
+4. Build and run iOS host.
+
+```bash
+npx expo run:ios
+```
+
+5. Build and run Android host.
+
+```bash
+npx expo run:android
+```
+
+## Verify plugin baseline wiring
+
+- iOS: `UIBackgroundModes` includes `audio` once.
+- Android: manifest includes required foreground-service permissions.
+- Android: one `expo.modules.legato.LegatoPlaybackService` node with `exported=false` and `foregroundServiceType=mediaPlayback`.
+
+These checks align with `packages/react-native/plugin/src/ios.ts`, `plugin/src/android.ts`, and the readiness checklist evidence contract.
+
+## Expected Result
+
+Your app runs as an Expo development build host with plugin-owned native baseline wiring applied.
+
+Native playback validation claims remain blocked until runtime evidence is recorded for both platforms.

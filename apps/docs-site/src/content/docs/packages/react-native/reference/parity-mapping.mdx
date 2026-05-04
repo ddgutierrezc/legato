@@ -1,9 +1,9 @@
 ---
 title: Parity Mapping
-description: Baseline export and semantic parity mapping from Capacitor to React Native.
+description: Baseline mapping from Capacitor surface to React Native plus evidence gates.
 ---
 
-Use this table as the auditable map for `expo-react-native-parity-v1` claims.
+Use this page as the auditable mapping for `expo-react-native-parity-v1` claims.
 
 | Capacitor baseline | React Native | Parity status | Evidence |
 |---|---|---|---|
@@ -15,6 +15,17 @@ Use this table as the auditable map for `expo-react-native-parity-v1` claims.
 | `createLegatoSync` | `createLegatoSync` | ✅ Implemented | `packages/react-native/scripts/__tests__/expo-parity-surface.test.mjs` |
 | `createAudioPlayerSync` | `createAudioPlayerSync` | ✅ Implemented | `packages/react-native/scripts/__tests__/expo-parity-surface.test.mjs` |
 
+## Semantic parity checkpoints
+
+| Checkpoint | Source |
+|---|---|
+| `start()` resync-before-subscribe behavior | `packages/react-native/src/__tests__/sync-behavior-parity.test.ts` |
+| Snapshot projection for queue/state/progress events | `packages/react-native/src/__tests__/sync-behavior-parity.test.ts` |
+| Non-projecting event behavior (`onEvent` only) | `packages/react-native/src/__tests__/sync-behavior-parity.test.ts` |
+| Listener cleanup on `stop()` | `packages/react-native/src/__tests__/sync-behavior-parity.test.ts` |
+
 ## Evidence gate reminder
 
-Passing JS/native parity assertions is necessary but not sufficient. Final parity claim is valid only when the evidence checklist in `packages/react-native/docs/evidence/parity-readiness-checklist.md` is complete for both iOS and Android dev-build hosts.
+Passing JS/native parity assertions is necessary but not sufficient.
+
+Final parity claim is valid only when all items in `packages/react-native/docs/evidence/parity-readiness-checklist.md` are complete, including dual-platform Expo dev-build host evidence.

@@ -1,0 +1,39 @@
+---
+title: Legato Facade
+description: Reference for the Legato unified namespace facade.
+---
+
+`Legato` is exported as `LegatoApi & LegatoEventApi` and combines `audioPlayer` + `mediaSession` with a single `addListener` signature over `LegatoEventName`.
+
+## Composition
+
+In `plugin.ts`, `Legato` is composed as:
+
+```ts
+export const Legato = {
+  ...audioPlayer,
+  ...mediaSession,
+  addListener: addLegatoListener,
+  removeAllListeners: sharedDelegate.removeAllListeners,
+};
+```
+
+## Interface summary
+
+| Surface | Included |
+|---|---|
+| Playback setup, queue, transport, queries, capabilities | ✅ from `audioPlayer` |
+| Media-session listener surface | ✅ from `mediaSession` |
+| Unified listener (`LegatoEventName`) | ✅ via `Legato.addListener` |
+
+## Listener behavior
+
+`Legato.addListener` delegates to `LegatoModule.addListener`, like the namespace-specific helpers.
+
+```ts
+const h = await Legato.addListener('playback-state-changed', ({ state }) => {
+  // sync your UI store
+});
+
+await h.remove();
+```

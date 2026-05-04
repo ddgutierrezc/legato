@@ -15,6 +15,7 @@ For the canonical package support view, use the [Compatibility and Support Matri
 |---|---|---|
 | Shared playback semantics across layers (events, snapshots, invariants) | [`@ddgutierrezc/legato-contract`](contract/) | You stabilize app vocabulary and behavior assumptions before runtime wiring. |
 | Native playback runtime integration in a Capacitor app (commands, media session, listeners) | [`@ddgutierrezc/legato-capacitor`](capacitor/) + `@ddgutierrezc/legato-contract` | You get runtime APIs while keeping the same shared contract model across app layers. |
+| Native playback runtime integration in an Expo React Native app | [`@ddgutierrezc/legato-react-native`](react-native/) + `@ddgutierrezc/legato-contract` | You get Expo Modules runtime bindings plus explicit host and parity evidence boundaries. |
 
 ## Package guides
 
@@ -24,6 +25,9 @@ For the canonical package support view, use the [Compatibility and Support Matri
   </Card>
   <Card title="Capacitor package" icon="play" href="/packages/capacitor/">
     Capacitor runtime integration for `audioPlayer`, `mediaSession`, listeners, and sync helpers.
+  </Card>
+  <Card title="React Native package" icon="smartphone" href="/packages/react-native/">
+    Expo Modules runtime binding with parity-scoped API, host boundaries, and evidence-guided validation.
   </Card>
 </CardGrid>
 

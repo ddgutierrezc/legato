@@ -1,0 +1,36 @@
+---
+title: Plugin vs App Responsibilities
+description: Ownership split between Expo config plugin automation and runtime app code.
+---
+
+This package intentionally separates build-time automation from runtime behavior ownership.
+
+## Plugin-owned responsibilities
+
+From `plugin/src/index.ts`, `plugin/src/ios.ts`, and `plugin/src/android.ts`:
+
+- Apply iOS `UIBackgroundModes` baseline (`audio`).
+- Apply Android foreground media playback permissions.
+- Ensure one valid `expo.modules.legato.LegatoPlaybackService` declaration.
+
+These are prebuild-time native file transformations.
+
+## App-owned responsibilities
+
+From package README + readiness docs:
+
+- Call runtime APIs (`setup`, queue mutation, transport commands).
+- Register and remove listeners in app lifecycle.
+- Decide UX behavior for progress, remote commands, and error handling.
+- Validate your own release/device targets and preserve evidence.
+
+## Boundary enforcement signals
+
+- `plugin/src/__tests__/boundary.test.ts` guards build-time-only boundary (no runtime bridge imports).
+- `plugin/src/__tests__/docs-readiness.test.ts` asserts docs communicate this split.
+
+## Practical implication
+
+If playback behavior is incorrect in your app, plugin success alone does not prove runtime correctness. You must inspect app wiring and host validation evidence.
+
+Related: [Expo Config Plugin reference](../reference/expo-config-plugin/) and [Runtime Host Boundaries](./runtime-host-boundaries/).

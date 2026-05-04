@@ -1,0 +1,45 @@
+---
+title: Expo Config Plugin
+description: Build-time plugin behavior and boundaries for @ddgutierrezc/legato-react-native.
+---
+
+The package exports a run-once Expo config plugin from `plugin/src/index.ts`.
+
+## Plugin entry
+
+```ts
+plugins: ['@ddgutierrezc/legato-react-native']
+```
+
+`LegatoExpoConfigPluginOptions` is currently `Record<string, never>`, so milestone-1 has no public option knobs.
+
+## What the plugin modifies
+
+### iOS (`plugin/src/ios.ts`)
+
+- Ensures `UIBackgroundModes` includes `audio`.
+- Uses set semantics to avoid duplicates.
+
+### Android (`plugin/src/android.ts`)
+
+- Ensures manifest permissions:
+  - `android.permission.FOREGROUND_SERVICE`
+  - `android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK`
+  - `android.permission.WAKE_LOCK`
+- Ensures exactly one `expo.modules.legato.LegatoPlaybackService` declaration under application services with:
+  - `android:enabled="true"`
+  - `android:exported="false"`
+  - `android:foregroundServiceType="mediaPlayback"`
+
+## Boundaries
+
+| Category | In scope | Out of scope |
+|---|---|---|
+| Build-time native wiring | ✅ prebuild manifest/plist baseline | ❌ runtime playback orchestration |
+| Options | ✅ plain plugin string registration | ❌ custom channels/service-class overrides/arbitrary patch options |
+| Host claims | ✅ Expo dev build (`prebuild`, `run:ios`, `run:android`) | ❌ Expo Go native proof claims |
+
+## Test-backed guardrails
+
+- `plugin/src/__tests__/boundary.test.ts`: plugin remains build-time and avoids runtime bridge imports.
+- `plugin/src/__tests__/docs-readiness.test.ts`: docs boundary statements and readiness evidence requirements are enforced.

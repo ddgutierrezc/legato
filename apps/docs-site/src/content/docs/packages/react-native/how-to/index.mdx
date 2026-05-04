@@ -1,0 +1,25 @@
+---
+title: How-to Guides
+description: Task-oriented guides for integrating @ddgutierrezc/legato-react-native.
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <Card title="Set up Expo dev build" icon="setting">
+    **[Set Up Expo Dev Build](./set-up-expo-dev-build/)**
+    Install package + plugin and validate native host boundaries.
+  </Card>
+  <Card title="Play track and events" icon="play">
+    **[Play Track and Listen Events](./play-track-and-listen-events/)**
+    Wire setup, queue, playback, and listener teardown.
+  </Card>
+  <Card title="Sync controller" icon="sync">
+    **[Use Sync Controller](./use-sync-controller/)**
+    Mirror snapshots in app state with `createLegatoSync`.
+  </Card>
+  <Card title="Troubleshoot boundaries" icon="warning">
+    **[Troubleshoot Host and Parity Validation](./troubleshoot-host-and-parity-validation/)**
+    Resolve common host/evidence/parity blocking issues.
+  </Card>
+</CardGrid>

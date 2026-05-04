@@ -1,22 +1,103 @@
 ---
 title: React Native Package
-description: Expo React Native baseline parity package aligned to Capacitor semantics.
+description: Expo Modules runtime binding for Legato with parity-scoped docs and host boundaries.
 ---
 
-`@ddgutierrezc/legato-react-native` is the Expo Modules binding for Legato playback runtime APIs.
+import { Aside, Card, CardGrid } from '@astrojs/starlight/components';
 
-This package is delivered under a **Capacitor parity** objective: the baseline RN surface mirrors Capacitor namespaces, events, sync factories, and contract-first type semantics.
+`@ddgutierrezc/legato-react-native` is the Expo Modules binding for Legato playback on iOS and Android.
 
-## What parity means in this milestone
+This package line is documented with an explicit parity scope against `@ddgutierrezc/legato-capacitor`: same baseline exports, event constants, and sync semantics, with evidence-gated runtime claims.
+
+## Installation
+
+```bash
+npm install @ddgutierrezc/legato-react-native @ddgutierrezc/legato-contract
+```
+
+Add the Expo config plugin:
+
+```json
+{
+  "expo": {
+    "plugins": ["@ddgutierrezc/legato-react-native"]
+  }
+}
+```
+
+Generate and run native hosts:
+
+```bash
+npx expo prebuild --clean
+npx expo run:ios
+npx expo run:android
+```
+
+<Aside type="note">
+Expo Go is not a supported host for native playback validation claims in this package line.
+</Aside>
+
+## What this package exposes
 
 - Same baseline exports (`audioPlayer`, `mediaSession`, `Legato`)
 - Same baseline event constants and listener helpers
 - Same sync startup semantics (`start()` snapshot + subscribe)
-- Same in-scope boundaries for parity claims
 
-## Read the parity docs
+```ts
+import { audioPlayer, mediaSession, Legato } from '@ddgutierrezc/legato-react-native';
+import {
+  AUDIO_PLAYER_EVENTS,
+  MEDIA_SESSION_EVENTS,
+  LEGATO_EVENTS,
+  addAudioPlayerListener,
+  addMediaSessionListener,
+  addLegatoListener,
+  onPlaybackStateChanged,
+  onPlaybackActiveTrackChanged,
+  onPlaybackQueueChanged,
+  onPlaybackProgress,
+  onPlaybackEnded,
+  onPlaybackError,
+  onRemotePlay,
+  onRemotePause,
+  onRemoteNext,
+  onRemotePrevious,
+  onRemoteSeek,
+  createLegatoSync,
+  createAudioPlayerSync,
+} from '@ddgutierrezc/legato-react-native';
+```
 
-- [Parity Mapping](./reference/parity-mapping/) — capability-by-capability mapping and evidence links.
-- [Parity Boundaries](./explanation/parity-boundaries/) — in-scope and out-of-scope guardrails.
+## Documentation structure
 
-For command-level API usage examples, use the Capacitor reference as the baseline model while this RN parity line stabilizes.
+<CardGrid>
+  <Card title="Reference" icon="seti:api">
+    **[reference/](./reference/)**
+    API details for namespaces, events, sync, types, and plugin surface.
+  </Card>
+  <Card title="How-to" icon="list-check">
+    **[how-to/](./how-to/)**
+    Task-focused guides for Expo dev builds, event wiring, and sync usage.
+  </Card>
+  <Card title="Explanation" icon="lightbulb">
+    **[explanation/](./explanation/)**
+    Boundaries and responsibilities for host/runtime/parity decisions.
+  </Card>
+</CardGrid>
+
+## Scope reminders
+
+- Plugin automation is prebuild-time native baseline wiring only.
+- Playback orchestration and lifecycle policy stay app-owned.
+- Parity claims are gated by source-backed evidence docs and tests.
+
+## Start here
+
+- [API Reference](./reference/)
+- [How-to Guides](./how-to/)
+- [Parity Mapping](./reference/parity-mapping/)
+- [Parity Boundaries](./explanation/parity-boundaries/)
+
+<Aside type="note">
+For shared data contracts (`Track`, snapshots, event payload maps), see the [Contract package docs](../contract/).
+</Aside>

@@ -1,0 +1,48 @@
+---
+title: How to use sync controller
+description: Mirror playback snapshots in local state using createLegatoSync.
+---
+
+## Prerequisites
+
+- Runtime setup already integrated in app code.
+- Familiarity with `PlaybackSnapshot` projection.
+
+## Steps
+
+1. Create a controller.
+
+```ts
+const sync = createLegatoSync({
+  onSnapshot: (snapshot) => setPlaybackSnapshot(snapshot),
+  onEvent: (eventName) => console.log('event', eventName),
+});
+```
+
+2. Start sync.
+
+```ts
+await sync.start();
+```
+
+3. Read current snapshot when needed.
+
+```ts
+const current = sync.getCurrent();
+```
+
+4. Force a resync after app-specific lifecycle transitions.
+
+```ts
+await sync.resync();
+```
+
+5. Stop and cleanup.
+
+```ts
+await sync.stop();
+```
+
+## Expected Result
+
+Your app maintains a local playback snapshot that starts from `getSnapshot()` and updates from subscribed events, with deterministic cleanup on stop.

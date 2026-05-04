@@ -1,0 +1,74 @@
+---
+title: Audio Player API
+description: Reference for the audioPlayer namespace in @ddgutierrezc/legato-react-native.
+---
+
+`audioPlayer` is the playback namespace exported from `plugin.ts` and typed as `AudioPlayerApi`.
+
+## Interface
+
+```ts
+interface AudioPlayerApi {
+  setup(options?: SetupOptions): Promise<void>;
+  add(options: AddOptions): Promise<PlaybackSnapshot>;
+  remove(options: RemoveOptions): Promise<PlaybackSnapshot>;
+  reset(): Promise<PlaybackSnapshot>;
+  play(): Promise<void>;
+  pause(): Promise<void>;
+  stop(): Promise<void>;
+  seekTo(options: SeekToOptions): Promise<void>;
+  skipTo(options: SkipToOptions): Promise<PlaybackSnapshot>;
+  skipToNext(): Promise<void>;
+  skipToPrevious(): Promise<void>;
+  getState(): Promise<PlaybackState>;
+  getPosition(): Promise<number>;
+  getDuration(): Promise<number | null>;
+  getCurrentTrack(): Promise<Track | null>;
+  getQueue(): Promise<QueueSnapshot>;
+  getSnapshot(): Promise<PlaybackSnapshot>;
+  getCapabilities(): Promise<BindingCapabilitiesSnapshot>;
+  addListener<E extends AudioPlayerEventName>(
+    eventName: E,
+    listener: AudioPlayerListener<E>
+  ): Promise<BindingListenerHandle>;
+  removeAllListeners(): Promise<void>;
+}
+```
+
+## Method groups
+
+| Group | Methods |
+|---|---|
+| Setup | `setup` |
+| Queue mutation | `add`, `remove`, `reset`, `skipTo`, `skipToNext`, `skipToPrevious` |
+| Transport | `play`, `pause`, `stop`, `seekTo` |
+| Queries | `getState`, `getPosition`, `getDuration`, `getCurrentTrack`, `getQueue`, `getSnapshot`, `getCapabilities` |
+| Events | `addListener`, `removeAllListeners` |
+
+## Parameters (object methods)
+
+| Method | Parameter | Type | Required | Description |
+|---|---|---|---|---|
+| `setup` | `options.headerGroups` | `HeaderGroup[]` | ❌ | Shared header groups for tracks that reference `headerGroupId`. |
+| `add` | `options.tracks` | `Track[]` | ✅ | Tracks to append. |
+| `add` | `options.startIndex` | `number` | ❌ | Initial active index after insertion. |
+| `remove` | `options.id` | `string` | ❌ | Queue item id to remove. |
+| `remove` | `options.index` | `number` | ❌ | Queue index to remove. |
+| `seekTo` | `options.position` | `number` | ✅ | Target playback position. |
+| `skipTo` | `options.index` | `number` | ✅ | Queue index to activate. |
+
+## Return normalization
+
+`plugin.ts` accepts native bridge return variants and normalizes them before returning to callers:
+
+- `add/remove/reset/skipTo/getSnapshot`: unwrap `{ snapshot }` or direct snapshot.
+- `getState`: unwrap `{ state }` or direct state.
+- `getPosition/getDuration/getCurrentTrack/getQueue`: unwrap wrapped/object responses where present.
+
+## Minimal usage
+
+```ts
+await audioPlayer.setup();
+await audioPlayer.add({ tracks: [{ id: 't1', url: 'https://example.com/t1.mp3' }] });
+await audioPlayer.play();
+```

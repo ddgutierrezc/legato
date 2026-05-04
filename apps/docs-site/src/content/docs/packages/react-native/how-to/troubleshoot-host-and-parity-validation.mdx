@@ -1,0 +1,53 @@
+---
+title: How to troubleshoot host and parity validation
+description: Resolve common parity blockers around host mode, plugin wiring, and evidence completeness.
+---
+
+## Prerequisites
+
+- Access to the host app used for validation.
+- Access to parity/evidence docs under `packages/react-native/docs/`.
+
+## Steps
+
+1. Verify host mode first.
+
+If validation was run in Expo Go, rerun with:
+
+```bash
+npx expo prebuild --clean
+npx expo run:ios
+npx expo run:android
+```
+
+2. Verify plugin registration.
+
+Ensure Expo config includes:
+
+```json
+{
+  "expo": {
+    "plugins": ["@ddgutierrezc/legato-react-native"]
+  }
+}
+```
+
+3. Validate Android service shape.
+
+Confirm one `expo.modules.legato.LegatoPlaybackService` declaration with:
+- `android:exported="false"`
+- `android:foregroundServiceType="mediaPlayback"`
+
+4. Resolve duplicated manual Android service edits.
+
+Follow the manual conflict steps in `packages/react-native/docs/milestone-1-readiness-checklist.md` and regenerate native projects.
+
+5. Re-check parity evidence completeness.
+
+Confirm all required entries in:
+- `packages/react-native/docs/evidence/parity-readiness-checklist.md`
+- `packages/react-native/docs/evidence/phase4-3-expo-host-validation-2026-05-02.md`
+
+## Expected Result
+
+Validation is executed in supported hosts, plugin baseline wiring is aligned with source contracts, and parity claim status can be evaluated from complete evidence artifacts.
