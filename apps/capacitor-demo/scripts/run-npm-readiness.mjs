@@ -8,7 +8,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '../../..');
 const artifactsRoot = resolve(scriptDir, '../artifacts/npm-release-readiness-v1');
 const tarballDir = resolve(artifactsRoot, 'tarballs');
-const VALID_PACKAGE_TARGETS = new Set(['capacitor', 'contract']);
+const VALID_PACKAGE_TARGETS = new Set(['capacitor', 'contract', 'react-native']);
 
 const runCommand = async ({ command, args, cwd }) => new Promise((resolveResult, rejectResult) => {
   const child = spawn(command, args, {
@@ -122,7 +122,7 @@ const runContractOnlyValidation = async ({ contractTarballPath, commandRunner })
 const normalizePackageTarget = (packageTarget) => {
   const normalized = String(packageTarget ?? '').trim() || 'capacitor';
   if (!VALID_PACKAGE_TARGETS.has(normalized)) {
-    throw new Error(`package_target must be one of capacitor, contract. Received: ${normalized}`);
+    throw new Error(`package_target must be one of capacitor, contract, react-native. Received: ${normalized}`);
   }
   return normalized;
 };
@@ -189,6 +189,54 @@ export const runNpmReadiness = async ({ packageTarget = 'capacitor', commandRunn
       cross_package_validation: {
         status: 'SKIPPED',
         reason: 'contract publish readiness validates packaging + runtime import invariants for @ddgutierrezc/legato-contract without cross-package fixture requirements.',
+      },
+    };
+  }
+
+  if (normalizedPackageTarget === 'react-native') {
+    await commandRunner({
+      command: 'npm',
+      args: ['install', '--no-package-lock'],
+      cwd: resolve(repoRoot, 'packages/react-native'),
+    });
+
+    await commandRunner({
+      command: 'npm',
+      args: ['run', 'build'],
+      cwd: resolve(repoRoot, 'packages/react-native'),
+    });
+
+    await commandRunner({
+      command: 'node',
+      args: [
+        resolve(repoRoot, 'packages/capacitor/scripts/assert-package-entries.mjs'),
+        '--package-root', resolve(repoRoot, 'packages/react-native'),
+        '--profile', 'react-native',
+      ],
+      cwd: repoRoot,
+    });
+
+    const reactNativeInspection = await commandRunner({
+      command: 'node',
+      args: [
+        resolve(repoRoot, 'packages/capacitor/scripts/inspect-tarball.mjs'),
+        '--package-root', resolve(repoRoot, 'packages/react-native'),
+        '--profile', 'react-native',
+        '--pack-destination', tarballDir,
+        '--json-out', resolve(artifactsRoot, 'react-native-pack-summary.json'),
+      ],
+      cwd: repoRoot,
+    });
+
+    return {
+      package_target: normalizedPackageTarget,
+      readiness_profile: 'react-native-only',
+      contractResult,
+      capacitorResult: null,
+      reactNativeResult: parseJsonOutput(reactNativeInspection.stdout),
+      cross_package_validation: {
+        status: 'SKIPPED',
+        reason: 'react-native publish readiness validates package artifacts for @ddgutierrezc/legato-react-native without capacitor fixture coupling.',
       },
     };
   }

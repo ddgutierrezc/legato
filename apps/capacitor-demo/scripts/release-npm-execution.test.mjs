@@ -46,6 +46,28 @@ test('npm execution uses contract package target cwd when explicitly selected', 
   assert.equal(result.status, 'PASS');
 });
 
+test('npm execution uses react-native package target cwd when explicitly selected', async () => {
+  const callCwds = [];
+  const result = await runNpmReleaseExecution({
+    releaseId: 'R-2026.04.24.5-rn',
+    mode: 'protected-publish',
+    packageTarget: 'react-native',
+    commandRunner: async ({ args, cwd }) => {
+      callCwds.push({ command: args[0], cwd });
+      if (args.includes('name')) return { exitCode: 0, stdout: '"@ddgutierrezc/legato-react-native"', stderr: '' };
+      if (args.includes('version') && args[0] !== 'view') return { exitCode: 0, stdout: '"0.1.2"', stderr: '' };
+      if (args[0] === 'publish') return { exitCode: 0, stdout: 'published', stderr: '' };
+      if (args[0] === 'view') return { exitCode: 0, stdout: '"0.1.2"', stderr: '' };
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  const publishCall = callCwds.find((entry) => entry.command === 'publish');
+  assert.ok(publishCall);
+  assert.match(publishCall.cwd, /packages[\\/]react-native$/i);
+  assert.equal(result.status, 'PASS');
+});
+
 test('npm execution fails fast when package target is unsupported', async () => {
   const result = await runNpmReleaseExecution({
     releaseId: 'R-2026.04.24.6',

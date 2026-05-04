@@ -18,6 +18,7 @@ test('release npm workflow supports workflow_call and protected publish executio
   assert.match(workflow, /package_target/i);
   assert.match(workflow, /capacitor/i);
   assert.match(workflow, /contract/i);
+  assert.match(workflow, /react-native/i);
   assert.match(workflow, /environment:[\s\S]*release/i);
   assert.match(workflow, /permissions:[\s\S]*id-token:\s*write/i);
   assert.match(workflow, /registry-url:\s*https:\/\/registry\.npmjs\.org/i);
@@ -28,6 +29,7 @@ test('release npm workflow supports workflow_call and protected publish executio
   assert.match(workflow, /release:npm:policy/i);
   assert.match(workflow, /--package-target/i);
   assert.match(workflow, /PACKAGE_TARGET_SCOPE/i);
+  assert.match(workflow, /capacitor\|contract\|react-native/i);
   assert.doesNotMatch(workflow, /Execute protected npm publish lane/i);
   assert.match(workflow, /npm publish --access public/i);
   assert.doesNotMatch(workflow, /NODE_AUTH_TOKEN:\s*\$\{\{ secrets\.NPM_TOKEN \}\}/i);

@@ -63,6 +63,42 @@ test('npm policy forwards explicit contract package target to execution phase', 
   assert.equal(executions[0].packageTarget, 'contract');
 });
 
+test('npm policy forwards react-native package target to execution phase', async () => {
+  const executions = [];
+  const readinessTargets = [];
+  const result = await runNpmReleasePolicy({
+    releaseId: 'R-2026.04.24.7-rn',
+    mode: 'protected-publish',
+    packageTarget: 'react-native',
+    publishIntentEvidence: 'https://github.com/org/repo/actions/runs/123#approval',
+    runReadiness: async ({ packageTarget }) => {
+      readinessTargets.push(packageTarget);
+      return {
+        status: 'PASS',
+        readiness_profile: 'react-native-only',
+        package_target: packageTarget,
+      };
+    },
+    runExecution: async (options) => {
+      executions.push(options);
+      return {
+        status: 'PASS',
+        terminal_status: 'published',
+        publish_attempted: true,
+        publish_command: 'npm publish --access public',
+        verify: { npm_view: 'PASS' },
+      };
+    },
+  });
+
+  assert.equal(result.status, 'PASS');
+  assert.equal(result.package_target, 'react-native');
+  assert.equal(result.readiness.readiness_profile, 'react-native-only');
+  assert.deepEqual(readinessTargets, ['react-native']);
+  assert.equal(executions.length, 1);
+  assert.equal(executions[0].packageTarget, 'react-native');
+});
+
 test('npm policy keeps stricter capacitor readiness gate and blocks on mismatch failures', async () => {
   const executions = [];
   const result = await runNpmReleasePolicy({

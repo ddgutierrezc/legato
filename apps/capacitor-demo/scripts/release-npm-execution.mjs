@@ -8,6 +8,7 @@ const DEFAULT_ARTIFACTS_DIR = resolve(scriptDir, '../artifacts/npm-release-v2');
 const PACKAGE_TARGET_CWD = {
   capacitor: resolve(scriptDir, '../../../packages/capacitor'),
   contract: resolve(scriptDir, '../../../packages/contract'),
+  'react-native': resolve(scriptDir, '../../../packages/react-native'),
 };
 
 const toIsoTimestamp = () => new Date().toISOString();
@@ -103,7 +104,7 @@ export const runNpmReleaseExecution = async ({
       terminal_status: 'blocked',
       publish_attempted: false,
       package_target: normalizedPackageTarget,
-      failures: ['package_target must be one of capacitor, contract.'],
+      failures: ['package_target must be one of capacitor, contract, react-native.'],
     };
   }
 

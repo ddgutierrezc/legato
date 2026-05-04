@@ -20,7 +20,7 @@ test('release control workflow exposes unified dispatch with release_id, targets
   assert.match(workflow, /target_modes:/i);
   assert.match(workflow, /npm_package_target:/i);
   assert.match(workflow, /default:\s*capacitor/i);
-  assert.match(workflow, /options:[\s\S]*-\s*capacitor[\s\S]*-\s*contract/i);
+  assert.match(workflow, /options:[\s\S]*-\s*capacitor[\s\S]*-\s*contract[\s\S]*-\s*react-native/i);
   assert.match(workflow, /release-control-contract\.mjs/i);
 });
 
@@ -44,14 +44,14 @@ test('release control workflow orchestrates android, ios, and npm with honest bo
   assert.match(workflow, /package_target:\s*\$\{\{\s*inputs\.npm_package_target\s*\}\}/i);
 });
 
-test('release control workflow emits release_id keyed final summary artifact', async () => {
+test('release control workflow emits release_id keyed release summary artifacts', async () => {
   const workflow = await readFile(workflowPath, 'utf8');
 
   assert.match(workflow, /release-preflight-completeness\.mjs/i);
   assert.match(workflow, /preflight-completeness:/i);
   assert.match(workflow, /needs:\s*\[validate-dispatch, preflight-completeness\]/i);
   assert.match(workflow, /needs\.preflight-completeness\.outputs\.ok\s*==\s*'true'/i);
-  assert.match(workflow, /aggregate-release-summary\.mjs/i);
+  assert.match(workflow, /Build release summary artifacts/i);
   assert.match(workflow, /release-execution-packet\.json/i);
   assert.match(workflow, /Upload release execution packet/i);
   assert.match(workflow, /release-packet-\$\{\{ inputs\.release_id \}\}/i);
@@ -80,7 +80,7 @@ test('release control workflow derives iOS release tag/version from native contr
   assert.doesNotMatch(workflow, /IOS_RELEASE_TAG=v0\.1\.1/i);
 });
 
-test('release control workflow passes source commit into aggregate summary output', async () => {
+test('release control workflow passes source commit into release summary output', async () => {
   const workflow = await readFile(workflowPath, 'utf8');
 
   assert.match(workflow, /source_commit/i);
@@ -88,6 +88,15 @@ test('release control workflow passes source commit into aggregate summary outpu
   assert.match(workflow, /aggregate-release-summary\.mjs/i);
   assert.match(workflow, /NPM_SUMMARY_RAW:/i);
   assert.match(workflow, /process\.env\.NPM_SUMMARY_RAW/i);
+});
+
+test('release control workflow does not publish canonical GitHub releases from Actions', async () => {
+  const workflow = await readFile(workflowPath, 'utf8');
+
+  assert.doesNotMatch(workflow, /publish-github-release-notes:/i);
+  assert.doesNotMatch(workflow, /release-github-notes\.yml/i);
+  assert.match(workflow, /Manual canonical GitHub release reminder/i);
+  assert.match(workflow, /gh release create\/edit/i);
 });
 
 test('release control workflow enforces release communications reconciliation gate', async () => {
