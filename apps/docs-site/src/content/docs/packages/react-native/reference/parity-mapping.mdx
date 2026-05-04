@@ -1,0 +1,20 @@
+---
+title: Parity Mapping
+description: Baseline export and semantic parity mapping from Capacitor to React Native.
+---
+
+Use this table as the auditable map for `expo-react-native-parity-v1` claims.
+
+| Capacitor baseline | React Native | Parity status | Evidence |
+|---|---|---|---|
+| `audioPlayer` | `audioPlayer` | ✅ Implemented | `packages/react-native/scripts/__tests__/expo-parity-surface.test.mjs` |
+| `mediaSession` | `mediaSession` | ✅ Implemented | `packages/react-native/scripts/__tests__/expo-parity-surface.test.mjs` |
+| `Legato` | `Legato` | ✅ Implemented | `packages/react-native/scripts/__tests__/expo-parity-surface.test.mjs` |
+| `AUDIO_PLAYER_EVENTS` + listeners | Same exports | ✅ Implemented | `packages/react-native/scripts/__tests__/expo-parity-surface.test.mjs` |
+| `MEDIA_SESSION_EVENTS` + listeners | Same exports | ✅ Implemented | `packages/react-native/scripts/__tests__/expo-parity-surface.test.mjs` |
+| `createLegatoSync` | `createLegatoSync` | ✅ Implemented | `packages/react-native/scripts/__tests__/expo-parity-surface.test.mjs` |
+| `createAudioPlayerSync` | `createAudioPlayerSync` | ✅ Implemented | `packages/react-native/scripts/__tests__/expo-parity-surface.test.mjs` |
+
+## Evidence gate reminder
+
+Passing JS/native parity assertions is necessary but not sufficient. Final parity claim is valid only when the evidence checklist in `packages/react-native/docs/evidence/parity-readiness-checklist.md` is complete for both iOS and Android dev-build hosts.

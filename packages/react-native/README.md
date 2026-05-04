@@ -75,6 +75,38 @@ npx expo run:android
 - app-specific UX around playback notifications and interruptions
 - validation on your target devices and OEMs
 
+## Capacitor parity mapping
+
+This milestone aligns the React Native package to the same baseline surface used by `@ddgutierrezc/legato-capacitor`.
+
+| Capacitor baseline export | React Native export | Notes |
+|---|---|---|
+| `audioPlayer` | `audioPlayer` | Command/query parity target for setup, queue mutation, transport, and snapshot queries. |
+| `mediaSession` | `mediaSession` | Remote command listener parity target. |
+| `Legato` | `Legato` | Unified facade parity target across player + media session. |
+| `AUDIO_PLAYER_EVENTS` / `MEDIA_SESSION_EVENTS` / `LEGATO_EVENTS` | same names | Event constants and listener tuple parity. |
+| `createLegatoSync` / `createAudioPlayerSync` | same names | Snapshot-first sync semantics (`start()` resync then subscribe). |
+
+## In-scope vs out-of-scope boundaries
+
+In-scope for `expo-react-native-parity-v1`:
+
+- Baseline API shape parity with Capacitor exports.
+- Public type strictness for parity-covered inputs/outputs/events.
+- Runtime semantics parity evidence in Expo dev-build hosts (iOS + Android).
+
+Out-of-scope for this milestone:
+
+- New product features not present in Capacitor baseline.
+- Expo Go runtime parity claims.
+- OEM/device-specific reliability guarantees beyond baseline host proof.
+
+## Troubleshooting parity validation
+
+- **Host mismatch**: Ensure validation runs in Expo dev builds only (`expo prebuild`, `expo run:ios`, `expo run:android`). Expo Go is not supported for native playback parity claims.
+- **Missing evidence**: Complete all required artifacts in `docs/evidence/parity-readiness-checklist.md` before claiming parity.
+- **Unexpected behavior gaps**: Record the mismatch and disposition in the evidence checklist; parity claim must stay blocked until disposition is resolved.
+
 ## Package contents
 
 - Expo config plugin export via `app.plugin.js`

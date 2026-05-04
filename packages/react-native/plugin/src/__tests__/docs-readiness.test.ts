@@ -1,14 +1,15 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+const PACKAGE_ROOT = resolve(__dirname, '../../..');
+
 function readProjectFile(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), 'utf8');
+  return readFileSync(resolve(PACKAGE_ROOT, relativePath), 'utf8');
 }
 
 test('README documents plugin automation boundary and unsupported host', () => {
-  const readme = readProjectFile('packages/react-native/README.md');
+  const readme = readProjectFile('README.md');
 
   assert.match(readme, /"@ddgutierrezc\/legato-react-native"/);
   assert.match(readme, /automates native baseline wiring for Expo prebuild\/dev-build hosts/i);
@@ -18,7 +19,7 @@ test('README documents plugin automation boundary and unsupported host', () => {
 
 test('compatibility doc defines plugin-owned vs app-owned responsibilities', () => {
   const compatibilityDoc = readProjectFile(
-    'packages/react-native/docs/milestone-1-compatibility-and-readiness.md',
+    'docs/milestone-1-compatibility-and-readiness.md',
   );
 
   assert.match(compatibilityDoc, /Plugin-owned automation/i);
@@ -27,7 +28,7 @@ test('compatibility doc defines plugin-owned vs app-owned responsibilities', () 
 });
 
 test('readiness checklist includes prebuild diff evidence path', () => {
-  const readinessDoc = readProjectFile('packages/react-native/docs/milestone-1-readiness-checklist.md');
+  const readinessDoc = readProjectFile('docs/milestone-1-readiness-checklist.md');
 
   assert.match(readinessDoc, /Info\.plist diff expected/i);
   assert.match(readinessDoc, /AndroidManifest\.xml diff expected/i);
@@ -35,7 +36,7 @@ test('readiness checklist includes prebuild diff evidence path', () => {
 });
 
 test('milestone-1 docs keep plugin option surface minimal', () => {
-  const readme = readProjectFile('packages/react-native/README.md');
+  const readme = readProjectFile('README.md');
 
   assert.match(readme, /plugins": \["@ddgutierrezc\/legato-react-native"\]/i);
   assert.match(readme, /milestone 1 does not expose advanced option knobs/i);
@@ -46,7 +47,7 @@ test('milestone-1 docs keep plugin option surface minimal', () => {
 });
 
 test('android conflict-resolution doc includes explicit manual steps', () => {
-  const readinessDoc = readProjectFile('packages/react-native/docs/milestone-1-readiness-checklist.md');
+  const readinessDoc = readProjectFile('docs/milestone-1-readiness-checklist.md');
 
   assert.match(readinessDoc, /Manual Android conflict resolution/i);
   assert.match(readinessDoc, /remove duplicate or incompatible `expo\.modules\.legato\.LegatoPlaybackService` entries/i);

@@ -13,3 +13,8 @@ android {
     versionName '0.1.0'
   }
 }
+
+dependencies {
+  implementation project(':expo-modules-core')
+  implementation 'io.github.ddgutierrezc:legato-core:0.1.0'
+}
