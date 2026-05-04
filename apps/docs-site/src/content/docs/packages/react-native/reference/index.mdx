@@ -1,0 +1,46 @@
+---
+title: API Reference
+description: Source-backed API reference for @ddgutierrezc/legato-react-native.
+---
+
+This section documents the public export surface from `packages/react-native/src/index.ts`.
+
+## Reference pages
+
+| Page | Description |
+|---|---|
+| **[Audio Player](./audio-player/)** | `audioPlayer` namespace (`AudioPlayerApi`) for setup, queue, transport, snapshot queries, capabilities, and listeners. |
+| **[Media Session](./media-session/)** | `mediaSession` namespace (`MediaSessionApi`) for remote-command listeners. |
+| **[Legato Facade](./legato/)** | `Legato` unified facade combining playback + media-session namespaces. |
+| **[Events](./events/)** | Event constants and listener helper exports from `events.ts`. |
+| **[Sync](./sync/)** | `createLegatoSync` and `createAudioPlayerSync` controller factories. |
+| **[Types](./types/)** | Public type contracts re-exported or declared by this package. |
+| **[Expo Config Plugin](./expo-config-plugin/)** | Build-time plugin behavior and boundaries (`plugin/src/*`). |
+| **[Parity Mapping](./parity-mapping/)** | Capability-by-capability parity map with evidence pointers. |
+
+## Export index
+
+```ts
+export { Legato, audioPlayer, mediaSession };
+export {
+  AUDIO_PLAYER_EVENTS,
+  MEDIA_SESSION_EVENTS,
+  LEGATO_EVENTS,
+  addAudioPlayerListener,
+  addMediaSessionListener,
+  addLegatoListener,
+  onPlaybackStateChanged,
+  onPlaybackActiveTrackChanged,
+  onPlaybackQueueChanged,
+  onPlaybackProgress,
+  onPlaybackEnded,
+  onPlaybackError,
+  onRemotePlay,
+  onRemotePause,
+  onRemoteNext,
+  onRemotePrevious,
+  onRemoteSeek,
+};
+export { createAudioPlayerSync, createLegatoSync };
+export type * from './definitions';
+```

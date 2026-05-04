@@ -1,0 +1,46 @@
+---
+title: Sync Controllers
+description: Reference for createLegatoSync and createAudioPlayerSync.
+---
+
+Sync controllers are implemented in `src/sync.ts` and provide local snapshot projection from one initial snapshot plus event updates.
+
+## Factory functions
+
+| Function | Return | Notes |
+|---|---|---|
+| `createLegatoSync(options?)` | `LegatoSyncController` | Uses `options.client` or defaults to `Legato`. |
+| `createAudioPlayerSync(options?)` | `LegatoSyncController` | Alias that calls `createLegatoSync(options)`. |
+
+## Options
+
+| Option | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `client` | `AudioPlayerApi` | ❌ | `Legato` | API client used for `getSnapshot()` and event subscriptions. |
+| `onSnapshot` | `(snapshot) => void` | ❌ | — | Called whenever controller publishes a new current snapshot. |
+| `onEvent` | `(eventName, payload) => void` | ❌ | — | Called on each event received through subscriptions. |
+
+## Controller interface
+
+```ts
+interface LegatoSyncController {
+  start(): Promise<PlaybackSnapshot>;
+  resync(): Promise<PlaybackSnapshot>;
+  getCurrent(): PlaybackSnapshot | null;
+  stop(): Promise<void>;
+}
+```
+
+## Behavioral guarantees from tests
+
+`src/__tests__/sync-behavior-parity.test.ts` verifies:
+
+- `start()` performs `resync()` before adding listeners.
+- Queue/state/progress/active-track events project into the current snapshot.
+- Non-projecting events (for example `playback-error`, remote commands) trigger `onEvent` but do not mutate the snapshot.
+- `stop()` removes all registered listener handles.
+
+```ts
+const sync = createLegatoSync({ onSnapshot: (s) => setSnapshot(s) });
+await sync.start();
+```

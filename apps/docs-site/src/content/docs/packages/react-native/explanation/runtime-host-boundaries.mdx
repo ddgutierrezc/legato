@@ -1,0 +1,25 @@
+---
+title: Runtime Host Boundaries
+description: Why native validation claims depend on Expo dev-build hosts, not Expo Go.
+---
+
+Runtime host boundaries define where native behavior evidence is considered valid.
+
+## Host policy
+
+Source docs in `packages/react-native/docs/milestone-1-compatibility-and-readiness.md` and package README establish:
+
+- Expo Go is excluded for native playback validation claims.
+- Supported claim host is Expo development build generated via `expo prebuild` and run with `expo run:ios` / `expo run:android`.
+
+## Why this matters
+
+The JavaScript wrapper (`src/plugin.ts`, `src/events.ts`, `src/sync.ts`) can be tested in isolation, but native playback behavior also depends on native module execution paths (`ios/LegatoModule.swift`, `android/.../LegatoModule.kt`).
+
+That native path is part of the claim, so host evidence must execute the native module in real development build hosts.
+
+## Evidence consequence
+
+A parity claim can remain blocked even if JS tests pass, when dual-platform host evidence is missing or incomplete.
+
+Related: [Parity Mapping](../reference/parity-mapping/) and [Troubleshoot Host and Parity Validation](../how-to/troubleshoot-host-and-parity-validation/).

@@ -1,0 +1,55 @@
+---
+title: Events
+description: Event constants and listener helpers exported by @ddgutierrezc/legato-react-native.
+---
+
+The package exports three constant arrays and helper functions from `src/events.ts`.
+
+## Constants
+
+| Constant | Source |
+|---|---|
+| `AUDIO_PLAYER_EVENTS` | `PLAYER_EVENT_NAMES` from `@ddgutierrezc/legato-contract` |
+| `MEDIA_SESSION_EVENTS` | `MEDIA_SESSION_EVENT_NAMES` from `@ddgutierrezc/legato-contract` |
+| `LEGATO_EVENTS` | `LEGATO_EVENT_NAMES` from `@ddgutierrezc/legato-contract` |
+
+## Helper functions
+
+| Export | Purpose |
+|---|---|
+| `addAudioPlayerListener` | Bound helper to `audioPlayer.addListener`. |
+| `addMediaSessionListener` | Bound helper to `mediaSession.addListener`. |
+| `addLegatoListener` | Facade-level listener helper (`Legato.addListener`). |
+| `onPlaybackStateChanged` | Shortcut for `'playback-state-changed'`. |
+| `onPlaybackActiveTrackChanged` | Shortcut for `'playback-active-track-changed'`. |
+| `onPlaybackQueueChanged` | Shortcut for `'playback-queue-changed'`. |
+| `onPlaybackProgress` | Shortcut for `'playback-progress'`. |
+| `onPlaybackEnded` | Shortcut for `'playback-ended'`. |
+| `onPlaybackError` | Shortcut for `'playback-error'`. |
+| `onRemotePlay` | Shortcut for `'remote-play'`. |
+| `onRemotePause` | Shortcut for `'remote-pause'`. |
+| `onRemoteNext` | Shortcut for `'remote-next'`. |
+| `onRemotePrevious` | Shortcut for `'remote-previous'`. |
+| `onRemoteSeek` | Shortcut for `'remote-seek'`. |
+
+## Canonical event names
+
+`LegatoModule` (iOS and Android) declares these event names:
+
+- `playback-state-changed`
+- `playback-active-track-changed`
+- `playback-queue-changed`
+- `playback-progress`
+- `playback-ended`
+- `playback-error`
+- `remote-play`
+- `remote-pause`
+- `remote-next`
+- `remote-previous`
+- `remote-seek`
+
+```ts
+const handle = onPlaybackProgress(({ position }) => {
+  // update UI from projected progress
+});
+```

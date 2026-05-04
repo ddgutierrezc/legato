@@ -1,6 +1,6 @@
 ---
 title: Parity Boundaries
-description: Scope guardrails for React Native baseline parity claims.
+description: In-scope and out-of-scope guardrails for React Native parity claims.
 ---
 
 This page defines what counts as parity progress for `expo-react-native-parity-v1`.
@@ -18,5 +18,15 @@ This page defines what counts as parity progress for `expo-react-native-parity-v
 - Product expansion work framed as “parity”.
 - Expo Go claims for native runtime parity.
 - Device/OEM reliability guarantees beyond validated baseline scenarios.
+
+## Why this boundary exists
+
+The package has separate layers with separate evidence types:
+
+- JS surface parity tests validate exports and helper contracts.
+- Runtime behavior claims require native host execution evidence.
+- Plugin behavior is prebuild-time and cannot prove runtime app orchestration.
+
+Combining those layers into one claim without evidence per layer would overstate what source currently guarantees.
 
 If a request falls in out-of-scope, it must be deferred into a separate change proposal.

@@ -1,0 +1,39 @@
+---
+title: Media Session API
+description: Reference for the mediaSession namespace in @ddgutierrezc/legato-react-native.
+---
+
+`mediaSession` is typed as `MediaSessionApi` and exposes listener-oriented remote command integration.
+
+## Interface
+
+```ts
+interface MediaSessionApi {
+  setup(): Promise<void>;
+  addListener<E extends MediaSessionEventName>(
+    eventName: E,
+    listener: MediaSessionListener<E>
+  ): Promise<BindingListenerHandle>;
+  removeAllListeners(): Promise<void>;
+}
+```
+
+## Methods
+
+| Method | Purpose |
+|---|---|
+| `setup()` | Delegates to shared setup bridge (`LegatoModule.setup`). |
+| `addListener(eventName, listener)` | Subscribes to media-session event names using native module events. |
+| `removeAllListeners()` | Clears registered listeners at the native module layer. |
+
+## Event name source
+
+The event-name set is exported from `MEDIA_SESSION_EVENTS`, which is assigned from `MEDIA_SESSION_EVENT_NAMES` in `@ddgutierrezc/legato-contract`.
+
+```ts
+const handle = await mediaSession.addListener('remote-play', () => {
+  // app decides behavior
+});
+
+await handle.remove();
+```

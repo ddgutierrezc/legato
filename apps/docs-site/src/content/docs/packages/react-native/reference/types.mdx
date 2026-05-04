@@ -1,0 +1,41 @@
+---
+title: Types
+description: Public TypeScript types exposed by @ddgutierrezc/legato-react-native.
+---
+
+The package exports all types from `src/definitions.ts` (`export type * from './definitions'`).
+
+## Re-exported contract types
+
+| Type | Origin |
+|---|---|
+| `LegatoError` | `@ddgutierrezc/legato-contract` |
+| `PlaybackSnapshot` | `@ddgutierrezc/legato-contract` |
+| `PlaybackState` | `@ddgutierrezc/legato-contract` |
+| `QueueSnapshot` | `@ddgutierrezc/legato-contract` |
+| `Track` | `@ddgutierrezc/legato-contract` |
+| `HeaderGroup` | `@ddgutierrezc/legato-contract` |
+| `AudioPlayerEventName` / `MediaSessionEventName` / `LegatoEventName` | `@ddgutierrezc/legato-contract` |
+| `AudioPlayerEventPayloadMap` / `MediaSessionEventPayloadMap` / `LegatoEventPayloadMap` | `@ddgutierrezc/legato-contract` |
+
+## Package-local interfaces
+
+| Type | Purpose |
+|---|---|
+| `SetupOptions` | Setup-time header group registration. |
+| `AddOptions` | Queue add input shape. |
+| `RemoveOptions` | Queue remove by `id` or `index`. |
+| `SeekToOptions` | Seek input (`position`). |
+| `SkipToOptions` | Index-based skip input. |
+| `BindingListenerHandle` | Listener removal handle (`remove()`). |
+| `BindingCapabilitiesSnapshot` | Runtime capability projection (`supported: Capability[]`). |
+| `BindingAdapter` | Full bridge adapter contract. |
+| `AudioPlayerApi` | Playback namespace contract. |
+| `MediaSessionApi` | Remote session namespace contract. |
+| `LegatoApi` | Combined player + media-session API. |
+| `LegatoEventApi` | Unified event-listener contract. |
+
+## Notes on strictness
+
+- Event names and payload maps are tied to the contract package type exports.
+- The parity checklist records a strictness gate for public type coverage in this baseline scope.

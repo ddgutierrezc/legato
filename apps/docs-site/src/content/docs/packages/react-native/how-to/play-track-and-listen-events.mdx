@@ -1,0 +1,54 @@
+---
+title: How to play a track and listen to events
+description: Minimal app-owned runtime wiring for playback plus listener lifecycle.
+---
+
+## Prerequisites
+
+- Package installed and Expo dev build setup completed.
+- Native host app running (`expo run:ios` or `expo run:android`).
+
+## Steps
+
+1. Call setup before playback operations.
+
+```ts
+await audioPlayer.setup();
+```
+
+2. Register listeners.
+
+```ts
+const progressHandle = onPlaybackProgress(({ position }) => {
+  console.log('position', position);
+});
+const stateHandle = onPlaybackStateChanged(({ state }) => {
+  console.log('state', state);
+});
+```
+
+3. Add a track to queue.
+
+```ts
+await audioPlayer.add({
+  tracks: [{ id: 'intro', url: 'https://example.com/intro.mp3' }],
+  startIndex: 0,
+});
+```
+
+4. Start playback.
+
+```ts
+await audioPlayer.play();
+```
+
+5. Remove listeners during teardown.
+
+```ts
+await progressHandle.remove();
+await stateHandle.remove();
+```
+
+## Expected Result
+
+Playback and event delivery are app-wired from runtime namespaces (`audioPlayer`, listener helpers), with explicit listener cleanup.
