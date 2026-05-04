@@ -1,6 +1,6 @@
 {
   "name": "@ddgutierrezc/legato-react-native",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Expo Modules binding package for Legato host apps.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
@@ -29,7 +29,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/ddgutierrezc/legato.git",
+    "url": "git+https://github.com/ddgutierrezc/legato.git",
     "directory": "packages/react-native"
   },
   "bugs": {
@@ -37,7 +37,7 @@
   },
   "author": "Legato",
   "license": "MIT",
-  "homepage": "https://github.com/ddgutierrezc/legato/tree/main/packages/react-native#readme",
+  "homepage": "https://legato-docs.netlify.app/packages/react-native/",
   "exports": {
     ".": "./build/index.js"
   },

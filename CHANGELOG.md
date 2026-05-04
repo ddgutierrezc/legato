@@ -5,6 +5,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-05-04
+
+### Added
+- First stable Expo/React Native package line published for Legato.
+- Stable public package line now includes:
+  - `@ddgutierrezc/legato-contract@1.1.0`
+  - `@ddgutierrezc/legato-capacitor@1.1.0`
+  - `@ddgutierrezc/legato-react-native@1.0.0`
+- Expo config-plugin baseline for React Native hosts now automates minimum native playback wiring for iOS background audio and Android foreground playback service requirements.
+- Exhaustive React Native documentation is now available in the public docs-site, including reference, how-to, explanation, parity mapping, and troubleshooting pages.
+
+### Changed
+- Legato now supports a verified baseline React Native/Expo host story alongside the existing Capacitor baseline.
+- Canonical GitHub release publication is now handled manually with `gh`, while GitHub Actions continue to support artifact/package publication and release evidence generation.
+
+### Fixed
+- Closed the baseline parity gap between `@ddgutierrezc/legato-react-native` and `@ddgutierrezc/legato-capacitor` for the supported playback scope.
+- Removed release-workflow ownership of canonical GitHub release publication while keeping npm release automation aligned with the new React Native target.
+
+### Security
+- Expo Go remains out of scope for native playback validation; the supported React Native baseline continues to require Expo prebuild/dev-build hosts.
+
 ### Added
 - GitHub Release communications contract (facts + required human narrative) wired to release-control evidence.
 - Canonical `1.0.0` decision artifacts published under `docs/releases/`: criteria (`v1-release-criteria-v1.md`), gap matrix (`v1-release-gap-matrix-v1.md`), deferrals (`v1-release-deferral-register-v1.md`), and final verdict record (`v1-release-go-no-go-record-v1.md`).
