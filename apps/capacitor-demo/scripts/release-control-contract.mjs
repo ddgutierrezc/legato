@@ -1,5 +1,7 @@
 const TARGETS = ['android', 'ios', 'npm'];
 import { buildCanonicalRefs } from './release-paths.mjs';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 // Governance v1 note:
 // - target/mode validation is a preflight contract gate for release-control.yml.
@@ -44,7 +46,7 @@ export const validateReleaseControlContract = ({
   repoRoot = '.',
   npmPackageTarget = 'capacitor',
   releaseChannel = 'stable',
-  releaseVersion = '0.1.1',
+  releaseVersion,
   releaseKey = '',
 } = {}) => {
   const errors = [];
@@ -98,10 +100,29 @@ export const validateReleaseControlContract = ({
     }
   }
 
+  const normalizedRepoRoot = String(repoRoot ?? '.').trim() || '.';
+  const normalizedNpmPackageTarget = String(npmPackageTarget ?? '').trim() || 'capacitor';
+
+  const deriveDefaultReleaseVersion = () => {
+    if (normalizedNpmPackageTarget === 'react-native') {
+      try {
+        const packageJson = JSON.parse(
+          readFileSync(resolve(normalizedRepoRoot, 'packages/react-native/package.json'), 'utf8'),
+        );
+        return String(packageJson?.version ?? '1.0.0').trim() || '1.0.0';
+      } catch {
+        return '1.0.0';
+      }
+    }
+    return '0.1.1';
+  };
+
+  const derivedDefaultReleaseVersion = deriveDefaultReleaseVersion();
+
   const releaseIdentity = {
     channel: String(releaseChannel ?? 'stable').trim() || 'stable',
-    version: String(releaseVersion ?? '0.1.1').trim() || '0.1.1',
-    package_target: String(npmPackageTarget ?? '').trim() || 'capacitor',
+    version: String(releaseVersion ?? derivedDefaultReleaseVersion).trim() || derivedDefaultReleaseVersion,
+    package_target: normalizedNpmPackageTarget,
   };
   releaseIdentity.release_key = `${releaseIdentity.channel}/v${releaseIdentity.version.replace(/^v/i, '')}/${releaseIdentity.package_target}`;
   const explicitReleaseKey = String(releaseKey ?? '').trim();
@@ -127,7 +148,7 @@ export const validateReleaseControlContract = ({
         release_id: normalizedReleaseId,
         release_identity: releaseIdentity,
         phase: normalizePhase(phase),
-        repo_root: String(repoRoot ?? '.').trim() || '.',
+        repo_root: normalizedRepoRoot,
         selected_targets: normalizedTargets,
         target_modes: Object.fromEntries(
           normalizedTargets.map((target) => [target, String(targetModes[target] ?? '').trim()]),
@@ -135,7 +156,7 @@ export const validateReleaseControlContract = ({
         inputs: {
           canonical_refs: refs.canonical,
           compatibility_refs: refs.compatibility,
-          npm_package_target: String(npmPackageTarget ?? '').trim() || 'capacitor',
+          npm_package_target: normalizedNpmPackageTarget,
         },
         artifacts: buildPacketRefs(normalizedReleaseId),
       },

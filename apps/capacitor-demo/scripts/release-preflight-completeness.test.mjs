@@ -145,6 +145,53 @@ test('release preflight reports package target scope violations with canonical r
   assert.equal(result.diagnostics.some((d) => d.code === 'PACKAGE_TARGET_SCOPE'), true);
 });
 
+test('release preflight accepts react-native as npm package target when canonical narrative exists', async () => {
+  const releaseId = 'react-native-publish-1-0-0-001';
+  const repoRoot = await setupRepo({ releaseId, withNarrative: true, withDerivative: false });
+  await writeFile(resolve(repoRoot, 'docs/releases/notes/stable-v1.0.0-react-native.json'), JSON.stringify({ summary: 'RN release' }, null, 2));
+  await writeFile(resolve(repoRoot, `apps/capacitor-demo/artifacts/release-control/${releaseId}/release-execution-packet.json`), JSON.stringify({
+    schema_version: 'release-execution-packet/v2',
+    release_id: releaseId,
+    phase: 'preflight',
+    repo_root: repoRoot,
+    release_identity: {
+      channel: 'stable',
+      version: '1.0.0',
+      package_target: 'react-native',
+      release_key: 'stable/v1.0.0/react-native',
+    },
+    selected_targets: ['npm'],
+    target_modes: { npm: 'protected-publish' },
+    inputs: {
+      canonical_refs: {
+        narrative_ref: 'docs/releases/notes/stable-v1.0.0-react-native.json',
+        ios_derivative_ref: 'docs/releases/notes/stable-v1.0.0-react-native-ios-derivative.md',
+        changelog_anchor: 'CHANGELOG.md#release-stable-v1.0.0-react-native',
+      },
+      compatibility_refs: {
+        narrative_ref: `docs/releases/notes/${releaseId}.json`,
+        ios_derivative_ref: `docs/releases/notes/${releaseId}-ios-derivative.md`,
+        changelog_anchor: `CHANGELOG.md#r-${releaseId.toLowerCase()}`,
+      },
+      npm_package_target: 'react-native',
+    },
+    artifacts: {
+      summary_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/summary.json`,
+      facts_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/release-facts.json`,
+      reconciliation_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/reconciliation-report.json`,
+      closure_bundle_ref: `apps/capacitor-demo/artifacts/release-control/${releaseId}/closure-bundle.json`,
+    },
+  }, null, 2));
+
+  const result = await evaluateReleasePreflightCompleteness({
+    repoRoot,
+    releasePacketPath: resolve(repoRoot, `apps/capacitor-demo/artifacts/release-control/${releaseId}/release-execution-packet.json`),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.missing.length, 0);
+});
+
 test('release preflight fails closed with IDENTITY_AMBIGUOUS for conflicting release identity key', async () => {
   const releaseId = 'R-2026.04.27.12';
   const repoRoot = await setupRepo({ releaseId, withNarrative: true, withDerivative: true });
