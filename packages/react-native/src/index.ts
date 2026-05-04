@@ -1,4 +1,22 @@
-export { default as LegatoModule } from './LegatoModule';
-export { canonicalEventNames, createLegatoWrapper } from './legato-wrapper';
-export { LEGATO_EVENTS, addLegatoListener } from './events';
-export { createLegatoSync } from './sync';
+export type * from './definitions';
+export { Legato, audioPlayer, mediaSession } from './plugin';
+export {
+  AUDIO_PLAYER_EVENTS,
+  MEDIA_SESSION_EVENTS,
+  addAudioPlayerListener,
+  addMediaSessionListener,
+  LEGATO_EVENTS,
+  addLegatoListener,
+  onPlaybackActiveTrackChanged,
+  onPlaybackEnded,
+  onPlaybackError,
+  onPlaybackProgress,
+  onPlaybackQueueChanged,
+  onPlaybackStateChanged,
+  onRemoteNext,
+  onRemotePause,
+  onRemotePlay,
+  onRemotePrevious,
+  onRemoteSeek,
+} from './events';
+export { createAudioPlayerSync, createLegatoSync } from './sync';

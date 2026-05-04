@@ -1,4 +1,4 @@
-import configPlugins from 'expo/config-plugins.js';
+import * as configPlugins from 'expo/config-plugins';
 import type { AndroidConfig as ExpoAndroidConfig, ConfigPlugin } from 'expo/config-plugins';
 
 const { AndroidConfig, withAndroidManifest } = configPlugins;
