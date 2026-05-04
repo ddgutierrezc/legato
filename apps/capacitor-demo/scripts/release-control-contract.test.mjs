@@ -65,6 +65,21 @@ test('release control contract normalizes a valid cross-platform request with on
   assert.equal(result.value.packet.inputs.compatibility_refs.narrative_ref, 'docs/releases/notes/R-2026.04.24.1.json');
 });
 
+test('release control contract derives react-native release identity from published package line', () => {
+  const result = validateReleaseControlContract({
+    releaseId: 'react-native-publish-1-0-0-001',
+    targets: 'npm',
+    targetModes: { npm: 'protected-publish' },
+    repoRoot: '../..',
+    npmPackageTarget: 'react-native',
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value.packet.release_identity.version, '1.0.0');
+  assert.equal(result.value.packet.release_identity.release_key, 'stable/v1.0.0/react-native');
+  assert.equal(result.value.packet.inputs.canonical_refs.narrative_ref, 'docs/releases/notes/stable-v1.0.0-react-native.json');
+});
+
 test('release control contract keeps release identity stable across reruns while release id changes', () => {
   const first = validateReleaseControlContract({
     releaseId: 'R-2026.04.24.1',

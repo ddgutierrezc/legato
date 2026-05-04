@@ -261,13 +261,13 @@ export const evaluateReleasePreflightCompleteness = async ({
 
   if (targets.includes('npm')) {
     const normalizedPackageTarget = effectiveNpmPackageTarget;
-    if (!['capacitor', 'contract'].includes(normalizedPackageTarget)) {
+    if (!['capacitor', 'contract', 'react-native'].includes(normalizedPackageTarget)) {
       addMissing(missing, diagnostics, {
         field: 'npm_package_target',
         target: 'npm',
-        expected: 'capacitor|contract',
+        expected: 'capacitor|contract|react-native',
         reason_code: 'PACKAGE_TARGET_SCOPE',
-        message: 'npm_package_target must be capacitor or contract when npm lane is selected.',
+        message: 'npm_package_target must be capacitor, contract, or react-native when npm lane is selected.',
         release_id: effectiveReleaseId,
       });
     }

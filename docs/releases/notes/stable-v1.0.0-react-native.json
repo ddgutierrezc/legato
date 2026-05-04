@@ -1,0 +1,17 @@
+{
+  "why_it_matters": "Legato now publishes a first stable React Native/Expo package line with baseline parity against the Capacitor package for the supported playback scope.",
+  "user_impact": "Expo and React Native consumers can now install a stable `@ddgutierrezc/legato-react-native@1.0.0` package with baseline playback surface parity, config-plugin wiring, and exhaustive package documentation.",
+  "upgrade_notes": "Install `@ddgutierrezc/legato-react-native@1.0.0` together with `@ddgutierrezc/legato-contract@1.1.0`, enable the Expo plugin in app config, then regenerate native projects with `expo prebuild --clean` before running iOS or Android hosts.",
+  "breaking_changes": "None. This is the first stable release line for the React Native package.",
+  "affected_platforms": "npm, ios, android",
+  "highlights": [
+    "Publishes the first stable React Native/Expo package line for Legato.",
+    "Provides baseline parity with the Capacitor package across the supported playback surface.",
+    "Includes a minimal Expo config plugin for iOS background audio and Android foreground playback service wiring.",
+    "Ships exhaustive public documentation for React Native package setup, API reference, parity boundaries, and troubleshooting."
+  ],
+  "known_limitations": [
+    "Expo Go remains out of scope for native playback validation.",
+    "Broader event-semantic coverage depth and tooling hygiene follow-ups remain tracked separately and do not block the stable baseline claim."
+  ]
+}
