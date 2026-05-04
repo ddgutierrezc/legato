@@ -431,8 +431,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "./artifacts/release-control/${RELEASE_ID}"
-          narrative_file="../../docs/releases/notes/${RELEASE_ID}.json"
-          derivative_notes_file="../../docs/releases/notes/${RELEASE_ID}-ios-derivative.md"
+          release_packet="${{ needs.validate-dispatch.outputs.release_packet_path }}"
+          narrative_ref=$(node -e 'const fs=require("node:fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(p?.inputs?.canonical_refs?.narrative_ref ?? ""));' "$release_packet")
+          derivative_ref=$(node -e 'const fs=require("node:fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(p?.inputs?.canonical_refs?.ios_derivative_ref ?? ""));' "$release_packet")
+          changelog_anchor=$(node -e 'const fs=require("node:fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(p?.inputs?.canonical_refs?.changelog_anchor ?? ""));' "$release_packet")
+          narrative_file="../../${narrative_ref}"
+          derivative_notes_file="../../${derivative_ref}"
           if [[ ! -f "$narrative_file" ]]; then
             echo "MISSING_NARRATIVE_OR_DERIVATIVE_NOTES: Missing required narrative file: $narrative_file" >&2
             echo "Copy docs/releases/notes/release-narrative.template.json and fill required fields." >&2
@@ -446,14 +450,14 @@ jobs:
 
           node ./scripts/release-changelog-facts.mjs \
             --release-id "$RELEASE_ID" \
-            --release-packet "${{ needs.validate-dispatch.outputs.release_packet_path }}" \
+            --release-packet "$release_packet" \
             --summary "./artifacts/release-control/${RELEASE_ID}/summary.json" \
             --output "./artifacts/release-control/${RELEASE_ID}/release-facts.json" >/dev/null
 
           node ./scripts/generate-github-release-notes.mjs \
             --facts "./artifacts/release-control/${RELEASE_ID}/release-facts.json" \
             --narrative "$narrative_file" \
-            --changelog-anchor "CHANGELOG.md#r-${RELEASE_ID,,}" \
+            --changelog-anchor "$changelog_anchor" \
             --out-json "./artifacts/release-control/${RELEASE_ID}/github-release.json" \
             --out-markdown "./artifacts/release-control/${RELEASE_ID}/github-release.md" >/dev/null
 
@@ -482,20 +486,20 @@ jobs:
             --summary "./artifacts/release-control/${RELEASE_ID}/summary.json" \
             --facts "./artifacts/release-control/${RELEASE_ID}/release-facts.json" \
             --reconciliation "./artifacts/release-control/${RELEASE_ID}/reconciliation-report.json" \
-            --release-packet "${{ needs.validate-dispatch.outputs.release_packet_path }}" \
+            --release-packet "$release_packet" \
             --evidence-index-ref "docs/releases/evidence-index/${RELEASE_ID}.json" \
             --expected-head "${{ github.sha }}" \
             --output-dir "./artifacts/release-control/${RELEASE_ID}" >/dev/null
 
           node ./scripts/validate-release-closeout.mjs \
             --closure-bundle "./artifacts/release-control/${RELEASE_ID}/closure-bundle.json" \
-            --release-packet "${{ needs.validate-dispatch.outputs.release_packet_path }}" \
+            --release-packet "$release_packet" \
             --expected-head "${{ github.sha }}" \
             --output "./artifacts/release-control/${RELEASE_ID}/fresh-head-closeout.json" >/dev/null
 
           reconciliation_ok=$(node -e 'const fs=require("node:fs");const r=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(Boolean(r.ok)));' "./artifacts/release-control/${RELEASE_ID}/reconciliation-report.json")
           closeout_ok=$(node -e 'const fs=require("node:fs");const r=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(r.status==="PASS"));' "./artifacts/release-control/${RELEASE_ID}/fresh-head-closeout.json")
-          packet_schema=$(node -e 'const fs=require("node:fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(p.schema_version ?? ""));' "${{ needs.validate-dispatch.outputs.release_packet_path }}")
+          packet_schema=$(node -e 'const fs=require("node:fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(p.schema_version ?? ""));' "$release_packet")
           echo "release_packet_schema=$packet_schema" >> "$GITHUB_OUTPUT"
           echo "reconciliation_ok=$reconciliation_ok" >> "$GITHUB_OUTPUT"
           echo "fresh_head_closeout_ok=$closeout_ok" >> "$GITHUB_OUTPUT"

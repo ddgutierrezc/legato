@@ -106,7 +106,9 @@ test('release control workflow enforces release communications reconciliation ga
   assert.match(workflow, /generate-github-release-notes\.mjs/i);
   assert.match(workflow, /validate-release-reconciliation\.mjs/i);
   assert.match(workflow, /--derivative-notes/i);
-  assert.match(workflow, /docs\/releases\/notes\/\$\{RELEASE_ID\}-ios-derivative\.md/i);
+  assert.match(workflow, /canonical_refs\?\.ios_derivative_ref/i);
+  assert.match(workflow, /canonical_refs\?\.narrative_ref/i);
+  assert.match(workflow, /canonical_refs\?\.changelog_anchor/i);
   assert.match(workflow, /needs\.validate-dispatch\.outputs\.ios_selected/i);
   assert.match(workflow, /release-notes-/i);
   assert.match(workflow, /release-closure-bundle\.mjs/i);
