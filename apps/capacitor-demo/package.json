@@ -55,7 +55,7 @@
   "dependencies": {
     "@capacitor/android": "^8.0.0",
     "@capacitor/core": "^8.0.0",
-    "@capacitor/ios": "^8.0.0",
+    "@capacitor/ios": "^8.3.4",
     "@ddgutierrezc/legato-capacitor": "file:../../packages/capacitor",
     "@ddgutierrezc/legato-contract": "file:../../packages/contract"
   },
