@@ -68,7 +68,7 @@ jobs:
       release_packet_path: ${{ steps.release-packet.outputs.release_packet_path }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -161,7 +161,7 @@ jobs:
         working-directory: apps/capacitor-demo
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -226,7 +226,7 @@ jobs:
         working-directory: apps/capacitor-demo
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -302,7 +302,7 @@ jobs:
         working-directory: apps/capacitor-demo
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node
         uses: actions/setup-node@v6
